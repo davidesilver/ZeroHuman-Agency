@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
+from pydantic import BaseModel
+
 from ..db import get_db
 from ..models import TriggerRequest, ScoringRequest
 from ..orchestrator.research import run_research
+from ..orchestrator.content import generate_content, generate_and_god
+from ..agents.god_system import run_god_mode
+from ..agents.adapter import adapt_content
 from ..scoring.engine import run_scoring
 
 router = APIRouter(prefix="/api")
@@ -108,6 +113,95 @@ async def trigger_scoring(req: ScoringRequest | None = None):
         req = ScoringRequest()
     result = await run_scoring(BRAND_ID, req)
     return {"success": True, "data": result}
+
+
+class GenerateRequest(BaseModel):
+    research_item_id: str
+    platform: str = "linkedin"
+    content_type: str = "post"
+    run_god: bool = False
+
+
+class GodModeRequest(BaseModel):
+    pass
+
+
+class AdaptRequest(BaseModel):
+    target_platforms: list[str]
+
+
+@router.post("/content/generate")
+async def api_generate_content(req: GenerateRequest):
+    if req.run_god:
+        result = await generate_and_god(
+            BRAND_ID, req.research_item_id, req.platform, req.content_type,
+        )
+    else:
+        result = await generate_content(
+            BRAND_ID, req.research_item_id, req.platform, req.content_type,
+        )
+    return {"success": True, "data": result}
+
+
+@router.post("/content/drafts/{draft_id}/god-mode")
+async def api_god_mode(draft_id: str):
+    result = await run_god_mode(BRAND_ID, draft_id)
+    return {"success": True, "data": result}
+
+
+@router.post("/content/drafts/{draft_id}/adapt")
+async def api_adapt_content(draft_id: str, req: AdaptRequest):
+    results = await adapt_content(BRAND_ID, draft_id, req.target_platforms)
+    return {"success": True, "data": results}
+
+
+@router.get("/content/drafts")
+async def list_drafts(
+    status: str | None = None,
+    content_type: str | None = None,
+    platform: str | None = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+):
+    db = get_db()
+    query = (
+        db.table("content_drafts")
+        .select("*", count="exact")
+        .eq("brand_id", BRAND_ID)
+        .order("created_at", desc=True)
+    )
+    if status:
+        query = query.eq("status", status)
+    if content_type:
+        query = query.eq("content_type", content_type)
+    if platform:
+        query = query.eq("platform", platform)
+    query = query.range((page - 1) * per_page, page * per_page - 1)
+    resp = query.execute()
+    return {
+        "success": True,
+        "data": resp.data,
+        "meta": {"page": page, "per_page": per_page, "total": resp.count or 0},
+    }
+
+
+@router.patch("/content/drafts/{draft_id}")
+async def update_draft(draft_id: str, body: dict):
+    allowed = {"status", "title", "body", "scheduled_at"}
+    updates = {k: v for k, v in body.items() if k in allowed}
+    if not updates:
+        raise HTTPException(400, "No valid fields to update")
+    db = get_db()
+    resp = (
+        db.table("content_drafts")
+        .update(updates)
+        .eq("id", draft_id)
+        .eq("brand_id", BRAND_ID)
+        .execute()
+    )
+    if not resp.data:
+        raise HTTPException(404, "Draft not found")
+    return {"success": True, "data": resp.data[0]}
 
 
 @router.get("/research/stats")
