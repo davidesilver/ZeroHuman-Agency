@@ -34,7 +34,7 @@ export function ActivityLog() {
                 colSpan={3}
                 className="text-center text-sm text-muted-foreground py-8"
               >
-                Nessuna attivita &mdash; il sistema non e ancora attivo
+                No activity &mdash; system not yet active
               </TableCell>
             </TableRow>
           </TableBody>

@@ -109,7 +109,7 @@ export default function RicercaPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Ricerca</h1>
+        <h1 className="text-2xl font-bold">Research</h1>
         <Button
           onClick={handleTrigger}
           disabled={isTriggering}
@@ -118,12 +118,12 @@ export default function RicercaPage() {
           {isTriggering ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Ricerca in corso...
+              Searching...
             </>
           ) : (
             <>
               <Search className="size-4" />
-              Lancia Ricerca
+              Run Search
             </>
           )}
         </Button>
@@ -145,10 +145,10 @@ export default function RicercaPage() {
             disabled={page <= 1}
             onClick={() => setPage((p) => p - 1)}
           >
-            Precedente
+            Previous
           </Button>
           <span className="text-sm text-muted-foreground">
-            Pagina {page} di {totalPages}
+            Page {page} of {totalPages}
           </span>
           <Button
             variant="outline"
@@ -156,7 +156,7 @@ export default function RicercaPage() {
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
           >
-            Successiva
+            Next
           </Button>
         </div>
       )}

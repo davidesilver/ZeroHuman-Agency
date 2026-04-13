@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     serper_api_key: str = ""
     youtube_api_key: str = ""
     anthropic_api_key: str = ""
+    resend_api_key: str = ""
+    newsletter_from_email: str = "newsletter@yourdomain.com"
+    newsletter_from_name: str = "Content Engine"
 
     # Scoring
     scoring_model: str = "anthropic/claude-sonnet-4-20250514"

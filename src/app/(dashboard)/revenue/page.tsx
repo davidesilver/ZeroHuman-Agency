@@ -58,18 +58,18 @@ export default function RevenuePage() {
       <h1 className="text-2xl font-bold">Revenue & Pipeline Health</h1>
 
       <div className="grid grid-cols-4 gap-4">
-        <KPICard title="MRR" value="—" subtitle="Da configurare" />
-        <KPICard title="Affiliati MTD" value="—" subtitle="Da configurare" />
-        <KPICard title="Sponsorship" value="—" subtitle="Da configurare" />
-        <KPICard title="Costi API MTD" value={`$${costs.spend_month.toFixed(2)}`} />
+        <KPICard title="MRR" value="—" subtitle="To configure" />
+        <KPICard title="Affiliates MTD" value="—" subtitle="To configure" />
+        <KPICard title="Sponsorship" value="—" subtitle="To configure" />
+        <KPICard title="API Costs MTD" value={`$${costs.spend_month.toFixed(2)}`} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardContent className="pt-4">
-            <h3 className="text-sm font-medium mb-4">Revenue 6 mesi</h3>
+            <h3 className="text-sm font-medium mb-4">Revenue 6 months</h3>
             <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
-              Grafico disponibile con dati reali
+              Chart available with real data
             </div>
           </CardContent>
         </Card>
@@ -79,13 +79,13 @@ export default function RevenuePage() {
             <h3 className="text-sm font-medium mb-4">Pipeline Health</h3>
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span>Uptime Agenti</span>
+                <span>Agent Uptime</span>
                 <span className="font-medium text-staging-bg">
                   {health.summary.avg_uptime > 0 ? `${health.summary.avg_uptime}%` : '—'}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>Errori oggi</span>
+                <span>Errors today</span>
                 <span className="font-medium">{health.summary.total_errors}</span>
               </div>
               <div className="flex justify-between text-sm">
@@ -122,14 +122,14 @@ export default function RevenuePage() {
 
       <Card>
         <CardContent className="pt-4">
-          <h3 className="text-sm font-medium mb-4">Deal Attivi</h3>
+          <h3 className="text-sm font-medium mb-4">Active Deals</h3>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Partner</TableHead>
                 <TableHead>Tipo</TableHead>
-                <TableHead className="text-right">Importo</TableHead>
-                <TableHead>Scadenza</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Expiry</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -137,7 +137,7 @@ export default function RevenuePage() {
               {deals.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    Nessun deal attivo. La sezione si popola dalla tabella deals.
+                    No active deals. This section populates from the deals table.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -149,7 +149,7 @@ export default function RevenuePage() {
                       {deal.currency === 'EUR' ? '€' : '$'}{Number(deal.amount).toFixed(2)}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {deal.end_date ? new Date(deal.end_date).toLocaleDateString('it-IT') : 'Ongoing'}
+                      {deal.end_date ? new Date(deal.end_date).toLocaleDateString('en-US') : 'Ongoing'}
                     </TableCell>
                     <TableCell>
                       <Badge variant={deal.status === 'active' ? 'default' : 'outline'} className="text-[10px]">

@@ -45,33 +45,33 @@ export default function NewsletterPage() {
         <h1 className="text-2xl font-bold">Newsletter</h1>
         <Button className="bg-staging-bg hover:bg-staging-bg/90 text-white">
           <Plus className="size-4" />
-          Genera Newsletter
+          Generate Newsletter
         </Button>
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <KPICard title="Inviate questo mese" value={newsletters.filter(n => n.status === 'sent').length} />
-        <KPICard title="Open rate medio" value="—" subtitle="Dati in arrivo" />
-        <KPICard title="Iscritti" value="—" subtitle="Collegare ESP" />
-        <KPICard title="CTR medio" value="—" subtitle="Dati in arrivo" />
+        <KPICard title="Sent this month" value={newsletters.filter(n => n.status === 'sent').length} />
+        <KPICard title="Avg open rate" value="—" subtitle="Data incoming" />
+        <KPICard title="Subscribers" value="—" subtitle="Connect ESP" />
+        <KPICard title="Avg CTR" value="—" subtitle="Data incoming" />
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">Caricamento...</div>
+        <div className="text-center py-12 text-muted-foreground">Loading...</div>
       ) : newsletters.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          Nessuna newsletter. Clicca &quot;Genera Newsletter&quot; per iniziare.
+          No newsletters yet. Click &quot;Generate Newsletter&quot; to get started.
         </div>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-16">#</TableHead>
-              <TableHead>Titolo</TableHead>
-              <TableHead className="w-28">Data</TableHead>
+              <TableHead>Title</TableHead>
+              <TableHead className="w-28">Date</TableHead>
               <TableHead className="w-24">Open Rate</TableHead>
               <TableHead className="w-20">CTR</TableHead>
-              <TableHead className="w-24">Stato</TableHead>
+              <TableHead className="w-24">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -80,7 +80,7 @@ export default function NewsletterPage() {
                 <TableCell className="font-medium">{nl.edition_number}</TableCell>
                 <TableCell>{nl.title}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {nl.sent_at ? new Date(nl.sent_at).toLocaleDateString('it-IT') : '—'}
+                  {nl.sent_at ? new Date(nl.sent_at).toLocaleDateString('en-US') : '—'}
                 </TableCell>
                 <TableCell>{nl.open_rate ? `${(nl.open_rate * 100).toFixed(1)}%` : '—'}</TableCell>
                 <TableCell>{nl.click_rate ? `${(nl.click_rate * 100).toFixed(1)}%` : '—'}</TableCell>

@@ -5,14 +5,14 @@ import { cn } from '@/lib/utils'
 import { DraftCard } from '@/components/content/draft-card'
 
 const STATUS_TABS = [
-  { key: 'all', label: 'TUTTI' },
-  { key: 'draft', label: 'BOZZE' },
+  { key: 'all', label: 'ALL' },
+  { key: 'draft', label: 'DRAFTS' },
   { key: 'in_review', label: 'IN REVIEW' },
   { key: 'god_mode', label: 'GOD MODE' },
-  { key: 'approved', label: 'APPROVATI' },
-  { key: 'scheduled', label: 'SCHEDULATI' },
-  { key: 'published', label: 'PUBBLICATI' },
-  { key: 'archived', label: 'ARCHIVIATI' },
+  { key: 'approved', label: 'APPROVED' },
+  { key: 'scheduled', label: 'SCHEDULED' },
+  { key: 'published', label: 'PUBLISHED' },
+  { key: 'archived', label: 'ARCHIVED' },
 ] as const
 
 export default function ContentHubPage() {
@@ -69,10 +69,10 @@ export default function ContentHubPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">Caricamento...</div>
+        <div className="text-center py-12 text-muted-foreground">Loading...</div>
       ) : drafts.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          Nessun contenuto. Genera contenuti dalla pagina Ricerca.
+          No content found. Generate content from the Research page.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

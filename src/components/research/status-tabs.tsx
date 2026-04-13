@@ -16,12 +16,12 @@ interface StatusTabsProps {
 }
 
 const TABS = [
-  { key: 'all', label: 'TUTTI', countKey: 'total' },
-  { key: 'new', label: 'NUOVI', countKey: 'new' },
+  { key: 'all', label: 'ALL', countKey: 'total' },
+  { key: 'new', label: 'NEW', countKey: 'new' },
   { key: 'scored', label: 'SCORED', countKey: 'scored' },
-  { key: 'approved', label: 'APPROVATI', countKey: 'approved' },
-  { key: 'archived', label: 'ARCHIVIATI', countKey: 'archived' },
-  { key: 'rejected', label: 'RIFIUTATI', countKey: 'rejected' },
+  { key: 'approved', label: 'APPROVED', countKey: 'approved' },
+  { key: 'archived', label: 'ARCHIVED', countKey: 'archived' },
+  { key: 'rejected', label: 'REJECTED', countKey: 'rejected' },
 ] as const
 
 export function StatusTabs({ counts, activeTab, onTabChange }: StatusTabsProps) {

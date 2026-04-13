@@ -45,18 +45,18 @@ export default function CostiAPIPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Costi API</h1>
+      <h1 className="text-2xl font-bold">API Costs</h1>
 
       <div className="grid grid-cols-3 gap-4">
-        <KPICard title="Spesa oggi" value={`$${data.spend_today.toFixed(2)}`} />
-        <KPICard title="Spesa settimana" value={`$${data.spend_week.toFixed(2)}`} />
-        <KPICard title="Spesa mese" value={`$${data.spend_month.toFixed(2)}`} />
+        <KPICard title="Spend today" value={`$${data.spend_today.toFixed(2)}`} />
+        <KPICard title="Spend this week" value={`$${data.spend_week.toFixed(2)}`} />
+        <KPICard title="Spend this month" value={`$${data.spend_month.toFixed(2)}`} />
       </div>
 
       <Card>
         <CardContent className="pt-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Budget giornaliero</span>
+            <span className="text-sm font-medium">Daily budget</span>
             <span className="text-sm text-muted-foreground">
               ${data.spend_today.toFixed(2)} / ${data.daily_budget.toFixed(2)}
             </span>
@@ -67,9 +67,9 @@ export default function CostiAPIPage() {
 
       <Card>
         <CardContent className="pt-4">
-          <h3 className="text-sm font-medium mb-4">Costi ultimi 30 giorni per agente</h3>
+          <h3 className="text-sm font-medium mb-4">Costs over last 30 days by agent</h3>
           <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
-            Grafico disponibile con dati reali dalla tabella api_costs
+            Chart available with real data from api_costs table
           </div>
         </CardContent>
       </Card>
@@ -77,20 +77,20 @@ export default function CostiAPIPage() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Agente</TableHead>
-            <TableHead>Modello</TableHead>
-            <TableHead className="text-right">Chiamate oggi</TableHead>
+            <TableHead>Agent</TableHead>
+            <TableHead>Model</TableHead>
+            <TableHead className="text-right">Calls today</TableHead>
             <TableHead className="text-right">Token In</TableHead>
             <TableHead className="text-right">Token Out</TableHead>
-            <TableHead className="text-right">Costo</TableHead>
-            <TableHead className="text-right">% Budget</TableHead>
+            <TableHead className="text-right">Cost</TableHead>
+            <TableHead className="text-right">% of Budget</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {data.by_agent.length === 0 ? (
             <TableRow>
               <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                Nessun costo registrato oggi.
+                No costs recorded today.
               </TableCell>
             </TableRow>
           ) : (

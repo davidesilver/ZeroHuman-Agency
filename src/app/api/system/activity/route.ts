@@ -43,18 +43,18 @@ export async function GET(request: NextRequest) {
     for (const run of runsRes.data || []) {
       activities.push({
         type: 'research',
-        message: `Ricerca completata: ${run.items_found || 0} items da ${run.sources_scanned || 0} fonti`,
+        message: `Research completed: ${run.items_found || 0} items from ${run.sources_scanned || 0} sources`,
         timestamp: run.started_at || '',
         id: run.id,
       })
     }
 
     for (const draft of draftsRes.data || []) {
-      const title = draft.title || 'Senza titolo'
-      const action = draft.status === 'published' ? 'Pubblicato' :
-                     draft.status === 'approved' ? 'Approvato' :
-                     draft.status === 'in_review' ? 'In revisione' :
-                     draft.status === 'god_mode' ? 'GOD Mode' : 'Creato'
+      const title = draft.title || 'Untitled'
+      const action = draft.status === 'published' ? 'Published' :
+                     draft.status === 'approved' ? 'Approved' :
+                     draft.status === 'in_review' ? 'In review' :
+                     draft.status === 'god_mode' ? 'GOD Mode' : 'Created'
       activities.push({
         type: 'content',
         message: `${action}: "${title}" (${draft.content_type}${draft.platform ? ` / ${draft.platform}` : ''})`,
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     for (const nl of newslettersRes.data || []) {
       activities.push({
         type: 'newsletter',
-        message: `Newsletter: "${nl.title || 'Senza titolo'}" — ${nl.status}`,
+        message: `Newsletter: "${nl.title || 'Untitled'}" — ${nl.status}`,
         timestamp: nl.created_at || '',
         id: nl.id,
       })

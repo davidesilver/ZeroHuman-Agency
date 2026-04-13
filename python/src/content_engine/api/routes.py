@@ -12,6 +12,10 @@ from ..agents.god_system import run_god_mode
 from ..agents.adapter import adapt_content
 from ..agents.writing_lab import create_session, vote_round
 from ..scoring.engine import run_scoring
+from ..services.newsletter_delivery import send_newsletter, preview_newsletter
+from ..services.social_publisher import publish_to_linkedin, schedule_post
+from ..services.feedback_loop import record_social_metrics, update_feedback_bonus
+from ..services.scheduler import daily_research_pipeline, publish_scheduled_posts
 
 router = APIRouter(prefix="/api")
 
@@ -293,4 +297,95 @@ async def api_get_session(session_id: str):
 @router.post("/writing-lab/sessions/{session_id}/vote")
 async def api_vote(session_id: str, req: VoteRequest):
     result = await vote_round(BRAND_ID, session_id, req.winner, req.feedback)
+    return {"success": True, "data": result}
+
+
+# ── Newsletter Delivery ─────────────────────────────────────────────────────
+
+
+class SendNewsletterRequest(BaseModel):
+    newsletter_id: str
+    recipients: list[str]
+
+
+@router.post("/newsletter/send")
+async def api_send_newsletter(req: SendNewsletterRequest):
+    result = await send_newsletter(BRAND_ID, req.newsletter_id, req.recipients)
+    return {"success": True, "data": result}
+
+
+@router.get("/newsletter/{newsletter_id}/preview")
+async def api_preview_newsletter(newsletter_id: str):
+    html = await preview_newsletter(BRAND_ID, newsletter_id)
+    return {"success": True, "data": {"html": html}}
+
+
+# ── Social Publishing ────────────────────────────────────────────────────────
+
+
+class PublishRequest(BaseModel):
+    draft_id: str
+    access_token: str
+
+
+class ScheduleRequest(BaseModel):
+    draft_id: str
+    scheduled_at: str
+
+
+@router.post("/social/publish/linkedin")
+async def api_publish_linkedin(req: PublishRequest):
+    result = await publish_to_linkedin(BRAND_ID, req.draft_id, req.access_token)
+    return {"success": True, "data": result}
+
+
+@router.post("/social/schedule")
+async def api_schedule_post(req: ScheduleRequest):
+    result = await schedule_post(BRAND_ID, req.draft_id, req.scheduled_at)
+    return {"success": True, "data": result}
+
+
+# ── Analytics & Feedback Loop ────────────────────────────────────────────────
+
+
+class MetricsRequest(BaseModel):
+    draft_id: str
+    platform: str
+    impressions: int = 0
+    clicks: int = 0
+    likes: int = 0
+    shares: int = 0
+    comments: int = 0
+    saves: int = 0
+
+
+@router.post("/analytics/metrics")
+async def api_record_metrics(req: MetricsRequest):
+    result = await record_social_metrics(
+        req.draft_id, req.platform,
+        impressions=req.impressions, clicks=req.clicks,
+        likes=req.likes, shares=req.shares,
+        comments=req.comments, saves=req.saves,
+    )
+    return {"success": True, "data": result}
+
+
+@router.post("/analytics/feedback-loop")
+async def api_feedback_loop():
+    result = await update_feedback_bonus(BRAND_ID)
+    return {"success": True, "data": result}
+
+
+# ── Scheduler ────────────────────────────────────────────────────────────────
+
+
+@router.post("/scheduler/daily-pipeline")
+async def api_daily_pipeline():
+    result = await daily_research_pipeline(BRAND_ID)
+    return {"success": True, "data": result}
+
+
+@router.post("/scheduler/publish-scheduled")
+async def api_publish_scheduled():
+    result = await publish_scheduled_posts(BRAND_ID)
     return {"success": True, "data": result}

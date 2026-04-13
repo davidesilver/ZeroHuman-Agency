@@ -70,7 +70,7 @@ export function ItemsTable({ items, onAction, isLoading }: ItemsTableProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground">
-        Caricamento...
+        Loading...
       </div>
     )
   }
@@ -78,7 +78,7 @@ export function ItemsTable({ items, onAction, isLoading }: ItemsTableProps) {
   if (items.length === 0) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground">
-        Nessun item trovato. Lancia una ricerca per iniziare.
+        No items found. Run a search to get started.
       </div>
     )
   }
@@ -89,10 +89,10 @@ export function ItemsTable({ items, onAction, isLoading }: ItemsTableProps) {
         <TableRow>
           <TableHead className="w-24">Retriever</TableHead>
           <TableHead className="w-20">Status</TableHead>
-          <TableHead className="w-24">Fonte</TableHead>
-          <TableHead>Titolo</TableHead>
+          <TableHead className="w-24">Source</TableHead>
+          <TableHead>Title</TableHead>
           <TableHead className="w-16 text-right">Score</TableHead>
-          <TableHead className="w-40 text-right">Azioni</TableHead>
+          <TableHead className="w-40 text-right">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -138,7 +138,7 @@ export function ItemsTable({ items, onAction, isLoading }: ItemsTableProps) {
                     variant="ghost"
                     size="icon-xs"
                     onClick={() => onAction(item.id, 'approved')}
-                    title="Approva"
+                    title="Approve"
                   >
                     <Check className="size-3 text-green-600" />
                   </Button>
@@ -146,7 +146,7 @@ export function ItemsTable({ items, onAction, isLoading }: ItemsTableProps) {
                     variant="ghost"
                     size="icon-xs"
                     onClick={() => onAction(item.id, 'archived')}
-                    title="Archivia"
+                    title="Archive"
                   >
                     <Archive className="size-3 text-muted-foreground" />
                   </Button>
@@ -154,7 +154,7 @@ export function ItemsTable({ items, onAction, isLoading }: ItemsTableProps) {
                     variant="ghost"
                     size="icon-xs"
                     onClick={() => onAction(item.id, 'rejected')}
-                    title="Rifiuta"
+                    title="Reject"
                   >
                     <X className="size-3 text-red-500" />
                   </Button>

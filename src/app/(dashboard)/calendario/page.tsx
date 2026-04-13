@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { KPICard } from '@/components/dashboard/kpi-card'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 
-const DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom']
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const LEGEND = [
   { label: 'Newsletter', color: 'bg-staging-bg' },
   { label: 'Social', color: 'bg-brand-primary' },
@@ -28,7 +28,7 @@ export default function CalendarioPage() {
   const [month, setMonth] = useState(now.getMonth())
 
   const { daysInMonth, offset } = getDaysInMonth(year, month)
-  const monthName = new Date(year, month).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
+  const monthName = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
   const prev = () => { if (month === 0) { setMonth(11); setYear(y => y - 1) } else setMonth(m => m - 1) }
   const next = () => { if (month === 11) { setMonth(0); setYear(y => y + 1) } else setMonth(m => m + 1) }
@@ -36,10 +36,10 @@ export default function CalendarioPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Calendario Editoriale</h1>
+        <h1 className="text-2xl font-bold">Editorial Calendar</h1>
         <Button className="bg-staging-bg hover:bg-staging-bg/90 text-white">
           <Plus className="size-4" />
-          Aggiungi
+          Add
         </Button>
       </div>
 
@@ -77,9 +77,9 @@ export default function CalendarioPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <KPICard title="Programmati" value={0} />
-        <KPICard title="In produzione" value={0} />
-        <KPICard title="Approvati" value={0} />
+        <KPICard title="Scheduled" value={0} />
+        <KPICard title="In production" value={0} />
+        <KPICard title="Approved" value={0} />
       </div>
     </div>
   )

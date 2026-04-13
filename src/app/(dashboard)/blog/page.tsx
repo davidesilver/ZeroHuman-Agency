@@ -14,10 +14,10 @@ import {
 } from '@/components/ui/table'
 
 const TABS = [
-  { key: 'all', label: 'TUTTI' },
-  { key: 'draft', label: 'BOZZE' },
-  { key: 'scheduled', label: 'PROGRAMMATI' },
-  { key: 'published', label: 'PUBBLICATI' },
+  { key: 'all', label: 'ALL' },
+  { key: 'draft', label: 'DRAFTS' },
+  { key: 'scheduled', label: 'SCHEDULED' },
+  { key: 'published', label: 'PUBLISHED' },
 ] as const
 
 export default function BlogPage() {
@@ -61,24 +61,24 @@ export default function BlogPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <KPICard title="Pubblicati" value={posts.filter(p => p.status === 'published').length} />
-        <KPICard title="In bozza" value={posts.filter(p => p.status === 'draft').length} />
-        <KPICard title="Programmati" value={posts.filter(p => p.status === 'scheduled').length} />
-        <KPICard title="Visite totali" value="—" subtitle="Collegare analytics" />
+        <KPICard title="Published" value={posts.filter(p => p.status === 'published').length} />
+        <KPICard title="In draft" value={posts.filter(p => p.status === 'draft').length} />
+        <KPICard title="Scheduled" value={posts.filter(p => p.status === 'scheduled').length} />
+        <KPICard title="Total views" value="—" subtitle="Connect analytics" />
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">Caricamento...</div>
+        <div className="text-center py-12 text-muted-foreground">Loading...</div>
       ) : posts.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          Nessun articolo blog. Genera contenuti di tipo &quot;blog&quot; dal Content Hub.
+          No blog posts yet. Generate &quot;blog&quot; content from the Content Hub.
         </div>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Titolo</TableHead>
-              <TableHead className="w-28">Data</TableHead>
+              <TableHead>Title</TableHead>
+              <TableHead className="w-28">Date</TableHead>
               <TableHead className="w-20">Status</TableHead>
               <TableHead className="w-20 text-right">SEO</TableHead>
             </TableRow>
@@ -86,9 +86,9 @@ export default function BlogPage() {
           <TableBody>
             {posts.map(post => (
               <TableRow key={post.id}>
-                <TableCell className="font-medium">{post.title || 'Senza titolo'}</TableCell>
+                <TableCell className="font-medium">{post.title || 'Untitled'}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {post.created_at ? new Date(post.created_at).toLocaleDateString('it-IT') : '—'}
+                  {post.created_at ? new Date(post.created_at).toLocaleDateString('en-US') : '—'}
                 </TableCell>
                 <TableCell>
                   <Badge variant={post.status === 'published' ? 'default' : 'outline'} className="text-[10px]">

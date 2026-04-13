@@ -51,19 +51,19 @@ export default function DashboardPage() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <KPICard title="Contenuti in pipeline" value={totalPipeline} />
-        <KPICard title="Pubblicati" value={stats.published} />
+        <KPICard title="Content in pipeline" value={totalPipeline} />
+        <KPICard title="Published" value={stats.published} />
         <KPICard
-          title="Agenti attivi"
+          title="Active agents"
           value={`${health.summary.agents_healthy} / ${health.agents.length || 5}`}
         />
-        <KPICard title="Spesa API oggi" value={`$${costs.spend_today.toFixed(2)}`} />
+        <KPICard title="API spend today" value={`$${costs.spend_today.toFixed(2)}`} />
       </div>
 
       {/* Pipeline mini */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-base">Pipeline Contenuti</CardTitle>
+          <CardTitle className="text-base">Content Pipeline</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
@@ -89,27 +89,27 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Attivita Recente</CardTitle>
+            <CardTitle className="text-base">Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
             {activities.length === 0 ? (
               <p className="text-center text-sm text-muted-foreground py-8">
-                Nessuna attivita &mdash; il sistema non e ancora attivo
+                No activity &mdash; system not yet active
               </p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Ora</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Dettaglio</TableHead>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Detail</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {activities.map((a, i) => (
                     <TableRow key={i}>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                        {a.timestamp ? new Date(a.timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                        {a.timestamp ? new Date(a.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-[10px]">{a.type.toUpperCase()}</Badge>
@@ -125,7 +125,7 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Stato Agenti</CardTitle>
+            <CardTitle className="text-base">Agent Status</CardTitle>
           </CardHeader>
           <CardContent>
             {health.agents.length === 0 ? (

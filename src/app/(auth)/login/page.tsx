@@ -21,9 +21,9 @@ function LoginForm() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle className="text-xl">Accedi</CardTitle>
+        <CardTitle className="text-xl">Sign In</CardTitle>
         <CardDescription>
-          Inserisci le tue credenziali per continuare
+          Enter your credentials to continue
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -39,7 +39,7 @@ function LoginForm() {
               id="email"
               name="email"
               type="email"
-              placeholder="nome@azienda.com"
+              placeholder="name@company.com"
               required
             />
           </div>
@@ -53,7 +53,7 @@ function LoginForm() {
             />
           </div>
           <Button type="submit" className="w-full">
-            Accedi
+            Sign In
           </Button>
         </form>
       </CardContent>

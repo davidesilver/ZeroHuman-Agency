@@ -65,7 +65,7 @@ export function DraftCard({ draft, onAction }: DraftCardProps) {
         </div>
 
         <div>
-          <h3 className="font-medium text-sm line-clamp-2">{draft.title || 'Senza titolo'}</h3>
+          <h3 className="font-medium text-sm line-clamp-2">{draft.title || 'Untitled'}</h3>
           <p className="text-xs text-muted-foreground mt-1 line-clamp-3">
             {draft.body?.slice(0, 200) || ''}
           </p>
@@ -81,15 +81,15 @@ export function DraftCard({ draft, onAction }: DraftCardProps) {
         )}
 
         <div className="flex items-center gap-1 pt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button variant="ghost" size="xs" onClick={() => onAction(draft.id, 'approved')} title="Approva">
+          <Button variant="ghost" size="xs" onClick={() => onAction(draft.id, 'approved')} title="Approve">
             <Check className="size-3 text-green-600" />
-            Approva
+            Approve
           </Button>
           <Button variant="ghost" size="xs" onClick={() => onAction(draft.id, 'god_mode')} title="GOD Mode">
             <Sparkles className="size-3 text-brand-accent" />
             GOD
           </Button>
-          <Button variant="ghost" size="xs" onClick={() => onAction(draft.id, 'archived')} title="Archivia">
+          <Button variant="ghost" size="xs" onClick={() => onAction(draft.id, 'archived')} title="Archive">
             <Archive className="size-3 text-muted-foreground" />
           </Button>
         </div>

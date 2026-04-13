@@ -113,12 +113,12 @@ export default function WritingLabPage() {
                 type="text"
                 value={topic}
                 onChange={e => setTopic(e.target.value)}
-                placeholder="es. Come l'AI sta cambiando il marketing B2B"
+                placeholder="e.g. How AI is changing B2B marketing"
                 className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm"
               />
             </div>
             <Button onClick={startSession} disabled={isLoading || !topic.trim()}>
-              {isLoading ? 'Generando...' : 'Avvia Sessione'}
+              {isLoading ? 'Generating...' : 'Start Session'}
             </Button>
           </CardContent>
         </Card>
@@ -129,11 +129,11 @@ export default function WritingLabPage() {
         <Card className="relative">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between mb-3">
-              <Badge variant="outline" className="text-[10px] font-medium">CAMPIONE ATTUALE</Badge>
+              <Badge variant="outline" className="text-[10px] font-medium">CURRENT CHAMPION</Badge>
               {currentRound && <Badge className="bg-staging-bg text-white text-[10px]">A</Badge>}
             </div>
             <div className="min-h-[200px] rounded-md bg-secondary/50 p-4 text-sm whitespace-pre-wrap">
-              {currentRound?.champion_text || (session?.current_champion || 'Avvia una sessione per generare il testo campione.')}
+              {currentRound?.champion_text || (session?.current_champion || 'Start a session to generate champion text.')}
             </div>
             {currentRound?.hook_type_champion && (
               <p className="text-xs text-muted-foreground mt-2">Hook: {currentRound.hook_type_champion}</p>
@@ -144,11 +144,11 @@ export default function WritingLabPage() {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center justify-between mb-3">
-              <Badge variant="outline" className="text-[10px] font-medium">NUOVA VERSIONE</Badge>
+              <Badge variant="outline" className="text-[10px] font-medium">NEW VERSION</Badge>
               {currentRound && <Badge variant="outline" className="text-[10px]">B</Badge>}
             </div>
             <div className="min-h-[200px] rounded-md bg-secondary/50 p-4 text-sm whitespace-pre-wrap">
-              {currentRound?.challenger_text || 'Il challenger verrà generato automaticamente ad ogni round.'}
+              {currentRound?.challenger_text || 'The challenger will be generated automatically each round.'}
             </div>
             {currentRound?.hook_type_challenger && (
               <p className="text-xs text-muted-foreground mt-2">Hook: {currentRound.hook_type_challenger}</p>
@@ -165,7 +165,7 @@ export default function WritingLabPage() {
           disabled={!currentRound || isLoading}
           onClick={() => vote('champion')}
         >
-          Scegli A
+          Pick A
         </Button>
         <Button
           variant="outline"
@@ -173,7 +173,7 @@ export default function WritingLabPage() {
           disabled={!currentRound || isLoading}
           onClick={() => vote('draw')}
         >
-          Pari
+          Draw
         </Button>
         <Button
           variant="outline"
@@ -181,19 +181,19 @@ export default function WritingLabPage() {
           disabled={!currentRound || isLoading}
           onClick={() => vote('challenger')}
         >
-          Scegli B
+          Pick B
         </Button>
       </div>
 
       {session?.status === 'completed' && (
         <Card>
           <CardContent className="pt-4 text-center">
-            <p className="text-staging-bg font-medium">Sessione completata!</p>
+            <p className="text-staging-bg font-medium">Session completed!</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Il campione finale è stato salvato dopo {roundsCompleted} round.
+              The final champion was saved after {roundsCompleted} rounds.
             </p>
             <Button className="mt-3" onClick={() => { setSession(null); setCurrentRound(null); setTopic('') }}>
-              Nuova Sessione
+              New Session
             </Button>
           </CardContent>
         </Card>
@@ -215,7 +215,7 @@ export default function WritingLabPage() {
                   <span className="text-xs font-medium">{agent}</span>
                 </div>
                 <div className="rounded-md bg-secondary/50 p-3 text-xs text-muted-foreground min-h-[60px]">
-                  Feedback disponibile dopo il primo round.
+                  Feedback available after the first round.
                 </div>
               </div>
             ))}
@@ -225,9 +225,9 @@ export default function WritingLabPage() {
 
       {/* Session Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <KPICard title="Round" value={`${roundsCompleted}/${maxRounds}`} subtitle={session ? (session.status === 'active' ? 'In corso' : 'Completata') : 'Sessione non avviata'} />
-        <KPICard title="Hook type" value={currentRound?.hook_type_challenger || '—'} subtitle="Hook corrente del challenger" />
-        <KPICard title="Win rate campione" value={roundsCompleted > 0 ? `${winRate}%` : '—'} subtitle="% vittorie versione A" />
+        <KPICard title="Round" value={`${roundsCompleted}/${maxRounds}`} subtitle={session ? (session.status === 'active' ? 'In progress' : 'Completed') : 'Session not started'} />
+        <KPICard title="Hook type" value={currentRound?.hook_type_challenger || '—'} subtitle="Current challenger hook" />
+        <KPICard title="Champion win rate" value={roundsCompleted > 0 ? `${winRate}%` : '—'} subtitle="% wins version A" />
       </div>
     </div>
   )

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LogOut } from 'lucide-react'
 import { navigationItems } from '@/lib/navigation'
+import { BrandSwitcher } from './brand-switcher'
 
 interface SidebarProps {
   logoutAction: () => Promise<void>
@@ -18,6 +19,9 @@ export function Sidebar({ logoutAction }: SidebarProps) {
       <div className="px-4 py-5">
         <h2 className="text-lg font-semibold text-white">Content Engine</h2>
       </div>
+
+      {/* Brand Switcher */}
+      <BrandSwitcher />
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2">
@@ -63,7 +67,7 @@ export function Sidebar({ logoutAction }: SidebarProps) {
             className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-sidebar-accent transition-colors"
           >
             <LogOut className="h-4 w-4 shrink-0" />
-            <span>Esci</span>
+            <span>Logout</span>
           </button>
         </form>
       </div>
