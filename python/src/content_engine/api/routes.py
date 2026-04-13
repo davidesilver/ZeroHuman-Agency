@@ -25,7 +25,7 @@ async def _require_scheduler_secret(request: Request) -> None:
 
 from pydantic import BaseModel
 
-from ..db import get_db
+from ..db import get_db, get_user_db
 from ..models import TriggerRequest, ScoringRequest
 from ..orchestrator.research import run_research
 from ..orchestrator.content import generate_content, generate_and_god
@@ -40,28 +40,78 @@ from ..services.scheduler import daily_research_pipeline, publish_scheduled_post
 
 router = APIRouter(prefix="/api")
 
-BRAND_ID = "b6e639ac-33e7-402b-b928-c98af55eec47"  # Vest — will be dynamic later
+import os
+
+
+def _get_brand_id(request: Request) -> str:
+    """Resolve the authenticated user's brand_id from JWT middleware.
+
+    The JWTAuthMiddleware sets request.state.brand_id on every authenticated
+    request. This dependency makes every route automatically brand-scoped.
+    Raises 401 if the middleware didn't populate the brand (shouldn't happen
+    for authenticated routes, but acts as a safety net).
+    """
+    brand_id = getattr(request.state, "brand_id", None)
+    if not brand_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Authenticated brand context not found. Ensure you are logged in.",
+        )
+    return brand_id
+
+
+# System-level brand for cron/scheduler calls (no user JWT).
+# Deployers set this in their .env — it is intentionally blank in the template.
+_SCHEDULER_BRAND_ID = os.environ.get("SCHEDULER_BRAND_ID", "")
+
+
+def _get_scheduler_brand_id() -> str:
+    """Resolve brand_id for scheduler endpoints called by external cron.
+
+    These endpoints use X-Scheduler-Secret instead of a user JWT, so
+    request.state.brand_id is not set. Deployers must configure
+    SCHEDULER_BRAND_ID in their environment.
+    """
+    if not _SCHEDULER_BRAND_ID:
+        raise HTTPException(
+            status_code=503,
+            detail="SCHEDULER_BRAND_ID is not configured. Set it in your .env before enabling scheduled jobs.",
+        )
+    return _SCHEDULER_BRAND_ID
+
+
+def _get_client_db(request: Request):
+    """Retrieve a Supabase client scoped to the user JWT if available (RLS active).
+    Falls back to the service_role client if no JWT is present (e.g. cron routes).
+    """
+    jwt = getattr(request.state, "jwt", None)
+    if jwt:
+        return get_user_db(jwt)
+    return get_db()
 
 
 @router.post("/research/trigger")
-async def trigger_research(req: TriggerRequest | None = None):
+async def trigger_research(request: Request, req: TriggerRequest | None = None):
+    brand_id = _get_brand_id(request)
     if req is None:
         req = TriggerRequest()
-    result = await run_research(BRAND_ID, req)
+    result = await run_research(brand_id, req)
     return {"success": True, "data": result.model_dump()}
 
 
 @router.get("/research/runs")
 async def list_runs(
+    request: Request,
     status: str | None = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
 ):
-    db = get_db()
+    brand_id = _get_brand_id(request)
+    db = _get_client_db(request)
     query = (
         db.table("research_runs")
         .select("*", count="exact")
-        .eq("brand_id", BRAND_ID)
+        .eq("brand_id", brand_id)
         .order("created_at", desc=True)
     )
     if status:
@@ -85,6 +135,7 @@ _ALLOWED_SORT_FIELDS = frozenset({"created_at", "title", "url", "source_name", "
 
 @router.get("/research/items")
 async def list_items(
+    request: Request,
     status: str | None = None,
     run_id: str | None = None,
     retriever: str | None = None,
@@ -93,17 +144,18 @@ async def list_items(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
 ):
+    brand_id = _get_brand_id(request)
     # C-05: validate sort_by against whitelist
     if sort_by not in _ALLOWED_SORT_FIELDS:
         raise HTTPException(400, f"Invalid sort field. Allowed: {sorted(_ALLOWED_SORT_FIELDS)}")
     if sort_order not in ("asc", "desc"):
         raise HTTPException(400, "sort_order must be 'asc' or 'desc'")
 
-    db = get_db()
+    db = _get_client_db(request)
     query = (
         db.table("research_items")
         .select("*, scores(*)", count="exact")
-        .eq("brand_id", BRAND_ID)
+        .eq("brand_id", brand_id)
     )
     if status:
         query = query.eq("status", status)
@@ -126,16 +178,17 @@ async def list_items(
 
 
 @router.patch("/research/items/{item_id}/status")
-async def update_item_status(item_id: str, body: dict):
+async def update_item_status(item_id: str, body: dict, request: Request):
+    brand_id = _get_brand_id(request)
     new_status = body.get("status")
     if new_status not in ("new", "scored", "approved", "rejected", "archived"):
         raise HTTPException(400, "Invalid status")
-    db = get_db()
+    db = _get_client_db(request)
     resp = (
         db.table("research_items")
         .update({"status": new_status})
         .eq("id", item_id)
-        .eq("brand_id", BRAND_ID)
+        .eq("brand_id", brand_id)
         .execute()
     )
     if not resp.data:
@@ -144,10 +197,11 @@ async def update_item_status(item_id: str, body: dict):
 
 
 @router.post("/scoring/run")
-async def trigger_scoring(req: ScoringRequest | None = None):
+async def trigger_scoring(request: Request, req: ScoringRequest | None = None):
+    brand_id = _get_brand_id(request)
     if req is None:
         req = ScoringRequest()
-    result = await run_scoring(BRAND_ID, req)
+    result = await run_scoring(brand_id, req)
     return {"success": True, "data": result}
 
 
@@ -167,43 +221,48 @@ class AdaptRequest(BaseModel):
 
 
 @router.post("/content/generate")
-async def api_generate_content(req: GenerateRequest):
+async def api_generate_content(req: GenerateRequest, request: Request):
+    brand_id = _get_brand_id(request)
     if req.run_god:
         result = await generate_and_god(
-            BRAND_ID, req.research_item_id, req.platform, req.content_type,
+            brand_id, req.research_item_id, req.platform, req.content_type,
         )
     else:
         result = await generate_content(
-            BRAND_ID, req.research_item_id, req.platform, req.content_type,
+            brand_id, req.research_item_id, req.platform, req.content_type,
         )
     return {"success": True, "data": result}
 
 
 @router.post("/content/drafts/{draft_id}/god-mode")
-async def api_god_mode(draft_id: str):
-    result = await run_god_mode(BRAND_ID, draft_id)
+async def api_god_mode(draft_id: str, request: Request):
+    brand_id = _get_brand_id(request)
+    result = await run_god_mode(brand_id, draft_id)
     return {"success": True, "data": result}
 
 
 @router.post("/content/drafts/{draft_id}/adapt")
-async def api_adapt_content(draft_id: str, req: AdaptRequest):
-    results = await adapt_content(BRAND_ID, draft_id, req.target_platforms)
+async def api_adapt_content(draft_id: str, req: AdaptRequest, request: Request):
+    brand_id = _get_brand_id(request)
+    results = await adapt_content(brand_id, draft_id, req.target_platforms)
     return {"success": True, "data": results}
 
 
 @router.get("/content/drafts")
 async def list_drafts(
+    request: Request,
     status: str | None = None,
     content_type: str | None = None,
     platform: str | None = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
 ):
-    db = get_db()
+    brand_id = _get_brand_id(request)
+    db = _get_client_db(request)
     query = (
         db.table("content_drafts")
         .select("*", count="exact")
-        .eq("brand_id", BRAND_ID)
+        .eq("brand_id", brand_id)
         .order("created_at", desc=True)
     )
     if status:
@@ -222,17 +281,18 @@ async def list_drafts(
 
 
 @router.patch("/content/drafts/{draft_id}")
-async def update_draft(draft_id: str, body: dict):
+async def update_draft(draft_id: str, body: dict, request: Request):
+    brand_id = _get_brand_id(request)
     allowed = {"status", "title", "body", "scheduled_at"}
     updates = {k: v for k, v in body.items() if k in allowed}
     if not updates:
         raise HTTPException(400, "No valid fields to update")
-    db = get_db()
+    db = _get_client_db(request)
     resp = (
         db.table("content_drafts")
         .update(updates)
         .eq("id", draft_id)
-        .eq("brand_id", BRAND_ID)
+        .eq("brand_id", brand_id)
         .execute()
     )
     if not resp.data:
@@ -241,19 +301,13 @@ async def update_draft(draft_id: str, body: dict):
 
 
 @router.get("/research/stats")
-async def research_stats():
-    db = get_db()
-    items = (
-        db.table("research_items")
-        .select("status", count="exact")
-        .eq("brand_id", BRAND_ID)
-        .execute()
-    )
-    # Count by status
+async def research_stats(request: Request):
+    brand_id = _get_brand_id(request)
+    db = _get_client_db(request)
     all_items = (
         db.table("research_items")
         .select("id, status")
-        .eq("brand_id", BRAND_ID)
+        .eq("brand_id", brand_id)
         .execute()
     )
     counts = {"total": 0, "pending": 0, "approved": 0, "rejected": 0, "archived": 0, "top_pick": 0}
@@ -279,22 +333,25 @@ class VoteRequest(BaseModel):
 
 
 @router.post("/writing-lab/sessions")
-async def api_create_session(req: WritingLabCreateRequest):
-    result = await create_session(BRAND_ID, req.topic, req.content_type)
+async def api_create_session(req: WritingLabCreateRequest, request: Request):
+    brand_id = _get_brand_id(request)
+    result = await create_session(brand_id, req.topic, req.content_type)
     return {"success": True, "data": result}
 
 
 @router.get("/writing-lab/sessions")
 async def api_list_sessions(
+    request: Request,
     status: str | None = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
 ):
-    db = get_db()
+    brand_id = _get_brand_id(request)
+    db = _get_client_db(request)
     query = (
         db.table("writing_lab_sessions")
         .select("*", count="exact")
-        .eq("brand_id", BRAND_ID)
+        .eq("brand_id", brand_id)
         .order("created_at", desc=True)
     )
     if status:
@@ -309,8 +366,8 @@ async def api_list_sessions(
 
 
 @router.get("/writing-lab/sessions/{session_id}")
-async def api_get_session(session_id: str):
-    db = get_db()
+async def api_get_session(session_id: str, request: Request):
+    db = _get_client_db(request)
     session = db.table("writing_lab_sessions").select("*").eq("id", session_id).single().execute().data
     if not session:
         raise HTTPException(404, "Session not found")
@@ -326,8 +383,9 @@ async def api_get_session(session_id: str):
 
 
 @router.post("/writing-lab/sessions/{session_id}/vote")
-async def api_vote(session_id: str, req: VoteRequest):
-    result = await vote_round(BRAND_ID, session_id, req.winner, req.feedback)
+async def api_vote(session_id: str, req: VoteRequest, request: Request):
+    brand_id = _get_brand_id(request)
+    result = await vote_round(brand_id, session_id, req.winner, req.feedback)
     return {"success": True, "data": result}
 
 
@@ -354,14 +412,16 @@ class SendNewsletterRequest(BaseModel):
 
 
 @router.post("/newsletter/send")
-async def api_send_newsletter(req: SendNewsletterRequest):
-    result = await send_newsletter(BRAND_ID, req.newsletter_id, req.recipients)
+async def api_send_newsletter(req: SendNewsletterRequest, request: Request):
+    brand_id = _get_brand_id(request)
+    result = await send_newsletter(brand_id, req.newsletter_id, req.recipients)
     return {"success": True, "data": result}
 
 
 @router.get("/newsletter/{newsletter_id}/preview")
-async def api_preview_newsletter(newsletter_id: str):
-    html = await preview_newsletter(BRAND_ID, newsletter_id)
+async def api_preview_newsletter(newsletter_id: str, request: Request):
+    brand_id = _get_brand_id(request)
+    html = await preview_newsletter(brand_id, newsletter_id)
     return {"success": True, "data": {"html": html}}
 
 
@@ -405,7 +465,7 @@ class ScheduleRequest(BaseModel):
 @router.post("/social/publish")
 async def api_publish_social(req: PublishRequest, request: Request):
     """C-03: brand_id from JWT — token fetched from DB, never from client."""
-    brand_id = getattr(request.state, "brand_id", BRAND_ID)
+    brand_id = _get_brand_id(request)
     result = await publish_to_postiz(brand_id, req.draft_id, req.platforms)
     return {"success": True, "data": result}
 
@@ -414,7 +474,7 @@ async def api_publish_social(req: PublishRequest, request: Request):
 @router.post("/social/publish/linkedin")
 async def api_publish_linkedin(req: PublishRequest, request: Request):
     """C-03: Legacy route — access_token no longer accepted in body."""
-    brand_id = getattr(request.state, "brand_id", BRAND_ID)
+    brand_id = _get_brand_id(request)
     result = await publish_to_postiz(brand_id, req.draft_id, ["linkedin"])
     return {"success": True, "data": result}
 
@@ -422,14 +482,14 @@ async def api_publish_linkedin(req: PublishRequest, request: Request):
 @router.post("/social/publish/twitter")
 async def api_publish_twitter(req: PublishRequest, request: Request):
     """C-03: Legacy route — access_token no longer accepted in body."""
-    brand_id = getattr(request.state, "brand_id", BRAND_ID)
+    brand_id = _get_brand_id(request)
     result = await publish_to_postiz(brand_id, req.draft_id, ["twitter"])
     return {"success": True, "data": result}
 
 
 @router.post("/social/schedule")
 async def api_schedule_post(req: ScheduleRequest, request: Request):
-    brand_id = getattr(request.state, "brand_id", BRAND_ID)
+    brand_id = _get_brand_id(request)
     result = await schedule_post(brand_id, req.draft_id, req.scheduled_at)
     return {"success": True, "data": result}
 
@@ -460,8 +520,9 @@ async def api_record_metrics(req: MetricsRequest):
 
 
 @router.post("/analytics/feedback-loop")
-async def api_feedback_loop():
-    result = await update_feedback_bonus(BRAND_ID)
+async def api_feedback_loop(request: Request):
+    brand_id = _get_brand_id(request)
+    result = await update_feedback_bonus(brand_id)
     return {"success": True, "data": result}
 
 
@@ -470,22 +531,29 @@ async def api_feedback_loop():
 
 @router.post("/scheduler/daily-pipeline", dependencies=[Depends(_require_scheduler_secret)])
 async def api_daily_pipeline():
-    """Trigger full daily research + scoring pipeline. Requires X-Scheduler-Secret header."""
+    """Trigger full daily research + scoring pipeline. Requires X-Scheduler-Secret header.
+    Operates on brand defined by SCHEDULER_BRAND_ID env var.
+    """
+    brand_id = _get_scheduler_brand_id()
     try:
-        result = await daily_research_pipeline(BRAND_ID)
+        result = await daily_research_pipeline(brand_id)
         return {"success": True, "data": result}
+    except HTTPException:
+        raise
     except Exception as e:
         _logger.error("Daily pipeline failed: %s", e, exc_info=True)
-        # H-05: return generic error — don't expose internal details
         raise HTTPException(500, "Pipeline execution failed")
 
 
 @router.post("/scheduler/publish-scheduled", dependencies=[Depends(_require_scheduler_secret)])
 async def api_publish_scheduled():
     """Publish all posts past their scheduled_at. Requires X-Scheduler-Secret header."""
+    brand_id = _get_scheduler_brand_id()
     try:
-        result = await publish_scheduled_posts(BRAND_ID)
+        result = await publish_scheduled_posts(brand_id)
         return {"success": True, "data": result}
+    except HTTPException:
+        raise
     except Exception as e:
         _logger.error("Publish scheduled failed: %s", e, exc_info=True)
         raise HTTPException(500, "Publish scheduled failed")
