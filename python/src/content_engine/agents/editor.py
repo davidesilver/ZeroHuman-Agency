@@ -6,6 +6,7 @@ import json
 
 from ..scoring.engine import _call_llm
 from ..db import get_db
+from ..utils.cost_tracker import track_cost
 
 EDITOR_PROMPT = """Sei un editor professionista per il brand "{brand_name}".
 
@@ -54,6 +55,8 @@ async def edit_draft(brand_id: str, draft_id: str) -> dict:
     )
 
     raw = await _call_llm(prompt)
+    await track_cost(brand_id, "opus_editor", "claude-opus-4-20250514", "edit_draft", len(prompt), len(raw))
+
     text = raw.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1] if "\n" in text else text[3:]

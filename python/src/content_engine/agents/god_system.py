@@ -6,6 +6,7 @@ import json
 
 from ..scoring.engine import _call_llm
 from ..db import get_db
+from ..utils.cost_tracker import track_cost
 
 
 ADVOCATE_PROMPT = """Sei l'Avvocato del Diavolo. Analizza criticamente questo contenuto.
@@ -127,36 +128,42 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
     body = d.get("body", "")
 
     # 1. Advocate
-    adv_raw = await _call_llm(ADVOCATE_PROMPT.format(title=title, platform=platform, body=body))
+    adv_prompt = ADVOCATE_PROMPT.format(title=title, platform=platform, body=body)
+    adv_raw = await _call_llm(adv_prompt)
+    await track_cost(brand_id, "god_advocate", "claude-sonnet-4-20250514", "advocate", len(adv_prompt), len(adv_raw))
     adv = _parse_json(adv_raw)
     advocate_feedback = adv.get("feedback", "")
     advocate_score = adv.get("score", 5)
 
     # 2. Factchecker
-    fc_raw = await _call_llm(FACTCHECK_PROMPT.format(
-        title=title, body=body, advocate_feedback=advocate_feedback,
-    ))
+    fc_prompt = FACTCHECK_PROMPT.format(title=title, body=body, advocate_feedback=advocate_feedback)
+    fc_raw = await _call_llm(fc_prompt)
+    await track_cost(brand_id, "god_factcheck", "claude-sonnet-4-20250514", "factcheck", len(fc_prompt), len(fc_raw))
     fc = _parse_json(fc_raw)
     factcheck_feedback = fc.get("feedback", "")
     factcheck_issues = fc.get("issues", [])
 
     # 3. Creative
-    cr_raw = await _call_llm(CREATIVE_PROMPT.format(
+    cr_prompt = CREATIVE_PROMPT.format(
         title=title, platform=platform, body=body,
         advocate_feedback=advocate_feedback, factcheck_feedback=factcheck_feedback,
-    ))
+    )
+    cr_raw = await _call_llm(cr_prompt)
+    await track_cost(brand_id, "god_creative", "claude-sonnet-4-20250514", "creative", len(cr_prompt), len(cr_raw))
     cr = _parse_json(cr_raw)
     creative_feedback = cr.get("feedback", "")
     creative_suggestions = cr.get("suggestions", [])
 
     # 4. Synthesis
-    syn_raw = await _call_llm(SYNTHESIS_PROMPT.format(
+    syn_prompt = SYNTHESIS_PROMPT.format(
         title=title, platform=platform, body=body,
         advocate_score=advocate_score,
         advocate_feedback=advocate_feedback,
         factcheck_feedback=factcheck_feedback,
         creative_feedback=creative_feedback,
-    ))
+    )
+    syn_raw = await _call_llm(syn_prompt)
+    await track_cost(brand_id, "god_synthesis", "claude-opus-4-20250514", "synthesis", len(syn_prompt), len(syn_raw))
     syn = _parse_json(syn_raw)
 
     verdict = syn.get("verdict", "needs_revision")

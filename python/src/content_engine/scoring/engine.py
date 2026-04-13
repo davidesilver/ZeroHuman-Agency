@@ -9,6 +9,7 @@ import httpx
 from ..config import settings
 from ..db import get_db
 from ..models import ScoreResult, ScoringRequest
+from ..utils.cost_tracker import track_cost
 
 SCORING_PROMPT = """You are a content scoring agent for an AI content engine.
 Evaluate this research item on 6 parameters (0-10 scale).
@@ -113,6 +114,11 @@ async def score_item(item: dict, brand: dict) -> tuple[ScoreResult, float]:
     )
 
     raw = await _call_llm(prompt)
+    await track_cost(
+        brand.get("id", ""),
+        "scoring_agent", "claude-sonnet-4-20250514", "score_item",
+        len(prompt), len(raw),
+    )
 
     # Parse JSON from response (handle markdown code blocks)
     text = raw.strip()

@@ -6,6 +6,7 @@ import json
 
 from ..scoring.engine import _call_llm
 from ..db import get_db
+from ..utils.cost_tracker import track_cost
 
 WRITER_PROMPT = """Sei un content writer esperto per il brand "{brand_name}".
 
@@ -83,6 +84,8 @@ async def generate_draft(
     )
 
     raw = await _call_llm(prompt)
+    await track_cost(brand_id, "opus_writer", "claude-opus-4-20250514", "generate_draft", len(prompt), len(raw))
+
     text = raw.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1] if "\n" in text else text[3:]

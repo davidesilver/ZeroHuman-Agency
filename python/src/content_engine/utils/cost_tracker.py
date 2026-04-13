@@ -1,0 +1,55 @@
+"""Cost tracking utility — logs every LLM call to api_costs table."""
+
+from __future__ import annotations
+
+from ..db import get_db
+
+# Approximate pricing per 1M tokens (input/output) — updated May 2025
+MODEL_PRICING = {
+    "claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0},
+    "claude-opus-4-20250514": {"input": 15.0, "output": 75.0},
+    "anthropic/claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0},
+    "anthropic/claude-opus-4-20250514": {"input": 15.0, "output": 75.0},
+}
+
+# Rough approximation: 1 char ≈ 0.25 tokens for English/Italian text
+CHARS_PER_TOKEN = 4
+
+
+def estimate_tokens(text: str) -> int:
+    """Rough token estimate from character count."""
+    return max(1, len(text) // CHARS_PER_TOKEN)
+
+
+def estimate_cost(model: str, tokens_input: int, tokens_output: int) -> float:
+    """Estimate cost in USD based on model pricing."""
+    pricing = MODEL_PRICING.get(model, {"input": 3.0, "output": 15.0})
+    cost = (tokens_input * pricing["input"] + tokens_output * pricing["output"]) / 1_000_000
+    return round(cost, 6)
+
+
+async def track_cost(
+    brand_id: str,
+    agent_name: str,
+    model: str,
+    operation: str,
+    input_chars: int,
+    output_chars: int,
+    latency_ms: int | None = None,
+) -> None:
+    """Log an API call cost to the api_costs table."""
+    tokens_in = estimate_tokens("x" * input_chars)  # use char count directly
+    tokens_out = estimate_tokens("x" * output_chars)
+    cost = estimate_cost(model, tokens_in, tokens_out)
+
+    db = get_db()
+    db.table("api_costs").insert({
+        "brand_id": brand_id,
+        "agent_name": agent_name,
+        "model": model,
+        "operation": operation,
+        "tokens_input": tokens_in,
+        "tokens_output": tokens_out,
+        "cost_usd": cost,
+        "latency_ms": latency_ms,
+    }).execute()

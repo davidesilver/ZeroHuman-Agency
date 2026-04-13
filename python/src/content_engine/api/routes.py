@@ -10,6 +10,7 @@ from ..orchestrator.research import run_research
 from ..orchestrator.content import generate_content, generate_and_god
 from ..agents.god_system import run_god_mode
 from ..agents.adapter import adapt_content
+from ..agents.writing_lab import create_session, vote_round
 from ..scoring.engine import run_scoring
 
 router = APIRouter(prefix="/api")
@@ -227,3 +228,69 @@ async def research_stats():
         if s in counts:
             counts[s] += 1
     return {"success": True, "data": counts}
+
+
+# ── Writing Lab ──────────────────────────────────────────────────────────────
+
+
+class WritingLabCreateRequest(BaseModel):
+    topic: str
+    content_type: str = "newsletter"
+
+
+class VoteRequest(BaseModel):
+    winner: str  # "champion" | "challenger" | "draw"
+    feedback: str | None = None
+
+
+@router.post("/writing-lab/sessions")
+async def api_create_session(req: WritingLabCreateRequest):
+    result = await create_session(BRAND_ID, req.topic, req.content_type)
+    return {"success": True, "data": result}
+
+
+@router.get("/writing-lab/sessions")
+async def api_list_sessions(
+    status: str | None = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+):
+    db = get_db()
+    query = (
+        db.table("writing_lab_sessions")
+        .select("*", count="exact")
+        .eq("brand_id", BRAND_ID)
+        .order("created_at", desc=True)
+    )
+    if status:
+        query = query.eq("status", status)
+    query = query.range((page - 1) * per_page, page * per_page - 1)
+    resp = query.execute()
+    return {
+        "success": True,
+        "data": resp.data,
+        "meta": {"page": page, "per_page": per_page, "total": resp.count or 0},
+    }
+
+
+@router.get("/writing-lab/sessions/{session_id}")
+async def api_get_session(session_id: str):
+    db = get_db()
+    session = db.table("writing_lab_sessions").select("*").eq("id", session_id).single().execute().data
+    if not session:
+        raise HTTPException(404, "Session not found")
+    rounds = (
+        db.table("writing_lab_rounds")
+        .select("*")
+        .eq("session_id", session_id)
+        .order("round_number", desc=False)
+        .execute()
+        .data
+    )
+    return {"success": True, "data": {"session": session, "rounds": rounds or []}}
+
+
+@router.post("/writing-lab/sessions/{session_id}/vote")
+async def api_vote(session_id: str, req: VoteRequest):
+    result = await vote_round(BRAND_ID, session_id, req.winner, req.feedback)
+    return {"success": True, "data": result}

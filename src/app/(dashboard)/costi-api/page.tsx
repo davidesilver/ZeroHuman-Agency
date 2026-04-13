@@ -13,40 +13,53 @@ import {
 } from '@/components/ui/table'
 import { Progress } from '@/components/ui/progress'
 
-const AGENTS = [
-  { name: 'research_orchestrator', model: 'Sonnet', label: 'Research' },
-  { name: 'scoring_agent', model: 'Sonnet', label: 'Scoring' },
-  { name: 'opus_writer', model: 'Opus', label: 'Writer' },
-  { name: 'opus_editor', model: 'Opus', label: 'Editor' },
-  { name: 'god_advocate', model: 'Sonnet', label: 'GOD Advocate' },
-  { name: 'god_factcheck', model: 'Sonnet', label: 'GOD Factcheck' },
-  { name: 'god_creative', model: 'Sonnet', label: 'GOD Creative' },
-  { name: 'god_synthesis', model: 'Opus', label: 'GOD Synthesis' },
-  { name: 'sonnet_adapter', model: 'Sonnet', label: 'Adapter' },
-]
+interface AgentCost {
+  agent_name: string
+  model: string
+  calls: number
+  tokens_input: number
+  tokens_output: number
+  cost_usd: number
+}
 
 export default function CostiAPIPage() {
-  const dailyBudget = 15.0
-  const spentToday = 0
+  const [data, setData] = useState<{
+    spend_today: number
+    spend_week: number
+    spend_month: number
+    daily_budget: number
+    by_agent: AgentCost[]
+  }>({ spend_today: 0, spend_week: 0, spend_month: 0, daily_budget: 15, by_agent: [] })
 
-  const pct = Math.min((spentToday / dailyBudget) * 100, 100)
-  const barColor = pct < 80 ? 'bg-staging-bg' : pct < 100 ? 'bg-brand-accent' : 'bg-red-500'
+  const fetchCosts = useCallback(async () => {
+    try {
+      const resp = await fetch('/api/system/costs?period=today')
+      const json = await resp.json()
+      if (json.success) setData(json.data)
+    } catch {}
+  }, [])
+
+  useEffect(() => { fetchCosts() }, [fetchCosts])
+
+  const pct = Math.min((data.spend_today / data.daily_budget) * 100, 100)
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Costi API</h1>
 
       <div className="grid grid-cols-3 gap-4">
-        <KPICard title="Spesa oggi" value={`$${spentToday.toFixed(2)}`} />
-        <KPICard title="Spesa settimana" value="$0.00" />
-        <KPICard title="Spesa mese" value="$0.00" />
+        <KPICard title="Spesa oggi" value={`$${data.spend_today.toFixed(2)}`} />
+        <KPICard title="Spesa settimana" value={`$${data.spend_week.toFixed(2)}`} />
+        <KPICard title="Spesa mese" value={`$${data.spend_month.toFixed(2)}`} />
       </div>
 
       <Card>
         <CardContent className="pt-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">Budget giornaliero</span>
-            <span className="text-sm text-muted-foreground">${spentToday.toFixed(2)} / ${dailyBudget.toFixed(2)}</span>
+            <span className="text-sm text-muted-foreground">
+              ${data.spend_today.toFixed(2)} / ${data.daily_budget.toFixed(2)}
+            </span>
           </div>
           <Progress value={pct} className="h-3" />
         </CardContent>
@@ -74,17 +87,27 @@ export default function CostiAPIPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {AGENTS.map(agent => (
-            <TableRow key={agent.name}>
-              <TableCell className="font-medium">{agent.label}</TableCell>
-              <TableCell className="text-muted-foreground">{agent.model}</TableCell>
-              <TableCell className="text-right">0</TableCell>
-              <TableCell className="text-right">0</TableCell>
-              <TableCell className="text-right">0</TableCell>
-              <TableCell className="text-right">$0.00</TableCell>
-              <TableCell className="text-right">0%</TableCell>
+          {data.by_agent.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                Nessun costo registrato oggi.
+              </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            data.by_agent.map(agent => (
+              <TableRow key={agent.agent_name}>
+                <TableCell className="font-medium">{agent.agent_name}</TableCell>
+                <TableCell className="text-muted-foreground">{agent.model}</TableCell>
+                <TableCell className="text-right">{agent.calls}</TableCell>
+                <TableCell className="text-right">{agent.tokens_input.toLocaleString()}</TableCell>
+                <TableCell className="text-right">{agent.tokens_output.toLocaleString()}</TableCell>
+                <TableCell className="text-right">${agent.cost_usd.toFixed(4)}</TableCell>
+                <TableCell className="text-right">
+                  {data.daily_budget > 0 ? `${((agent.cost_usd / data.daily_budget) * 100).toFixed(1)}%` : '0%'}
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </div>

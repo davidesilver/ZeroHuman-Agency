@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -9,8 +9,80 @@ import { cn } from '@/lib/utils'
 
 const CONTENT_TYPES = ['Newsletter', 'Social', 'Blog', 'LinkedIn'] as const
 
+interface Round {
+  id: string
+  round_number: number
+  champion_text: string
+  challenger_text: string
+  hook_type_champion: string | null
+  hook_type_challenger: string | null
+  winner: string | null
+}
+
+interface Session {
+  id: string
+  topic: string
+  content_type: string
+  status: string
+  rounds_completed: number | null
+  max_rounds: number | null
+  current_champion: string | null
+  user_votes: Record<string, string> | null
+}
+
 export default function WritingLabPage() {
   const [contentType, setContentType] = useState<string>('Newsletter')
+  const [session, setSession] = useState<Session | null>(null)
+  const [currentRound, setCurrentRound] = useState<Round | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [topic, setTopic] = useState('')
+
+  const startSession = useCallback(async () => {
+    if (!topic.trim()) return
+    setIsLoading(true)
+    try {
+      const resp = await fetch('/api/writing-lab/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic, content_type: contentType.toLowerCase() }),
+      })
+      const json = await resp.json()
+      if (json.success) {
+        setSession(json.data.session)
+        setCurrentRound(json.data.round)
+      }
+    } catch {}
+    setIsLoading(false)
+  }, [topic, contentType])
+
+  const vote = useCallback(async (winner: string) => {
+    if (!session || !currentRound) return
+    setIsLoading(true)
+    try {
+      const resp = await fetch(`/api/writing-lab/sessions/${session.id}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ winner }),
+      })
+      const json = await resp.json()
+      if (json.success) {
+        if (json.data.status === 'completed') {
+          setSession(prev => prev ? { ...prev, status: 'completed', current_champion: json.data.champion } : null)
+          setCurrentRound(null)
+        } else {
+          setCurrentRound(json.data.round)
+          setSession(prev => prev ? { ...prev, rounds_completed: json.data.rounds_completed } : null)
+        }
+      }
+    } catch {}
+    setIsLoading(false)
+  }, [session, currentRound])
+
+  const roundsCompleted = session?.rounds_completed || 0
+  const maxRounds = session?.max_rounds || 50
+  const votes = session?.user_votes || {}
+  const championWins = Object.values(votes).filter(v => v === 'champion').length
+  const winRate = roundsCompleted > 0 ? Math.round((championWins / roundsCompleted) * 100) : 0
 
   return (
     <div className="space-y-4">
@@ -23,6 +95,7 @@ export default function WritingLabPage() {
               variant={contentType === ct ? 'default' : 'outline'}
               size="sm"
               onClick={() => setContentType(ct)}
+              disabled={!!session && session.status === 'active'}
             >
               {ct}
             </Button>
@@ -30,17 +103,26 @@ export default function WritingLabPage() {
         </div>
       </div>
 
-      {/* Toolbar */}
-      <Card>
-        <CardContent className="pt-3 pb-3 flex items-center gap-2">
-          <Button variant="outline" size="sm" className="font-bold">B</Button>
-          <Button variant="outline" size="sm" className="italic">I</Button>
-          <div className="w-px h-6 bg-border" />
-          <Button variant="outline" size="sm">Genera AI</Button>
-          <Button variant="outline" size="sm">Riscrivi</Button>
-          <Button variant="outline" size="sm">Accorcia</Button>
-        </CardContent>
-      </Card>
+      {/* Start session */}
+      {!session && (
+        <Card>
+          <CardContent className="pt-4 flex gap-3 items-end">
+            <div className="flex-1">
+              <label className="text-sm font-medium mb-1 block">Topic</label>
+              <input
+                type="text"
+                value={topic}
+                onChange={e => setTopic(e.target.value)}
+                placeholder="es. Come l'AI sta cambiando il marketing B2B"
+                className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm"
+              />
+            </div>
+            <Button onClick={startSession} disabled={isLoading || !topic.trim()}>
+              {isLoading ? 'Generando...' : 'Avvia Sessione'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* A/B Panels */}
       <div className="grid grid-cols-2 gap-4">
@@ -48,11 +130,14 @@ export default function WritingLabPage() {
           <CardContent className="pt-4">
             <div className="flex items-center justify-between mb-3">
               <Badge variant="outline" className="text-[10px] font-medium">CAMPIONE ATTUALE</Badge>
-              <Badge className="bg-staging-bg text-white text-[10px]">VINCITORE PREVISTO</Badge>
+              {currentRound && <Badge className="bg-staging-bg text-white text-[10px]">A</Badge>}
             </div>
-            <div className="min-h-[200px] rounded-md bg-secondary/50 p-4 text-sm text-muted-foreground">
-              Seleziona un topic e avvia una sessione A/B per generare il testo campione.
+            <div className="min-h-[200px] rounded-md bg-secondary/50 p-4 text-sm whitespace-pre-wrap">
+              {currentRound?.champion_text || (session?.current_champion || 'Avvia una sessione per generare il testo campione.')}
             </div>
+            {currentRound?.hook_type_champion && (
+              <p className="text-xs text-muted-foreground mt-2">Hook: {currentRound.hook_type_champion}</p>
+            )}
           </CardContent>
         </Card>
 
@@ -60,20 +145,59 @@ export default function WritingLabPage() {
           <CardContent className="pt-4">
             <div className="flex items-center justify-between mb-3">
               <Badge variant="outline" className="text-[10px] font-medium">NUOVA VERSIONE</Badge>
+              {currentRound && <Badge variant="outline" className="text-[10px]">B</Badge>}
             </div>
-            <div className="min-h-[200px] rounded-md bg-secondary/50 p-4 text-sm text-muted-foreground">
-              Il challenger verrà generato automaticamente ad ogni round.
+            <div className="min-h-[200px] rounded-md bg-secondary/50 p-4 text-sm whitespace-pre-wrap">
+              {currentRound?.challenger_text || 'Il challenger verrà generato automaticamente ad ogni round.'}
             </div>
+            {currentRound?.hook_type_challenger && (
+              <p className="text-xs text-muted-foreground mt-2">Hook: {currentRound.hook_type_challenger}</p>
+            )}
           </CardContent>
         </Card>
       </div>
 
       {/* Vote Buttons */}
       <div className="flex items-center justify-center gap-4">
-        <Button variant="outline" size="lg" disabled>Scegli A</Button>
-        <Button variant="outline" size="lg" disabled>Pari</Button>
-        <Button variant="outline" size="lg" disabled>Scegli B</Button>
+        <Button
+          variant="outline"
+          size="lg"
+          disabled={!currentRound || isLoading}
+          onClick={() => vote('champion')}
+        >
+          Scegli A
+        </Button>
+        <Button
+          variant="outline"
+          size="lg"
+          disabled={!currentRound || isLoading}
+          onClick={() => vote('draw')}
+        >
+          Pari
+        </Button>
+        <Button
+          variant="outline"
+          size="lg"
+          disabled={!currentRound || isLoading}
+          onClick={() => vote('challenger')}
+        >
+          Scegli B
+        </Button>
       </div>
+
+      {session?.status === 'completed' && (
+        <Card>
+          <CardContent className="pt-4 text-center">
+            <p className="text-staging-bg font-medium">Sessione completata!</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Il campione finale è stato salvato dopo {roundsCompleted} round.
+            </p>
+            <Button className="mt-3" onClick={() => { setSession(null); setCurrentRound(null); setTopic('') }}>
+              Nuova Sessione
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* GOD Mode Feedback */}
       <Card>
@@ -101,9 +225,9 @@ export default function WritingLabPage() {
 
       {/* Session Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <KPICard title="Round" value="0/50" subtitle="Sessione non avviata" />
-        <KPICard title="Hook type" value="—" subtitle="Si popola con i round" />
-        <KPICard title="Win rate campione" value="—" subtitle="% vittorie versione A" />
+        <KPICard title="Round" value={`${roundsCompleted}/${maxRounds}`} subtitle={session ? (session.status === 'active' ? 'In corso' : 'Completata') : 'Sessione non avviata'} />
+        <KPICard title="Hook type" value={currentRound?.hook_type_challenger || '—'} subtitle="Hook corrente del challenger" />
+        <KPICard title="Win rate campione" value={roundsCompleted > 0 ? `${winRate}%` : '—'} subtitle="% vittorie versione A" />
       </div>
     </div>
   )
