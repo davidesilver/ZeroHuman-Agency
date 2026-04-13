@@ -34,7 +34,7 @@ from ..agents.adapter import adapt_content
 from ..agents.writing_lab import create_session, vote_round
 from ..scoring.engine import run_scoring
 from ..services.newsletter_delivery import send_newsletter, preview_newsletter
-from ..services.social_publisher import publish_to_linkedin, publish_to_twitter, schedule_post
+from ..services.social_publisher import publish_to_postiz, schedule_post
 from ..services.feedback_loop import record_social_metrics, update_feedback_bonus
 from ..services.scheduler import daily_research_pipeline, publish_scheduled_posts
 
@@ -369,8 +369,13 @@ async def api_preview_newsletter(newsletter_id: str):
 
 
 class PublishRequest(BaseModel):
+    """C-03: access_token REMOVED — backend reads token from brands.social_accounts in DB.
+    
+    The token is never sent over the wire from the frontend.
+    brand_id is resolved from the authenticated user's JWT (request.state.brand_id).
+    """
     draft_id: str
-    access_token: str
+    platforms: list[str] = ["linkedin"]  # e.g. ["linkedin", "twitter", "instagram"]
 
 
 # H-06: Validate scheduled_at as ISO 8601 datetime in the future
@@ -397,21 +402,35 @@ class ScheduleRequest(BaseModel):
         _validate_scheduled_at(self.scheduled_at)
 
 
+@router.post("/social/publish")
+async def api_publish_social(req: PublishRequest, request: Request):
+    """C-03: brand_id from JWT — token fetched from DB, never from client."""
+    brand_id = getattr(request.state, "brand_id", BRAND_ID)
+    result = await publish_to_postiz(brand_id, req.draft_id, req.platforms)
+    return {"success": True, "data": result}
+
+
+# Legacy compatibility routes — delegate to unified endpoint
 @router.post("/social/publish/linkedin")
-async def api_publish_linkedin(req: PublishRequest):
-    result = await publish_to_linkedin(BRAND_ID, req.draft_id, req.access_token)
+async def api_publish_linkedin(req: PublishRequest, request: Request):
+    """C-03: Legacy route — access_token no longer accepted in body."""
+    brand_id = getattr(request.state, "brand_id", BRAND_ID)
+    result = await publish_to_postiz(brand_id, req.draft_id, ["linkedin"])
     return {"success": True, "data": result}
 
 
 @router.post("/social/publish/twitter")
-async def api_publish_twitter(req: PublishRequest):
-    result = await publish_to_twitter(BRAND_ID, req.draft_id, req.access_token)
+async def api_publish_twitter(req: PublishRequest, request: Request):
+    """C-03: Legacy route — access_token no longer accepted in body."""
+    brand_id = getattr(request.state, "brand_id", BRAND_ID)
+    result = await publish_to_postiz(brand_id, req.draft_id, ["twitter"])
     return {"success": True, "data": result}
 
 
 @router.post("/social/schedule")
-async def api_schedule_post(req: ScheduleRequest):
-    result = await schedule_post(BRAND_ID, req.draft_id, req.scheduled_at)
+async def api_schedule_post(req: ScheduleRequest, request: Request):
+    brand_id = getattr(request.state, "brand_id", BRAND_ID)
+    result = await schedule_post(brand_id, req.draft_id, req.scheduled_at)
     return {"success": True, "data": result}
 
 
@@ -470,3 +489,29 @@ async def api_publish_scheduled():
     except Exception as e:
         _logger.error("Publish scheduled failed: %s", e, exc_info=True)
         raise HTTPException(500, "Publish scheduled failed")
+
+
+# ── Auth / Secret Management ─────────────────────────────────────────────────
+
+
+@router.post("/auth/cache-invalidate", dependencies=[Depends(_require_scheduler_secret)])
+async def api_auth_cache_invalidate():
+    """L-02: Flush the JWT validation cache.
+
+    Call this after rotating Supabase keys so the middleware immediately
+    re-validates tokens against the new keys rather than serving stale cache
+    entries for up to 5 minutes.
+
+    Requires X-Scheduler-Secret header (same as scheduler endpoints).
+    """
+    from .auth_middleware import _AUTH_CACHE as _cache_ref  # type: ignore[attr-defined]
+    try:
+        # Clear the global cache dict in-place (atomic-ish for CPython GIL)
+        count = len(_cache_ref)
+        _cache_ref.clear()
+        _logger.info("L-02: JWT cache invalidated — cleared %d entries", count)
+        return {"success": True, "data": {"cleared_entries": count}}
+    except Exception:
+        # _AUTH_CACHE is lazily initialized — may not exist yet
+        return {"success": True, "data": {"cleared_entries": 0}}
+

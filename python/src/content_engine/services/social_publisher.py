@@ -1,6 +1,13 @@
-"""Social publishing service — posts content to LinkedIn and other platforms."""
+"""Social publishing service — posts content to LinkedIn and other platforms.
+
+C-03: OAuth access_tokens are NEVER received from the client request body.
+      Tokens are stored in brands.social_accounts (JSONB) and read from the DB
+      server-side. The frontend only sends brand_id (via JWT) and draft_id.
+"""
 
 from __future__ import annotations
+
+import logging
 
 import httpx
 
@@ -8,9 +15,40 @@ from ..config import settings
 from ..db import get_db
 from ..utils.audit_trail import log_publish_event
 
+_logger = logging.getLogger("content_engine.social")
+
+
+def get_social_token(brand_id: str, platform: str) -> str | None:
+    """C-03: Read OAuth token for a platform from brands.social_accounts in DB.
+
+    Tokens are stored server-side in the DB and never sent over the wire
+    from the frontend. The JSONB structure is:
+      { "linkedin": {"access_token": "...", "expires_at": "..."}, ... }
+
+    Returns None if no token is configured for the given platform.
+    """
+    db = get_db()
+    result = (
+        db.table("brands")
+        .select("social_accounts")
+        .eq("id", brand_id)
+        .single()
+        .execute()
+    )
+    if not result.data:
+        return None
+    accounts: dict = result.data.get("social_accounts") or {}
+    platform_data = accounts.get(platform, {})
+    return platform_data.get("access_token")
+
 
 async def publish_to_postiz(brand_id: str, draft_id: str, platforms: list[str]) -> dict:
-    """Publish a draft to multiple socials using Postiz Command Center API."""
+    """Publish a draft to multiple socials using Postiz Command Center API.
+
+    C-03: Platforms list comes from the request, but NO access_token is accepted
+    from the client. If direct platform publishing is ever needed, tokens are
+    read from brands.social_accounts via get_social_token().
+    """
     db = get_db()
 
     draft = db.table("content_drafts").select("*").eq("id", draft_id).single().execute().data
@@ -23,13 +61,11 @@ async def publish_to_postiz(brand_id: str, draft_id: str, platforms: list[str]) 
     body = draft.get("body", "")
     title = draft.get("title", "")
     text = f"{title}\n\n{body}" if title else body
-    
+
     if not settings.postiz_api_key or not settings.postiz_base_url:
-        import logging
-        logging.getLogger(__name__).warning("Postiz API keys missing. Faking publish.")
+        _logger.warning("Postiz API keys missing — simulating publish for dev.")
         post_id = "fake_postiz_id"
     else:
-        # Connect to Postiz API to publish to all requested platforms simultaneously
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 f"{settings.postiz_base_url}/api/v1/posts",
@@ -39,8 +75,8 @@ async def publish_to_postiz(brand_id: str, draft_id: str, platforms: list[str]) 
                 },
                 json={
                     "content": text,
-                    "platforms": platforms, # e.g. ["linkedin", "twitter", "instagram"]
-                    "status": "PUBLISHED"
+                    "platforms": platforms,
+                    "status": "PUBLISHED",
                 },
             )
             resp.raise_for_status()

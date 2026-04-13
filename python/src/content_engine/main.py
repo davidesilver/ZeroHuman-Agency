@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes import router
 from .api.auth_middleware import JWTAuthMiddleware
-from .utils.rate_limiter import RateLimitMiddleware
+from .utils.rate_limiter_persistent import PersistentRateLimitMiddleware
 from .utils.logging_config import setup_logging
 
 # L-03: Structured JSON logging (replaces basicConfig)
@@ -28,11 +28,12 @@ app.add_middleware(
     allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
-    allow_headers=["Authorization", "Content-Type", "X-Scheduler-Secret"],
+    allow_headers=["Authorization", "Content-Type", "X-Scheduler-Secret", "X-Request-ID"],
 )
 
-# Rate limiting — protects expensive LLM-calling routes
-app.add_middleware(RateLimitMiddleware)
+# H-03: Persistent rate limiting — Supabase-backed sliding window
+# Falls back to in-memory if DB unavailable (fail-open with warning logged)
+app.add_middleware(PersistentRateLimitMiddleware)
 
 # C-01/C-02: JWT authentication — must be added AFTER rate limiting
 # (middleware stack is LIFO: last added = first executed)

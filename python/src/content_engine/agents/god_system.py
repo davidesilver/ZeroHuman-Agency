@@ -38,8 +38,6 @@ Titolo: {title}
 Contenuto:
 {body}
 
-Contesto dell'Avvocato: {advocate_feedback}
-
 Per ogni claim:
 - Segna se verificabile o meno
 - Se verificabile, indica se plausibile/dubbio/falso
@@ -61,9 +59,6 @@ Titolo: {title}
 Piattaforma: {platform}
 Contenuto:
 {body}
-
-Feedback Avvocato: {advocate_feedback}
-Fact-check: {factcheck_feedback}
 
 Suggerisci:
 1. Hook alternativi piu' potenti
@@ -130,14 +125,20 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
     platform = d.get("platform", "")
     body = d.get("body", "")
 
-    def _fail(step: str, error: Exception) -> dict:
-        """Mark draft as failed and return error info."""
+    from ..services.alerting import send_telegram_alert
+
+    async def _fail(step: str, error: Exception) -> dict:
+        """Mark draft as failed, alert via Telegram, and return error info."""
         error_info = {"failed_step": step, "error": str(error)}
         logger.error("GOD Mode failed at step '%s' for draft %s: %s", step, draft_id, error)
         db.table("content_drafts").update({
             "status": "god_mode_failed",
             "god_mode_result": error_info,
         }).eq("id", draft_id).execute()
+        
+        # Fire and forget Telegram alert
+        await send_telegram_alert(f"Failed drafting `{draft_id}` at step `{step}`.\nError: `{error}`")
+
         return {
             "draft_id": draft_id,
             "verdict": "error",
@@ -145,46 +146,64 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
             "error": str(error),
         }
 
-    # 1. Advocate
-    try:
-        adv_prompt = ADVOCATE_PROMPT.format(title=title, platform=platform, body=body)
-        adv_resp = await call_llm(adv_prompt, brand_id, context="god_advocate", action="advocate", complexity="normal")
-        adv_raw = adv_resp.content
-        adv = _parse_json(adv_raw)
-        advocate_feedback = adv.get("feedback", "")
-        advocate_score = adv.get("score", 5)
-    except Exception as e:
-        return _fail("advocate", e)
+    import asyncio
 
-    # 2. Factchecker
-    try:
-        fc_prompt = FACTCHECK_PROMPT.format(title=title, body=body, advocate_feedback=advocate_feedback)
-        
-        # Determine subjects to research via MCP dynamically or simple heuristic
-        # In a real setup, another LLM pass extracts technical keywords, here we just pass the title
-        mcp_context_prompt = await augment_prompt_with_mcp(fc_prompt, queries=[title])
-        
-        fc_resp = await call_llm(mcp_context_prompt, brand_id, context="god_factcheck", action="factcheck", complexity="high")
-        fc_raw = fc_resp.content
-        fc = _parse_json(fc_raw)
-        factcheck_feedback = fc.get("feedback", "")
-        factcheck_issues = fc.get("issues", [])
-    except Exception as e:
-        return _fail("factcheck", e)
+    # Define parallel agent tasks
+    async def run_advocate():
+        try:
+            adv_prompt = ADVOCATE_PROMPT.format(title=title, platform=platform, body=body)
+            adv_resp = await call_llm(adv_prompt, brand_id, context="god_advocate", action="advocate", complexity="normal")
+            adv_raw = adv_resp.content
+            adv = _parse_json(adv_raw)
+            return adv.get("feedback", ""), adv.get("score", 5), None
+        except Exception as e:
+            return None, None, e
 
-    # 3. Creative
-    try:
-        cr_prompt = CREATIVE_PROMPT.format(
-            title=title, platform=platform, body=body,
-            advocate_feedback=advocate_feedback, factcheck_feedback=factcheck_feedback,
-        )
-        cr_resp = await call_llm(cr_prompt, brand_id, context="god_creative", action="creative", complexity="normal")
-        cr_raw = cr_resp.content
-        cr = _parse_json(cr_raw)
-        creative_feedback = cr.get("feedback", "")
-        creative_suggestions = cr.get("suggestions", [])
-    except Exception as e:
-        return _fail("creative", e)
+    async def run_factcheck():
+        try:
+            fc_prompt = FACTCHECK_PROMPT.format(title=title, body=body)
+            
+            # Check brand settings for Context7 usage
+            brand = db.table("brands").select("use_context7").eq("id", brand_id).single().execute().data
+            use_context7 = brand.get("use_context7", False) if brand else False
+
+            mcp_context_prompt = fc_prompt
+            if use_context7:
+                mcp_context_prompt = await augment_prompt_with_mcp(fc_prompt, queries=[title])
+            
+            fc_resp = await call_llm(mcp_context_prompt, brand_id, context="god_factcheck", action="factcheck", complexity="high")
+            fc_raw = fc_resp.content
+            fc = _parse_json(fc_raw)
+            return fc.get("feedback", ""), fc.get("issues", []), None
+        except Exception as e:
+            return None, None, e
+
+    async def run_creative():
+        try:
+            cr_prompt = CREATIVE_PROMPT.format(title=title, platform=platform, body=body)
+            cr_resp = await call_llm(cr_prompt, brand_id, context="god_creative", action="creative", complexity="normal")
+            cr_raw = cr_resp.content
+            cr = _parse_json(cr_raw)
+            return cr.get("feedback", ""), cr.get("suggestions", []), None
+        except Exception as e:
+            return None, None, e
+
+    # Execute agents 1, 2, 3 in parallel
+    adv_fut = run_advocate()
+    fc_fut = run_factcheck()
+    cr_fut = run_creative()
+    
+    (advocate_feedback, advocate_score, adv_err), \
+    (factcheck_feedback, factcheck_issues, fc_err), \
+    (creative_feedback, creative_suggestions, cr_err) = await asyncio.gather(adv_fut, fc_fut, cr_fut)
+
+    # Check for errors in any parallel task
+    if adv_err:
+        return await _fail("advocate", adv_err)
+    if fc_err:
+        return await _fail("factcheck", fc_err)
+    if cr_err:
+        return await _fail("creative", cr_err)
 
     # 4. Synthesis
     try:
@@ -199,7 +218,7 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
         syn_raw = syn_resp.content
         syn = _parse_json(syn_raw)
     except Exception as e:
-        return _fail("synthesis", e)
+        return await _fail("synthesis", e)
 
     verdict = syn.get("verdict", "needs_revision")
     if verdict not in ("pass", "needs_revision", "reject"):

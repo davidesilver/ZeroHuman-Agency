@@ -44,11 +44,18 @@ async def run_nightly_optimization(brand_id: str):
     db = get_db()
     
     # 1. Fetch worst performing drafts
-    drafts_resp = db.table("content_drafts").select("*").eq("brand_id", brand_id).eq("status", "rejected").limit(5).execute()
+    drafts_resp = (
+        db.table("content_drafts")
+        .select("*")
+        .eq("brand_id", brand_id)
+        .eq("status", "rejected")
+        .limit(50)
+        .execute()
+    )
     bad_drafts = drafts_resp.data
     
-    if len(bad_drafts) < 3:
-        logger.info("Not enough rejected drafts to run optimization.")
+    if len(bad_drafts) < 10:
+        logger.info("Not enough rejected drafts to run optimization. Waiting for statistical significance (n=10).")
         return
         
     # Analyze weaknesses (in a real scenario, we'd use GOD system Advocate feedback to find exactly WHY they failed)
@@ -72,7 +79,9 @@ async def run_nightly_optimization(brand_id: str):
     # For now, we simulate the A/B test result:
     
     # Fake a successful test loop:
-    success = True # Assume new prompt scored 8.5 vs old 6.0
+    # TODO: Implement real A/B testing (generate 5 drafts -> score them -> compare avg).
+    # For now, we simulate success=False so we only log the new prompt without overwriting DB blindly.
+    success = False # Changed to False to prevent DB corruption until real test is implemented
     
     if success:
         logger.info("New prompt performed better! Persisting to database.")

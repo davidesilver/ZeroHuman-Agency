@@ -35,6 +35,10 @@ async def daily_research_pipeline(brand_id: str) -> dict:
         "status": research_result.status,
     }
 
+    if research_result.items_found == 0:
+        from .alerting import send_telegram_alert
+        await send_telegram_alert(f"⚠️ Zero items found in daily research for brand `{brand_id}`. Check crawler/API endpoints.")
+
     # Step 2: Scoring
     scoring_result = await run_scoring(brand_id, ScoringRequest())
     results["scoring"] = scoring_result

@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     serper_api_key: str = ""
     youtube_api_key: str = ""
     anthropic_api_key: str = ""
+    openai_api_key: str = ""
     resend_api_key: str = ""
     firecrawl_api_key: str = ""
     postiz_api_key: str = ""
@@ -17,6 +18,8 @@ class Settings(BaseSettings):
     context7_mcp_url: str = "https://mcp.context7.com/mcp"
     newsletter_from_email: str = "newsletter@yourdomain.com"
     newsletter_from_name: str = "Content Engine"
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
 
     # Scoring
     scoring_model: str = "anthropic/claude-sonnet-4-20250514"

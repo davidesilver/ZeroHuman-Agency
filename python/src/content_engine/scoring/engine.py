@@ -184,8 +184,38 @@ async def run_scoring(brand_id: str, request: ScoringRequest) -> dict:
     rejected = 0
     errors: list[str] = []
 
+    # NOTE: the loop below is intentionally sequential (not asyncio.gather) 
+    # to prevent race conditions during semantic deduplication of parallel items.
     for item in items:
         try:
+            from ..utils.embedding_client import generate_embedding
+            
+            # 1. Semantic Deduplication
+            text_to_embed = f"{item.get('title', '')} {item.get('summary', '')}".strip()
+            if text_to_embed:
+                emb = await generate_embedding(text_to_embed, brand_id)
+                if emb:
+                    # Update embedding in DB
+                    db.table("research_items").update({"embedding": emb}).eq("id", item["id"]).execute()
+                    
+                    # Check for duplicates using RPC
+                    dups_resp = db.rpc("find_semantic_duplicates", {
+                        "p_brand_id": brand_id,
+                        "p_embedding": emb,
+                        "p_threshold": settings.dedup_threshold,
+                        "p_limit": 1
+                    }).execute()
+                    
+                    dups = dups_resp.data
+                    if dups and len(dups) > 0 and dups[0]["id"] != item["id"]:
+                        # Duplicate found! Skip scoring and mark as archived
+                        db.table("research_items").update({
+                            "status": "archived",
+                            "metadata": {"semantic_duplicate_of": dups[0]["id"], "similarity": dups[0]["similarity"]}
+                        }).eq("id", item["id"]).execute()
+                        continue
+
+            # 2. Score via LLM
             result, final_score = await score_item(item, brand_data)
 
             # Save score (columns match DB schema)
@@ -203,10 +233,20 @@ async def run_scoring(brand_id: str, request: ScoringRequest) -> dict:
 
             # Auto-approve/reject
             new_status = "scored"
-            if final_score >= settings.auto_approve_threshold:
+            
+            # Fetch brand-specific thresholds or fallback to globals
+            brand_approve_thresh = brand_data.get("auto_approve_threshold")
+            if brand_approve_thresh is None:
+                brand_approve_thresh = settings.auto_approve_threshold
+                
+            brand_reject_thresh = brand_data.get("auto_reject_threshold")
+            if brand_reject_thresh is None:
+                brand_reject_thresh = settings.auto_reject_threshold
+
+            if final_score >= brand_approve_thresh:
                 new_status = "approved"
                 approved += 1
-            elif final_score <= settings.auto_reject_threshold:
+            elif final_score <= brand_reject_thresh:
                 new_status = "rejected"
                 rejected += 1
 
