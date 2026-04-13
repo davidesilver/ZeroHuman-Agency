@@ -115,6 +115,9 @@ Rispondi SOLO in JSON:
 
 
 async def run_god_mode(brand_id: str, draft_id: str) -> dict:
+    import logging
+
+    logger = logging.getLogger("content_engine.god_system")
     db = get_db()
 
     draft = db.table("content_drafts").select("*").eq("id", draft_id).single().execute()
@@ -127,61 +130,91 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
     platform = d.get("platform", "")
     body = d.get("body", "")
 
+    def _fail(step: str, error: Exception) -> dict:
+        """Mark draft as failed and return error info."""
+        error_info = {"failed_step": step, "error": str(error)}
+        logger.error("GOD Mode failed at step '%s' for draft %s: %s", step, draft_id, error)
+        db.table("content_drafts").update({
+            "status": "god_mode_failed",
+            "god_mode_result": error_info,
+        }).eq("id", draft_id).execute()
+        return {
+            "draft_id": draft_id,
+            "verdict": "error",
+            "failed_step": step,
+            "error": str(error),
+        }
+
     # 1. Advocate
-    adv_prompt = ADVOCATE_PROMPT.format(title=title, platform=platform, body=body)
-    adv_raw = await _call_llm(adv_prompt)
-    await track_cost(brand_id, "god_advocate", "claude-sonnet-4-20250514", "advocate", len(adv_prompt), len(adv_raw))
-    adv = _parse_json(adv_raw)
-    advocate_feedback = adv.get("feedback", "")
-    advocate_score = adv.get("score", 5)
+    try:
+        adv_prompt = ADVOCATE_PROMPT.format(title=title, platform=platform, body=body)
+        adv_raw = await _call_llm(adv_prompt)
+        await track_cost(brand_id, "god_advocate", "claude-sonnet-4-20250514", "advocate", len(adv_prompt), len(adv_raw))
+        adv = _parse_json(adv_raw)
+        advocate_feedback = adv.get("feedback", "")
+        advocate_score = adv.get("score", 5)
+    except Exception as e:
+        return _fail("advocate", e)
 
     # 2. Factchecker
-    fc_prompt = FACTCHECK_PROMPT.format(title=title, body=body, advocate_feedback=advocate_feedback)
-    fc_raw = await _call_llm(fc_prompt)
-    await track_cost(brand_id, "god_factcheck", "claude-sonnet-4-20250514", "factcheck", len(fc_prompt), len(fc_raw))
-    fc = _parse_json(fc_raw)
-    factcheck_feedback = fc.get("feedback", "")
-    factcheck_issues = fc.get("issues", [])
+    try:
+        fc_prompt = FACTCHECK_PROMPT.format(title=title, body=body, advocate_feedback=advocate_feedback)
+        fc_raw = await _call_llm(fc_prompt)
+        await track_cost(brand_id, "god_factcheck", "claude-sonnet-4-20250514", "factcheck", len(fc_prompt), len(fc_raw))
+        fc = _parse_json(fc_raw)
+        factcheck_feedback = fc.get("feedback", "")
+        factcheck_issues = fc.get("issues", [])
+    except Exception as e:
+        return _fail("factcheck", e)
 
     # 3. Creative
-    cr_prompt = CREATIVE_PROMPT.format(
-        title=title, platform=platform, body=body,
-        advocate_feedback=advocate_feedback, factcheck_feedback=factcheck_feedback,
-    )
-    cr_raw = await _call_llm(cr_prompt)
-    await track_cost(brand_id, "god_creative", "claude-sonnet-4-20250514", "creative", len(cr_prompt), len(cr_raw))
-    cr = _parse_json(cr_raw)
-    creative_feedback = cr.get("feedback", "")
-    creative_suggestions = cr.get("suggestions", [])
+    try:
+        cr_prompt = CREATIVE_PROMPT.format(
+            title=title, platform=platform, body=body,
+            advocate_feedback=advocate_feedback, factcheck_feedback=factcheck_feedback,
+        )
+        cr_raw = await _call_llm(cr_prompt)
+        await track_cost(brand_id, "god_creative", "claude-sonnet-4-20250514", "creative", len(cr_prompt), len(cr_raw))
+        cr = _parse_json(cr_raw)
+        creative_feedback = cr.get("feedback", "")
+        creative_suggestions = cr.get("suggestions", [])
+    except Exception as e:
+        return _fail("creative", e)
 
     # 4. Synthesis
-    syn_prompt = SYNTHESIS_PROMPT.format(
-        title=title, platform=platform, body=body,
-        advocate_score=advocate_score,
-        advocate_feedback=advocate_feedback,
-        factcheck_feedback=factcheck_feedback,
-        creative_feedback=creative_feedback,
-    )
-    syn_raw = await _call_llm(syn_prompt)
-    await track_cost(brand_id, "god_synthesis", "claude-opus-4-20250514", "synthesis", len(syn_prompt), len(syn_raw))
-    syn = _parse_json(syn_raw)
+    try:
+        syn_prompt = SYNTHESIS_PROMPT.format(
+            title=title, platform=platform, body=body,
+            advocate_score=advocate_score,
+            advocate_feedback=advocate_feedback,
+            factcheck_feedback=factcheck_feedback,
+            creative_feedback=creative_feedback,
+        )
+        syn_raw = await _call_llm(syn_prompt)
+        await track_cost(brand_id, "god_synthesis", "claude-opus-4-20250514", "synthesis", len(syn_prompt), len(syn_raw))
+        syn = _parse_json(syn_raw)
+    except Exception as e:
+        return _fail("synthesis", e)
 
     verdict = syn.get("verdict", "needs_revision")
     if verdict not in ("pass", "needs_revision", "reject"):
         verdict = "needs_revision"
 
     # Save review
-    db.table("god_mode_reviews").insert({
-        "draft_id": draft_id,
-        "advocate_feedback": advocate_feedback,
-        "advocate_score": advocate_score,
-        "factcheck_feedback": factcheck_feedback,
-        "factcheck_issues": factcheck_issues,
-        "creative_feedback": creative_feedback,
-        "creative_suggestions": creative_suggestions,
-        "synthesis_result": syn.get("summary", ""),
-        "final_verdict": verdict,
-    }).execute()
+    try:
+        db.table("god_mode_reviews").insert({
+            "draft_id": draft_id,
+            "advocate_feedback": advocate_feedback,
+            "advocate_score": advocate_score,
+            "factcheck_feedback": factcheck_feedback,
+            "factcheck_issues": factcheck_issues,
+            "creative_feedback": creative_feedback,
+            "creative_suggestions": creative_suggestions,
+            "synthesis_result": syn.get("summary", ""),
+            "final_verdict": verdict,
+        }).execute()
+    except Exception as e:
+        logger.warning("Failed to save GOD mode review for draft %s: %s", draft_id, e)
 
     # Update draft with synthesized content
     new_status = "approved" if verdict == "pass" else "in_review"
@@ -209,11 +242,21 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
 
 
 def _parse_json(raw: str) -> dict:
+    """Parse JSON from LLM response, stripping markdown code fences.
+
+    Raises ValueError if the response cannot be parsed as JSON,
+    instead of silently returning fallback data.
+    """
+    import logging
+
+    logger = logging.getLogger("content_engine.god_system")
+
     text = raw.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1] if "\n" in text else text[3:]
         text = text.rsplit("```", 1)[0]
     try:
         return json.loads(text)
-    except json.JSONDecodeError:
-        return {"feedback": text, "score": 5}
+    except json.JSONDecodeError as e:
+        logger.error("Failed to parse LLM JSON response: %s | Raw: %.200s", e, raw)
+        raise ValueError(f"LLM returned invalid JSON: {e}") from e

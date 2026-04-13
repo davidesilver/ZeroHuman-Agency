@@ -6,6 +6,7 @@ import httpx
 
 from ..config import settings
 from ..db import get_db
+from ..utils.audit_trail import log_publish_event
 
 
 async def publish_to_linkedin(brand_id: str, draft_id: str, access_token: str) -> dict:
@@ -68,13 +69,23 @@ async def publish_to_linkedin(brand_id: str, draft_id: str, access_token: str) -
         "published_url": published_url,
     }).eq("id", draft_id).execute()
 
-    return {
+    result = {
         "draft_id": draft_id,
         "platform": "linkedin",
         "post_id": post_id,
         "published_url": published_url,
         "status": "published",
     }
+
+    await log_publish_event(
+        brand_id, draft_id,
+        action="linkedin_publish",
+        platform="linkedin",
+        status="success",
+        details={"post_id": post_id, "published_url": published_url},
+    )
+
+    return result
 
 
 async def schedule_post(brand_id: str, draft_id: str, scheduled_at: str) -> dict:
@@ -96,6 +107,14 @@ async def schedule_post(brand_id: str, draft_id: str, scheduled_at: str) -> dict
         "content_draft_id": draft_id,
         "status": "scheduled",
     }).execute()
+
+    await log_publish_event(
+        brand_id, draft_id,
+        action="schedule_post",
+        platform=draft.get("platform", ""),
+        status="success",
+        details={"scheduled_at": scheduled_at},
+    )
 
     return {
         "draft_id": draft_id,

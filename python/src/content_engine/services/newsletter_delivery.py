@@ -6,6 +6,7 @@ import resend
 
 from ..config import settings
 from ..db import get_db
+from ..utils.audit_trail import log_publish_event
 
 NEWSLETTER_TEMPLATE = """<!DOCTYPE html>
 <html>
@@ -131,6 +132,8 @@ async def send_newsletter(brand_id: str, newsletter_id: str, recipients: list[st
         "html": html,
     })
 
+    resend_id = result.get("id") if isinstance(result, dict) else str(result)
+
     # Update newsletter record
     db.table("newsletters").update({
         "status": "sent",
@@ -138,9 +141,17 @@ async def send_newsletter(brand_id: str, newsletter_id: str, recipients: list[st
         "recipients_count": len(recipients),
     }).eq("id", newsletter_id).execute()
 
+    await log_publish_event(
+        brand_id, newsletter_id,
+        action="newsletter_send",
+        platform="email",
+        status="success",
+        details={"resend_id": resend_id, "recipients": len(recipients)},
+    )
+
     return {
         "newsletter_id": newsletter_id,
-        "resend_id": result.get("id") if isinstance(result, dict) else str(result),
+        "resend_id": resend_id,
         "recipients": len(recipients),
         "status": "sent",
     }
