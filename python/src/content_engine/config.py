@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     next_public_supabase_url: str = Field(alias="NEXT_PUBLIC_SUPABASE_URL")
+    next_public_supabase_anon_key: str = Field("", alias="NEXT_PUBLIC_SUPABASE_ANON_KEY")
     supabase_service_role_key: str = ""
     openrouter_api_key: str = ""
     serper_api_key: str = ""
@@ -29,6 +30,11 @@ class Settings(BaseSettings):
     @property
     def supabase_url(self) -> str:
         return self.next_public_supabase_url
+
+    @property
+    def supabase_anon_key(self) -> str:
+        """Anon key for JWT verification and user-scoped DB clients (C-01/C-02)."""
+        return self.next_public_supabase_anon_key
 
     model_config = {"env_file": "../.env.local", "extra": "ignore", "populate_by_name": True}
 

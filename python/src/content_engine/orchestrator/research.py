@@ -22,6 +22,20 @@ from ..retrievers.youtube import YouTubeRetriever
 
 logger = logging.getLogger("content_engine.research")
 
+# H-09: Per-brand locks to prevent concurrent research pipelines.
+# Without this, two simultaneous trigger requests both pass the
+# "is a run already active?" DB check before either can create the record.
+_research_locks: dict[str, asyncio.Lock] = {}
+_locks_dict_lock = asyncio.Lock()  # protects _research_locks dict itself
+
+
+async def _get_research_lock(brand_id: str) -> asyncio.Lock:
+    """Return a brand-scoped asyncio.Lock, creating it lazily."""
+    async with _locks_dict_lock:
+        if brand_id not in _research_locks:
+            _research_locks[brand_id] = asyncio.Lock()
+        return _research_locks[brand_id]
+
 
 def _normalize_url(url: str) -> str:
     parsed = urlparse(url)
@@ -132,27 +146,32 @@ async def run_research(brand_id: str, request: TriggerRequest) -> ResearchRunRes
     db = get_db()
     start = time.monotonic()
 
-    # Check for running research
-    if not request.force:
-        existing = (
+    # H-09: Acquire per-brand lock to prevent concurrent pipeline race conditions.
+    # Two simultaneous requests cannot both pass the DB check and start duplicates.
+    brand_lock = await _get_research_lock(brand_id)
+    async with brand_lock:
+        # Check for running research (now safe from TOCTOU within same process)
+        if not request.force:
+            existing = (
+                db.table("research_runs")
+                .select("id")
+                .eq("brand_id", brand_id)
+                .eq("status", "running")
+                .execute()
+            )
+            if existing.data:
+                return ResearchRunResult(
+                    run_id=existing.data[0]["id"],
+                    status=RunStatus.RUNNING,
+                )
+
+        # Create run record — done inside lock so no second request sneaks through
+        run_row = (
             db.table("research_runs")
-            .select("id")
-            .eq("brand_id", brand_id)
-            .eq("status", "running")
+            .insert({"brand_id": brand_id, "status": "running"})
             .execute()
         )
-        if existing.data:
-            return ResearchRunResult(
-                run_id=existing.data[0]["id"],
-                status=RunStatus.RUNNING,
-            )
-
-    # Create run record
-    run_row = (
-        db.table("research_runs")
-        .insert({"brand_id": brand_id, "status": "running"})
-        .execute()
-    )
+    # Lock released here — the run record exists, subsequent triggers will see it
     run_id = run_row.data[0]["id"]
 
     # Load brand config

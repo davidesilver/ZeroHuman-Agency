@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes import router
+from .api.auth_middleware import JWTAuthMiddleware
 from .utils.rate_limiter import RateLimitMiddleware
 
 # Configure structured logging
@@ -35,6 +36,10 @@ app.add_middleware(
 
 # Rate limiting — protects expensive LLM-calling routes
 app.add_middleware(RateLimitMiddleware)
+
+# C-01/C-02: JWT authentication — must be added AFTER rate limiting
+# (middleware stack is LIFO: last added = first executed)
+app.add_middleware(JWTAuthMiddleware)
 
 app.include_router(router)
 
