@@ -70,7 +70,7 @@ async def run_nightly_optimization(brand_id: str):
     # 2. Propose tweak
     tweak_prompt = OPTIMIZER_PROMPT.format(original_prompt=current_prompt, weaknesses=weaknesses_str)
     
-    resp = await call_llm(tweak_prompt, brand_id, context="system_optimizer", action="optimize", complexity="high")
+    resp = await call_llm(tweak_prompt, brand_id, context="system_optimizer", action="optimize", task_type="agentic")
     new_prompt = resp.content.strip()
     
     logger.info(f"Generated new prompt variation. Will test against baseline.")

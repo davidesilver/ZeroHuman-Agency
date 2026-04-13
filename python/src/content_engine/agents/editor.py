@@ -6,7 +6,7 @@ import json
 
 from ..db import get_db
 from ..utils.cost_tracker import track_cost
-from ..utils.llm_utils import call_llm, parse_json_response  # M-02: shared
+from ..utils.llm_client import call_llm
 from ..utils.security_utils import sanitize_for_prompt         # H-07
 
 EDITOR_PROMPT = """Sei un editor professionista per il brand "{brand_name}".
@@ -57,11 +57,20 @@ async def edit_draft(brand_id: str, draft_id: str) -> dict:
         tone_hint=tone_hint,
     )
 
-    raw = await call_llm(prompt)  # M-02: use shared call_llm
-    await track_cost(brand_id, "opus_editor", "claude-opus-4-20250514", "edit_draft", len(prompt), len(raw))
+    raw_res = await call_llm(
+        prompt=prompt,
+        brand_id=brand_id,
+        context="editor_agent",
+        action="edit_draft",
+        task_type="creative"
+    )
+    raw = raw_res.content
 
-    # M-02: use shared parse_json_response (handles markdown fences + fallback)
-    parsed = parse_json_response(raw, context="editor_agent")
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+        text = text.rsplit("```", 1)[0]
+    parsed = json.loads(text)
 
     new_version = (draft_data.get("version") or 1) + 1
     db.table("content_drafts").update({

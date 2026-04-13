@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     telegram_chat_id: str = ""
 
     # Scoring
-    scoring_model: str = "anthropic/claude-sonnet-4-20250514"
+    scoring_model: str = "google/gemma-4-150b:free"
     auto_approve_threshold: float = 8.0
     auto_reject_threshold: float = 3.0
 

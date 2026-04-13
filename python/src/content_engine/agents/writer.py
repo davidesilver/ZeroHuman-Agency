@@ -6,7 +6,7 @@ import json
 
 from ..db import get_db
 from ..utils.cost_tracker import track_cost
-from ..utils.llm_utils import call_llm          # M-02: shared implementation
+from ..utils.llm_client import call_llm
 from ..utils.security_utils import sanitize_for_prompt  # H-07: prompt injection guard
 
 WRITER_PROMPT = """Sei un content writer esperto per il brand "{brand_name}".
@@ -85,8 +85,14 @@ async def generate_draft(
         length_hint=PLATFORM_LENGTH.get(platform, "medio"),
     )
 
-    raw = await call_llm(prompt)  # M-02: use shared call_llm
-    await track_cost(brand_id, "opus_writer", "claude-opus-4-20250514", "generate_draft", len(prompt), len(raw))
+    raw_res = await call_llm(
+        prompt=prompt,
+        brand_id=brand_id,
+        context="writer_agent",
+        action="generate_draft",
+        task_type="creative"
+    )
+    raw = raw_res.content
 
     text = raw.strip()
     if text.startswith("```"):

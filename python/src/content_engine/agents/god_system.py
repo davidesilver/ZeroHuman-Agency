@@ -152,7 +152,7 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
     async def run_advocate():
         try:
             adv_prompt = ADVOCATE_PROMPT.format(title=title, platform=platform, body=body)
-            adv_resp = await call_llm(adv_prompt, brand_id, context="god_advocate", action="advocate", complexity="normal")
+            adv_resp = await call_llm(adv_prompt, brand_id, context="god_advocate", action="advocate", task_type="knowledge")
             adv_raw = adv_resp.content
             adv = _parse_json(adv_raw)
             return adv.get("feedback", ""), adv.get("score", 5), None
@@ -171,7 +171,7 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
             if use_context7:
                 mcp_context_prompt = await augment_prompt_with_mcp(fc_prompt, queries=[title])
             
-            fc_resp = await call_llm(mcp_context_prompt, brand_id, context="god_factcheck", action="factcheck", complexity="high")
+            fc_resp = await call_llm(mcp_context_prompt, brand_id, context="god_factcheck", action="factcheck", task_type="reasoning")
             fc_raw = fc_resp.content
             fc = _parse_json(fc_raw)
             return fc.get("feedback", ""), fc.get("issues", []), None
@@ -181,7 +181,7 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
     async def run_creative():
         try:
             cr_prompt = CREATIVE_PROMPT.format(title=title, platform=platform, body=body)
-            cr_resp = await call_llm(cr_prompt, brand_id, context="god_creative", action="creative", complexity="normal")
+            cr_resp = await call_llm(cr_prompt, brand_id, context="god_creative", action="creative", task_type="creative")
             cr_raw = cr_resp.content
             cr = _parse_json(cr_raw)
             return cr.get("feedback", ""), cr.get("suggestions", []), None
@@ -214,7 +214,7 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
             factcheck_feedback=factcheck_feedback,
             creative_feedback=creative_feedback,
         )
-        syn_resp = await call_llm(syn_prompt, brand_id, context="god_synthesis", action="synthesis", complexity="high")
+        syn_resp = await call_llm(syn_prompt, brand_id, context="god_synthesis", action="synthesis", task_type="reasoning")
         syn_raw = syn_resp.content
         syn = _parse_json(syn_raw)
     except Exception as e:

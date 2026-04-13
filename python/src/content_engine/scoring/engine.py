@@ -67,72 +67,9 @@ def _compute_final_score(result: ScoreResult) -> float:
     )
 
 
-async def _call_llm(prompt: str, *, timeout_seconds: int = 60) -> str:
-    """Call Claude Sonnet via Anthropic API or OpenRouter.
+from ..utils.llm_client import call_llm
 
-    Args:
-        prompt: The prompt to send to the LLM.
-        timeout_seconds: Maximum time to wait for response (default 60s).
-
-    Raises:
-        RuntimeError: If no API key is configured.
-        httpx.TimeoutException: If the call exceeds timeout.
-        anthropic.APITimeoutError: If the Anthropic call exceeds timeout.
-    """
-    import logging
-
-    logger = logging.getLogger("content_engine.llm")
-
-    if settings.anthropic_api_key:
-        import anthropic
-
-        client = anthropic.AsyncAnthropic(
-            api_key=settings.anthropic_api_key,
-            timeout=httpx.Timeout(timeout_seconds),
-        )
-        try:
-            message = await client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=512,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            return message.content[0].text
-        except anthropic.APITimeoutError:
-            logger.error("Anthropic API call timed out after %ds", timeout_seconds)
-            raise
-        except anthropic.APIError as e:
-            logger.error("Anthropic API error: %s", e)
-            raise
-
-    if settings.openrouter_api_key:
-        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
-            try:
-                resp = await client.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    json={
-                        "model": settings.scoring_model,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "max_tokens": 512,
-                    },
-                    headers={
-                        "Authorization": f"Bearer {settings.openrouter_api_key}",
-                        "Content-Type": "application/json",
-                    },
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                return data["choices"][0]["message"]["content"]
-            except httpx.TimeoutException:
-                logger.error("OpenRouter API call timed out after %ds", timeout_seconds)
-                raise
-            except httpx.HTTPStatusError as e:
-                logger.error("OpenRouter API error %d: %s", e.response.status_code, e.response.text[:200])
-                raise
-
-    raise RuntimeError("No AI API key configured (set ANTHROPIC_API_KEY or OPENROUTER_API_KEY)")
-
-
-async def score_item(item: dict, brand: dict) -> tuple[ScoreResult, float]:
+async def score_item(item: dict, brand: dict) -> tuple[ScoreResult, float, str]:
     topics = brand.get("topics") or []
     principles = (brand.get("scoring_weights") or {}).get("founder_principles", [])
 
@@ -145,12 +82,15 @@ async def score_item(item: dict, brand: dict) -> tuple[ScoreResult, float]:
         url=item.get("url", ""),
     )
 
-    raw = await _call_llm(prompt)
-    await track_cost(
-        brand.get("id", ""),
-        "scoring_agent", "claude-sonnet-4-20250514", "score_item",
-        len(prompt), len(raw),
+    resp = await call_llm(
+        prompt=prompt,
+        brand_id=brand.get("id", ""),
+        context="scoring_agent",
+        action="score_item",
+        task_type="reasoning"  # Reasoning makes more sense for precise scoring
     )
+    raw = resp.content
+    model_used = resp.model_used
 
     # Parse JSON from response (handle markdown code blocks)
     text = raw.strip()
@@ -160,7 +100,7 @@ async def score_item(item: dict, brand: dict) -> tuple[ScoreResult, float]:
     parsed = json.loads(text)
     result = ScoreResult(**parsed)
     final = _compute_final_score(result)
-    return result, final
+    return result, final, model_used
 
 
 async def run_scoring(brand_id: str, request: ScoringRequest) -> dict:
@@ -216,7 +156,7 @@ async def run_scoring(brand_id: str, request: ScoringRequest) -> dict:
                         continue
 
             # 2. Score via LLM
-            result, final_score = await score_item(item, brand_data)
+            result, final_score, model_used = await score_item(item, brand_data)
 
             # Save score (columns match DB schema)
             db.table("scores").insert({
@@ -228,7 +168,7 @@ async def run_scoring(brand_id: str, request: ScoringRequest) -> dict:
                 "italy_relevance": result.italy_relevance,
                 "feedback_bonus": result.feedback_bonus,
                 "final_score": final_score,
-                "model_used": "claude-sonnet-4",
+                "model_used": model_used,
             }).execute()
 
             # Auto-approve/reject

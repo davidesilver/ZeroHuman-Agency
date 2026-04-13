@@ -6,6 +6,7 @@ import json
 from ..config import settings
 from ..db import get_db
 from ..utils.cost_tracker import track_cost
+from ..utils.llm_client import call_llm
 
 HOOK_TYPES = [
     "Attacco numerico",
@@ -84,38 +85,6 @@ def _parse_json(text: str) -> dict:
         raise
 
 
-async def _call_llm(prompt: str, model: str = "anthropic/claude-sonnet-4-20250514") -> str:
-    """Call LLM via Anthropic or OpenRouter."""
-    if settings.anthropic_api_key:
-        import anthropic
-        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-        message = await client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=512,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return message.content[0].text
-
-    if settings.openrouter_api_key:
-        import httpx
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                json={
-                    "model": model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": 512,
-                },
-                headers={
-                    "Authorization": f"Bearer {settings.openrouter_api_key}",
-                    "Content-Type": "application/json",
-                },
-            )
-            resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
-
-    raise RuntimeError("No AI API key configured")
-
 
 async def create_session(brand_id: str, topic: str, content_type: str) -> dict:
     """Create a new Writing Lab session and generate round 1."""
@@ -158,11 +127,23 @@ async def create_session(brand_id: str, topic: str, content_type: str) -> dict:
         champion_text="(first round — no champion yet)",
     )
 
-    champion_resp = await _call_llm(champion_prompt)
-    await track_cost(brand_id, "writing_lab", "claude-sonnet-4-20250514", "generate_champion", len(champion_prompt), len(champion_resp))
+    champion_res = await call_llm(
+        prompt=champion_prompt,
+        brand_id=brand_id,
+        context="writing_lab",
+        action="generate_champion",
+        task_type="creative"
+    )
+    champion_resp = champion_res.content
 
-    challenger_resp = await _call_llm(challenger_prompt)
-    await track_cost(brand_id, "writing_lab", "claude-sonnet-4-20250514", "generate_challenger", len(challenger_prompt), len(challenger_resp))
+    challenger_res = await call_llm(
+        prompt=challenger_prompt,
+        brand_id=brand_id,
+        context="writing_lab",
+        action="generate_challenger",
+        task_type="creative"
+    )
+    challenger_resp = challenger_res.content
 
     champion_data = _parse_json(champion_resp)
     challenger_data = _parse_json(challenger_resp)
@@ -267,8 +248,14 @@ async def vote_round(brand_id: str, session_id: str, winner: str, feedback: str 
         champion_text=new_champion,
     )
 
-    challenger_resp = await _call_llm(challenger_prompt)
-    await track_cost(brand_id, "writing_lab", "claude-sonnet-4-20250514", "generate_challenger", len(challenger_prompt), len(challenger_resp))
+    challenger_res = await call_llm(
+        prompt=challenger_prompt,
+        brand_id=brand_id,
+        context="writing_lab",
+        action="generate_challenger",
+        task_type="creative"
+    )
+    challenger_resp = challenger_res.content
 
     challenger_data = _parse_json(challenger_resp)
     challenger_text = f"{challenger_data.get('hook', '')}\n\n{challenger_data.get('body', '')}"

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from ..scoring.engine import _call_llm
+from ..utils.llm_client import call_llm
 from ..db import get_db
 
 ADAPTER_PROMPT = """Adatta il seguente contenuto per la piattaforma {target_platform}.
@@ -68,7 +68,14 @@ async def adapt_content(
             tone_hint=tone_hint,
         )
 
-        raw = await _call_llm(prompt)
+        raw_res = await call_llm(
+            prompt=prompt,
+            brand_id=brand_id,
+            context="content_adapter",
+            action="adapt_content",
+            task_type="language"
+        )
+        raw = raw_res.content
         text = raw.strip()
         if text.startswith("```"):
             text = text.split("\n", 1)[1] if "\n" in text else text[3:]
