@@ -7,6 +7,7 @@ from email.utils import parsedate_to_datetime
 
 import feedparser
 
+from ..config import settings
 from ..models import ResearchItemCreate, RetrieverType, SourceType
 from .base import BaseRetriever
 
@@ -38,6 +39,19 @@ class RSSRetriever(BaseRetriever):
                     if not link or not title:
                         continue
                     summary = entry.get("summary", entry.get("description", ""))[:500]
+                    content_snippet = ""
+                    
+                    # Optional Firecrawl scraping to enrich the context
+                    if settings.firecrawl_api_key:
+                        try:
+                            from firecrawl import FirecrawlApp
+                            app = FirecrawlApp(api_key=settings.firecrawl_api_key)
+                            scrape_result = app.scrape_url(link, params={'formats': ['markdown']})
+                            content_snippet = scrape_result.get('markdown', '')[:3000] # store top 3k chars for context
+                        except Exception as e:
+                            import logging
+                            logging.error(f"Firecrawl scrape failed for {link}: {e}")
+
                     items.append(
                         ResearchItemCreate(
                             brand_id=self.brand_id,
@@ -49,6 +63,7 @@ class RSSRetriever(BaseRetriever):
                             source_name=source_name,
                             author=entry.get("author"),
                             summary=summary,
+                            content_snippet=content_snippet,
                             published_at=pub_dt,
                             language=language,
                         )

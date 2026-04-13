@@ -38,8 +38,10 @@ async def track_cost(
     latency_ms: int | None = None,
 ) -> None:
     """Log an API call cost to the api_costs table."""
-    tokens_in = estimate_tokens("x" * input_chars)  # use char count directly
-    tokens_out = estimate_tokens("x" * output_chars)
+    # M-12: Derive token estimates directly from char counts — do NOT allocate
+    # large strings of 'x' * chars just to call len() on them.
+    tokens_in = max(1, input_chars // CHARS_PER_TOKEN)
+    tokens_out = max(1, output_chars // CHARS_PER_TOKEN)
     cost = estimate_cost(model, tokens_in, tokens_out)
 
     db = get_db()

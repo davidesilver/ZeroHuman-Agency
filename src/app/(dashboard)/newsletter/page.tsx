@@ -12,11 +12,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus } from 'lucide-react'
+import { Plus, Send, Eye, Check, Loader2 } from 'lucide-react'
 
 export default function NewsletterPage() {
   const [newsletters, setNewsletters] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [sendingId, setSendingId] = useState<string | null>(null)
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null)
+  const [previewId, setPreviewId] = useState<string | null>(null)
 
   const fetchNewsletters = useCallback(async () => {
     setIsLoading(true)
@@ -29,6 +33,61 @@ export default function NewsletterPage() {
   }, [])
 
   useEffect(() => { fetchNewsletters() }, [fetchNewsletters])
+
+  const handleGenerate = async () => {
+    setGenerating(true)
+    try {
+      const resp = await fetch('/api/newsletter/generate', { method: 'POST' })
+      const json = await resp.json()
+      if (json.success) {
+        await fetchNewsletters()
+      }
+    } catch {}
+    setGenerating(false)
+  }
+
+  const handlePreview = async (id: string) => {
+    setPreviewId(id)
+    try {
+      const resp = await fetch(`/api/newsletter/${id}/preview`)
+      const json = await resp.json()
+      if (json.success) {
+        setPreviewHtml(json.data.html)
+      }
+    } catch {}
+  }
+
+  const handleApprove = async (id: string) => {
+    try {
+      await fetch(`/api/newsletter/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved' }),
+      })
+      await fetchNewsletters()
+    } catch {}
+  }
+
+  const handleSend = async (id: string) => {
+    const confirmed = window.confirm('Send this newsletter? This action cannot be undone.')
+    if (!confirmed) return
+
+    setSendingId(id)
+    try {
+      await fetch('/api/newsletter/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newsletter_id: id, recipients: [] }),
+      })
+      await fetchNewsletters()
+    } catch {}
+    setSendingId(null)
+  }
+
+  const closePreview = () => {
+    setPreviewHtml(null)
+    setPreviewId(null)
+  }
 
   const statusVariant = (status: string) => {
     switch (status) {
@@ -43,9 +102,17 @@ export default function NewsletterPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Newsletter</h1>
-        <Button className="bg-staging-bg hover:bg-staging-bg/90 text-white">
-          <Plus className="size-4" />
-          Generate Newsletter
+        <Button
+          className="bg-staging-bg hover:bg-staging-bg/90 text-white"
+          onClick={handleGenerate}
+          disabled={generating}
+        >
+          {generating ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Plus className="size-4" />
+          )}
+          {generating ? 'Generating...' : 'Generate Newsletter'}
         </Button>
       </div>
 
@@ -72,6 +139,7 @@ export default function NewsletterPage() {
               <TableHead className="w-24">Open Rate</TableHead>
               <TableHead className="w-20">CTR</TableHead>
               <TableHead className="w-24">Status</TableHead>
+              <TableHead className="w-36">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -89,10 +157,71 @@ export default function NewsletterPage() {
                     {nl.status.toUpperCase()}
                   </Badge>
                 </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => handlePreview(nl.id)}
+                      title="Preview"
+                    >
+                      <Eye className="size-3" />
+                    </Button>
+                    {nl.status === 'draft' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-green-600"
+                        onClick={() => handleApprove(nl.id)}
+                        title="Approve"
+                      >
+                        <Check className="size-3" />
+                      </Button>
+                    )}
+                    {(nl.status === 'approved' || nl.status === 'draft') && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-brand-primary"
+                        onClick={() => handleSend(nl.id)}
+                        disabled={sendingId === nl.id}
+                        title="Send"
+                      >
+                        {sendingId === nl.id ? (
+                          <Loader2 className="size-3 animate-spin" />
+                        ) : (
+                          <Send className="size-3" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+      )}
+
+      {/* Preview Modal */}
+      {previewHtml && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-background rounded-lg shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="font-medium">Newsletter Preview</h3>
+              <Button variant="ghost" size="sm" onClick={closePreview}>
+                ✕
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <iframe
+                srcDoc={previewHtml}
+                className="w-full h-full min-h-[500px] border-0 rounded"
+                title="Newsletter Preview"
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

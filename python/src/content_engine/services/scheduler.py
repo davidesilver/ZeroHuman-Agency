@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ..config import settings
 from ..db import get_db
@@ -11,6 +11,9 @@ from ..models import TriggerRequest, ScoringRequest
 from ..orchestrator.research import run_research
 from ..scoring.engine import run_scoring
 from .feedback_loop import update_feedback_bonus
+
+import logging
+logger = logging.getLogger("content_engine.scheduler")
 
 
 async def daily_research_pipeline(brand_id: str) -> dict:
@@ -47,7 +50,8 @@ async def publish_scheduled_posts(brand_id: str) -> dict:
     """Publish any posts that are past their scheduled time."""
     db = get_db()
 
-    now = datetime.utcnow().isoformat()
+    # M-09: use timezone-aware datetime (utcnow() deprecated in Python 3.12)
+    now = datetime.now(timezone.utc).isoformat()
 
     scheduled = db.table("content_drafts").select("id, platform, scheduled_at").eq(
         "brand_id", brand_id

@@ -1,0 +1,59 @@
+name: Daily Content Pipeline
+
+on:
+  schedule:
+    # Run at 07:00 CET (05:00 UTC) every day
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+    inputs:
+      pipeline:
+        description: 'Which pipeline to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - research
+          - feedback
+
+jobs:
+  daily-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Trigger daily research pipeline
+        if: inputs.pipeline == 'all' || inputs.pipeline == 'research' || github.event_name == 'schedule'
+        run: |
+          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST "${{ secrets.PYTHON_BACKEND_URL }}/api/scheduler/daily-pipeline" \
+            -H "Content-Type: application/json" \
+            --max-time 300)
+          echo "Status: $HTTP_CODE"
+          cat /tmp/response.json
+          if [ "$HTTP_CODE" -ge 400 ]; then exit 1; fi
+
+      - name: Wait for pipeline completion
+        if: inputs.pipeline == 'all' || inputs.pipeline == 'research' || github.event_name == 'schedule'
+        run: sleep 30
+
+      - name: Publish scheduled posts
+        if: inputs.pipeline == 'all' || github.event_name == 'schedule'
+        run: |
+          curl -s -X POST "${{ secrets.PYTHON_BACKEND_URL }}/api/scheduler/publish-scheduled" \
+            -H "Content-Type: application/json" --max-time 60
+
+  feedback-loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Run feedback loop at 02:00 CET (00:00 UTC) or when manually triggered
+    if: github.event_name == 'schedule' || inputs.pipeline == 'feedback' || inputs.pipeline == 'all'
+    steps:
+      - name: Update feedback loop
+        run: |
+          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST "${{ secrets.PYTHON_BACKEND_URL }}/api/analytics/feedback-loop" \
+            -H "Content-Type: application/json" \
+            --max-time 120)
+          echo "Status: $HTTP_CODE"
+          cat /tmp/response.json
+          if [ "$HTTP_CODE" -ge 400 ]; then exit 1; fi

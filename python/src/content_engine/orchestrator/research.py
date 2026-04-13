@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from urllib.parse import urlparse, urlencode, parse_qs
 
@@ -19,6 +20,8 @@ from ..retrievers.rss import RSSRetriever
 from ..retrievers.serper import SemanticRetriever, KeywordRetriever, PractitionerRetriever
 from ..retrievers.youtube import YouTubeRetriever
 
+logger = logging.getLogger("content_engine.research")
+
 
 def _normalize_url(url: str) -> str:
     parsed = urlparse(url)
@@ -33,7 +36,7 @@ def _normalize_url(url: str) -> str:
 
 
 def _deduplicate(items: list[ResearchItemCreate], threshold: float = 0.85) -> list[ResearchItemCreate]:
-    """URL-based dedup. Semantic dedup (pgvector) will be done post-insert via SQL."""
+    """URL-based dedup. Semantic dedup runs post-insert via embeddings."""
     seen: dict[str, ResearchItemCreate] = {}
     for item in items:
         norm = _normalize_url(item.url)
@@ -49,6 +52,80 @@ RETRIEVER_MAP: dict[RetrieverType, type[BaseRetriever]] = {
     RetrieverType.PRACTITIONER: PractitionerRetriever,
     RetrieverType.TREND: YouTubeRetriever,
 }
+
+
+async def _embed_and_dedup(
+    db,
+    brand_id: str,
+    inserted_ids: list[str],
+    items: list[ResearchItemCreate],
+    threshold: float,
+) -> int:
+    """Generate embeddings for new items and archive semantic duplicates.
+
+    Returns the number of items archived as semantic duplicates.
+    """
+    from ..config import settings
+    from ..services.embeddings import generate_embeddings_batch
+
+    if not settings.openrouter_api_key:
+        logger.warning("Skipping semantic dedup — no OPENROUTER_API_KEY configured")
+        return 0
+
+    # Build text for embedding: title + summary
+    texts = [f"{item.title}. {item.summary}" for item in items]
+
+    try:
+        embeddings = await generate_embeddings_batch(texts, brand_id=brand_id)
+    except Exception as e:
+        logger.error("Embedding generation failed, skipping semantic dedup: %s", e)
+        return 0
+
+    # Update each item with its embedding
+    for item_id, embedding in zip(inserted_ids, embeddings):
+        if any(v != 0.0 for v in embedding):  # skip zero embeddings
+            try:
+                db.table("research_items").update({
+                    "embedding": embedding,
+                }).eq("id", item_id).execute()
+            except Exception as e:
+                logger.warning("Failed to update embedding for item %s: %s", item_id, e)
+
+    # Run semantic dedup: for each new item, check if it's a near-duplicate of older items
+    archived = 0
+    for item_id, embedding in zip(inserted_ids, embeddings):
+        if not any(v != 0.0 for v in embedding):
+            continue
+        try:
+            dupes = db.rpc("find_semantic_duplicates", {
+                "p_brand_id": brand_id,
+                "p_embedding": embedding,
+                "p_threshold": threshold,
+                "p_limit": 3,
+            }).execute()
+
+            if dupes.data:
+                # Filter out self-matches
+                real_dupes = [d for d in dupes.data if d["id"] != item_id]
+                if real_dupes:
+                    logger.info(
+                        "Item %s is semantic duplicate of %s (similarity: %.2f)",
+                        item_id, real_dupes[0]["id"], real_dupes[0]["similarity"],
+                    )
+                    db.table("research_items").update({
+                        "status": "archived",
+                        "metadata": {
+                            "semantic_duplicate_of": real_dupes[0]["id"],
+                            "similarity": real_dupes[0]["similarity"],
+                        },
+                    }).eq("id", item_id).execute()
+                    archived += 1
+        except Exception as e:
+            logger.warning("Semantic dedup check failed for item %s: %s", item_id, e)
+
+    if archived:
+        logger.info("Archived %d semantic duplicates (threshold: %.2f)", archived, threshold)
+    return archived
 
 
 async def run_research(brand_id: str, request: TriggerRequest) -> ResearchRunResult:
@@ -122,10 +199,11 @@ async def run_research(brand_id: str, request: TriggerRequest) -> ResearchRunRes
 
     total_found = len(all_items)
 
-    # Deduplicate
+    # URL-based deduplication (fast, pre-insert)
     deduped = _deduplicate(all_items, request.dedup_threshold)
 
     # Save to database (columns must match DB schema)
+    inserted_ids: list[str] = []
     if deduped:
         rows = [
             {
@@ -142,24 +220,46 @@ async def run_research(brand_id: str, request: TriggerRequest) -> ResearchRunRes
             }
             for item in deduped
         ]
-        db.table("research_items").insert(rows).execute()
+        insert_result = db.table("research_items").insert(rows).execute()
+        inserted_ids = [r["id"] for r in insert_result.data]
+
+    # Content enrichment: replace short snippets with full article text
+    if inserted_ids:
+        try:
+            from ..services.content_enrichment import enrich_research_items
+            enrichment_results = await enrich_research_items(inserted_ids, max_concurrent=3)
+            enriched_count = sum(1 for v in enrichment_results.values() if v)
+            logger.info("Enriched %d/%d items with full text", enriched_count, len(inserted_ids))
+        except Exception as e:
+            logger.warning("Content enrichment step failed (non-blocking): %s", e)
+
+    # Semantic deduplication (post-insert, uses embeddings)
+    semantic_archived = 0
+    if inserted_ids:
+        semantic_archived = await _embed_and_dedup(
+            db, brand_id, inserted_ids, deduped, request.dedup_threshold,
+        )
 
     elapsed = time.monotonic() - start
+    final_count = len(deduped) - semantic_archived
 
     # Update run (columns: status, completed_at, items_found, sources_scanned, retriever_stats)
     db.table("research_runs").update({
         "status": "completed",
         "completed_at": "now()",
-        "items_found": len(deduped),
+        "items_found": final_count,
         "sources_scanned": total_found,
-        "retriever_stats": retriever_stats,
+        "retriever_stats": {
+            **retriever_stats,
+            "semantic_dedup": {"archived": semantic_archived},
+        },
     }).eq("id", run_id).execute()
 
     return ResearchRunResult(
         run_id=run_id,
         status=RunStatus.COMPLETED,
         total_items_found=total_found,
-        items_after_dedup=len(deduped),
+        items_after_dedup=final_count,
         retriever_stats=retriever_stats,
         duration_seconds=round(elapsed, 2),
     )

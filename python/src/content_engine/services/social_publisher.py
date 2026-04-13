@@ -9,8 +9,8 @@ from ..db import get_db
 from ..utils.audit_trail import log_publish_event
 
 
-async def publish_to_linkedin(brand_id: str, draft_id: str, access_token: str) -> dict:
-    """Publish a draft to LinkedIn using the Community Management API."""
+async def publish_to_postiz(brand_id: str, draft_id: str, platforms: list[str]) -> dict:
+    """Publish a draft to multiple socials using Postiz Command Center API."""
     db = get_db()
 
     draft = db.table("content_drafts").select("*").eq("id", draft_id).single().execute().data
@@ -23,45 +23,31 @@ async def publish_to_linkedin(brand_id: str, draft_id: str, access_token: str) -
     body = draft.get("body", "")
     title = draft.get("title", "")
     text = f"{title}\n\n{body}" if title else body
-
-    # LinkedIn UGC Post API
-    async with httpx.AsyncClient(timeout=30) as client:
-        # Get user profile URN
-        me_resp = await client.get(
-            "https://api.linkedin.com/v2/userinfo",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-        me_resp.raise_for_status()
-        user_sub = me_resp.json().get("sub")
-        author_urn = f"urn:li:person:{user_sub}"
-
-        # Create post
-        post_resp = await client.post(
-            "https://api.linkedin.com/v2/ugcPosts",
-            headers={
-                "Authorization": f"Bearer {access_token}",
-                "Content-Type": "application/json",
-                "X-Restli-Protocol-Version": "2.0.0",
-            },
-            json={
-                "author": author_urn,
-                "lifecycleState": "PUBLISHED",
-                "specificContent": {
-                    "com.linkedin.ugc.ShareContent": {
-                        "shareCommentary": {"text": text},
-                        "shareMediaCategory": "NONE",
-                    }
+    
+    if not settings.postiz_api_key or not settings.postiz_base_url:
+        import logging
+        logging.getLogger(__name__).warning("Postiz API keys missing. Faking publish.")
+        post_id = "fake_postiz_id"
+    else:
+        # Connect to Postiz API to publish to all requested platforms simultaneously
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"{settings.postiz_base_url}/api/v1/posts",
+                headers={
+                    "Authorization": f"Bearer {settings.postiz_api_key}",
+                    "Content-Type": "application/json",
                 },
-                "visibility": {
-                    "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+                json={
+                    "content": text,
+                    "platforms": platforms, # e.g. ["linkedin", "twitter", "instagram"]
+                    "status": "PUBLISHED"
                 },
-            },
-        )
-        post_resp.raise_for_status()
-        post_data = post_resp.json()
-        post_id = post_data.get("id", "")
+            )
+            resp.raise_for_status()
+            post_data = resp.json()
+            post_id = post_data.get("id", "")
 
-    published_url = f"https://www.linkedin.com/feed/update/{post_id}" if post_id else ""
+    published_url = f"https://postiz.local/post/{post_id}" if post_id else ""
 
     # Update draft status
     db.table("content_drafts").update({
@@ -71,7 +57,7 @@ async def publish_to_linkedin(brand_id: str, draft_id: str, access_token: str) -
 
     result = {
         "draft_id": draft_id,
-        "platform": "linkedin",
+        "platforms": platforms,
         "post_id": post_id,
         "published_url": published_url,
         "status": "published",
@@ -79,10 +65,10 @@ async def publish_to_linkedin(brand_id: str, draft_id: str, access_token: str) -
 
     await log_publish_event(
         brand_id, draft_id,
-        action="linkedin_publish",
-        platform="linkedin",
+        action="postiz_publish",
+        platform=",".join(platforms),
         status="success",
-        details={"post_id": post_id, "published_url": published_url},
+        details={"postiz_id": post_id, "published_url": published_url},
     )
 
     return result

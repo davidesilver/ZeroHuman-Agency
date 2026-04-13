@@ -1,6 +1,7 @@
 """Newsletter delivery via Resend API."""
 
 from __future__ import annotations
+import html as html_lib
 
 import resend
 
@@ -54,17 +55,20 @@ SECTION_TEMPLATE = """<div class="section">
 
 
 def _build_html(brand_name: str, edition_number: int, sections: list[dict]) -> str:
-    """Build newsletter HTML from sections."""
+    """Build newsletter HTML from sections.
+
+    All user-controlled fields are HTML-escaped to prevent XSS (C-04).
+    """
     sections_html = ""
     for section in sections:
         sections_html += SECTION_TEMPLATE.format(
-            label=section.get("label", ""),
-            title=section.get("title", ""),
-            body=section.get("body", "").replace("\n", "<br>"),
+            label=html_lib.escape(section.get("label", "")),
+            title=html_lib.escape(section.get("title", "")),
+            body=html_lib.escape(section.get("body", "")).replace("\n", "<br>"),
         )
     return NEWSLETTER_TEMPLATE.format(
-        brand_name=brand_name,
-        edition_number=edition_number,
+        brand_name=html_lib.escape(brand_name),
+        edition_number=int(edition_number),
         sections_html=sections_html,
     )
 

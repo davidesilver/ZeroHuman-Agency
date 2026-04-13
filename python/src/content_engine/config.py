@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     youtube_api_key: str = ""
     anthropic_api_key: str = ""
     resend_api_key: str = ""
+    firecrawl_api_key: str = ""
+    postiz_api_key: str = ""
+    postiz_base_url: str = ""
+    context7_mcp_url: str = "https://mcp.context7.com/mcp"
     newsletter_from_email: str = "newsletter@yourdomain.com"
     newsletter_from_name: str = "Content Engine"
 

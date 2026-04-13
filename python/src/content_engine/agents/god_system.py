@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 
-from ..scoring.engine import _call_llm
+from ..utils.llm_client import call_llm
+from ..agents.mcp_client import augment_prompt_with_mcp
 from ..db import get_db
-from ..utils.cost_tracker import track_cost
 
 
 ADVOCATE_PROMPT = """Sei l'Avvocato del Diavolo. Analizza criticamente questo contenuto.
@@ -148,8 +148,8 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
     # 1. Advocate
     try:
         adv_prompt = ADVOCATE_PROMPT.format(title=title, platform=platform, body=body)
-        adv_raw = await _call_llm(adv_prompt)
-        await track_cost(brand_id, "god_advocate", "claude-sonnet-4-20250514", "advocate", len(adv_prompt), len(adv_raw))
+        adv_resp = await call_llm(adv_prompt, brand_id, context="god_advocate", action="advocate", complexity="normal")
+        adv_raw = adv_resp.content
         adv = _parse_json(adv_raw)
         advocate_feedback = adv.get("feedback", "")
         advocate_score = adv.get("score", 5)
@@ -159,8 +159,13 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
     # 2. Factchecker
     try:
         fc_prompt = FACTCHECK_PROMPT.format(title=title, body=body, advocate_feedback=advocate_feedback)
-        fc_raw = await _call_llm(fc_prompt)
-        await track_cost(brand_id, "god_factcheck", "claude-sonnet-4-20250514", "factcheck", len(fc_prompt), len(fc_raw))
+        
+        # Determine subjects to research via MCP dynamically or simple heuristic
+        # In a real setup, another LLM pass extracts technical keywords, here we just pass the title
+        mcp_context_prompt = await augment_prompt_with_mcp(fc_prompt, queries=[title])
+        
+        fc_resp = await call_llm(mcp_context_prompt, brand_id, context="god_factcheck", action="factcheck", complexity="high")
+        fc_raw = fc_resp.content
         fc = _parse_json(fc_raw)
         factcheck_feedback = fc.get("feedback", "")
         factcheck_issues = fc.get("issues", [])
@@ -173,8 +178,8 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
             title=title, platform=platform, body=body,
             advocate_feedback=advocate_feedback, factcheck_feedback=factcheck_feedback,
         )
-        cr_raw = await _call_llm(cr_prompt)
-        await track_cost(brand_id, "god_creative", "claude-sonnet-4-20250514", "creative", len(cr_prompt), len(cr_raw))
+        cr_resp = await call_llm(cr_prompt, brand_id, context="god_creative", action="creative", complexity="normal")
+        cr_raw = cr_resp.content
         cr = _parse_json(cr_raw)
         creative_feedback = cr.get("feedback", "")
         creative_suggestions = cr.get("suggestions", [])
@@ -190,8 +195,8 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
             factcheck_feedback=factcheck_feedback,
             creative_feedback=creative_feedback,
         )
-        syn_raw = await _call_llm(syn_prompt)
-        await track_cost(brand_id, "god_synthesis", "claude-opus-4-20250514", "synthesis", len(syn_prompt), len(syn_raw))
+        syn_resp = await call_llm(syn_prompt, brand_id, context="god_synthesis", action="synthesis", complexity="high")
+        syn_raw = syn_resp.content
         syn = _parse_json(syn_raw)
     except Exception as e:
         return _fail("synthesis", e)
