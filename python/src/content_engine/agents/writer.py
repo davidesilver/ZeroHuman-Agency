@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 
-from ..scoring.engine import _call_llm
 from ..db import get_db
 from ..utils.cost_tracker import track_cost
+from ..utils.llm_utils import call_llm          # M-02: shared implementation
+from ..utils.security_utils import sanitize_for_prompt  # H-07: prompt injection guard
 
 WRITER_PROMPT = """Sei un content writer esperto per il brand "{brand_name}".
 
@@ -75,15 +76,16 @@ async def generate_draft(
         brand_name=brand_data.get("name", ""),
         tone_rules=tone_rules or "Diretto, pratico, entusiasta",
         principles="\n".join(f"- {p}" for p in principles),
-        title=item_data.get("title", ""),
-        source_name=item_data.get("source_name", ""),
-        summary=item_data.get("summary", ""),
+        # H-07: sanitize web-scraped fields before inserting into the LLM prompt
+        title=sanitize_for_prompt(item_data.get("title", ""), context="research_item.title"),
+        source_name=sanitize_for_prompt(item_data.get("source_name", ""), context="research_item.source_name"),
+        summary=sanitize_for_prompt(item_data.get("summary", ""), context="research_item.summary"),
         platform=platform,
         content_type=content_type,
         length_hint=PLATFORM_LENGTH.get(platform, "medio"),
     )
 
-    raw = await _call_llm(prompt)
+    raw = await call_llm(prompt)  # M-02: use shared call_llm
     await track_cost(brand_id, "opus_writer", "claude-opus-4-20250514", "generate_draft", len(prompt), len(raw))
 
     text = raw.strip()

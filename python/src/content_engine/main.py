@@ -7,13 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api.routes import router
 from .api.auth_middleware import JWTAuthMiddleware
 from .utils.rate_limiter import RateLimitMiddleware
+from .utils.logging_config import setup_logging
 
-# Configure structured logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+# L-03: Structured JSON logging (replaces basicConfig)
+setup_logging()
 
 _logger = logging.getLogger("content_engine")
 
@@ -46,4 +43,23 @@ app.include_router(router)
 
 @app.get("/health")
 async def health():
+    """Basic liveness probe — always returns 200 if the process is up."""
     return {"status": "ok"}
+
+
+@app.get("/health/db")
+async def health_db():
+    """L-04: Readiness probe — verifies the Supabase DB connection."""
+    import time
+    from .db import get_db
+    try:
+        t0 = time.monotonic()
+        db = get_db()
+        # Lightweight query: select 1 from brands limit 1
+        db.table("brands").select("id").limit(1).execute()
+        latency_ms = round((time.monotonic() - t0) * 1000)
+        return {"status": "ok", "db": "connected", "latency_ms": latency_ms}
+    except Exception as e:
+        _logger.error("DB health check failed: %s", e)
+        from fastapi import HTTPException
+        raise HTTPException(503, "Database connection failed")

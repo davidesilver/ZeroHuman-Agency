@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 
-from ..scoring.engine import _call_llm
 from ..db import get_db
 from ..utils.cost_tracker import track_cost
+from ..utils.llm_utils import call_llm, parse_json_response  # M-02: shared
+from ..utils.security_utils import sanitize_for_prompt         # H-07
 
 EDITOR_PROMPT = """Sei un editor professionista per il brand "{brand_name}".
 
@@ -43,25 +44,24 @@ async def edit_draft(brand_id: str, draft_id: str) -> dict:
     brand = db.table("brands").select("*").eq("id", brand_id).single().execute()
     brand_data = brand.data
 
+
     tone = brand_data.get("tone_of_voice") or {}
     tone_hint = ", ".join(tone.get("personality") or ["diretto", "pratico"])
 
     prompt = EDITOR_PROMPT.format(
         brand_name=brand_data.get("name", ""),
-        title=draft_data.get("title", ""),
+        # H-07: draft fields may contain web-scraped content — sanitize before LLM injection
+        title=sanitize_for_prompt(draft_data.get("title", ""), context="draft.title"),
         platform=draft_data.get("platform", ""),
-        body=draft_data.get("body", ""),
+        body=sanitize_for_prompt(draft_data.get("body", ""), context="draft.body"),
         tone_hint=tone_hint,
     )
 
-    raw = await _call_llm(prompt)
+    raw = await call_llm(prompt)  # M-02: use shared call_llm
     await track_cost(brand_id, "opus_editor", "claude-opus-4-20250514", "edit_draft", len(prompt), len(raw))
 
-    text = raw.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
-        text = text.rsplit("```", 1)[0]
-    parsed = json.loads(text)
+    # M-02: use shared parse_json_response (handles markdown fences + fallback)
+    parsed = parse_json_response(raw, context="editor_agent")
 
     new_version = (draft_data.get("version") or 1) + 1
     db.table("content_drafts").update({
@@ -77,3 +77,4 @@ async def edit_draft(brand_id: str, draft_id: str) -> dict:
         "changes_summary": parsed.get("changes_summary", ""),
         "changes_count": parsed.get("changes_count", 0),
     }
+
