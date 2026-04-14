@@ -1,0 +1,10 @@
+{
+  "imports": {
+    "supabase": "jsr:@supabase/functions-js@2.3.1"
+  },
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window"],
+    "strict": false
+  }
+}
