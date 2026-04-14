@@ -1,62 +1,33 @@
-# Architecture Deep Dive
+# System Architecture
 
-## Principles
+The Autonomous Content Engine is built upon a hybrid decoupled architecture, separating the high-performance Next.js 15 frontend from the Python-based AI orchestration backend.
 
-1. **Domain separation:** Core engine and vertical configs are never mixed. A change to `media_company/config.yaml` cannot break `industrial/` or the `core/`.
-2. **Idempotency:** Every pipeline step can be safely retried. Scraping the same URL twice does not create duplicate DB entries. Publishing the same item twice is prevented by the audit trail.
-3. **Graceful degradation:** If YouTube is unavailable, the pipeline continues with RSS and web search. If GOD Mode times out, the item falls back to Editor review. Nothing hard-crashes the full run.
-4. **Observable by default:** Every pipeline run writes structured logs. Every agent call logs tokens used, latency, model, and outcome. Every publish action is immutable in `publish_log`.
+## 🏗 High-Level Overview
 
-## State Machine
+![Architecture Blueprint](https://img.shields.io/badge/Architecture-Decoupled_Microservices-blue)
 
-Each `ResearchItem` progresses through a defined set of states:
+1. **Next.js 15 App Router (Frontend)**: Serves the static content, client dashboard, and handles user authentication securely. Communicates with Supabase directly for standard UI fetching and talks to the Python backend to trigger background AI tasks.
+2. **FastAPI (Python Backend)**: The heart of the Content Engine. Contains all the LangChain integrations, autonomous agents, semantic deduplication, and scheduler logic.
+3. **Supabase (Database + Auth)**: The source of truth. Manages Row Level Security (RLS) ensuring strict tenant isolation. 
 
-```
-raw → deduped → scored → approved | rejected | review
-                              │
-                           writing
-                              │
-                          god_mode (if threshold met)
-                              │
-                          scheduled
-                              │
-                          published | failed
-```
+## 🔐 Multi-Tenant Security (Row Level Security)
 
-State transitions are atomic (database transactions). No item can be in two states simultaneously. If a pipeline run is interrupted, items resume from their last committed state on the next run.
+This is a **White-Label Box**. It doesn't rely on hardcoded tenant IDs (`brand_id`). 
 
-## Retry Policy
+Instead, tenant isolation is guaranteed at the Postgres Level via Supabase **Row Level Security (RLS)**.
+- Every API endpoint is protected by a JWT validator middleware (`_get_brand_id(request)`).
+- The resolved JWT limits the `supabase-py` client connection explicitly to that user's brand.
+- Attempting to query `db.table("content_drafts")` automatically filters out any data belonging to other tenants.
 
-Each agent wraps its LLM call in a retry decorator:
+## 🧠 Brains & Memory
 
-```python
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=30),
-    reraise=True
-)
-async def call_llm(prompt: str, model: str) -> str:
-    ...
-```
+- **Vector Database**: We use `pgvector` stored directly in Supabase. The `research_items` table contains a 1536-dimensional `embedding` column powered by OpenAI (`text-embedding-3-small`). 
+- **Semantic Deduplication**: Before a new research item is fed to the LLMs, a cosine distance check runs against historical embeddings, throwing out duplicate news dynamically.
 
-- Attempt 1: immediate
-- Attempt 2: 2 seconds
-- Attempt 3: 4–30 seconds (exponential backoff)
-- After 3 failures: item is flagged `error`, pipeline continues with next item
+## ⚡ Agent Loop
 
-## Rate Limiting
-
-API rate limits are enforced at two levels:
-- **LLM provider level:** OpenRouter has per-model RPM limits. The engine uses a token bucket per model.
-- **Dashboard API level:** FastAPI middleware limits UI calls to 60 requests/minute per IP, preventing runaway frontend loops from triggering LLM calls.
-
-## Timeout Policy
-
-All LLM calls have explicit timeouts:
-- Pre-filter: 15 seconds
-- Scoring: 30 seconds
-- Writing: 60 seconds
-- GOD Mode per sub-agent: 45 seconds
-- Total GOD Mode: 3 minutes
-
-A timed-out call is treated as a retryable error.
+The content generation isn't a single LLM call; it's an orchestration pipeline.
+1. The **Context Manager** fetches the required data.
+2. The **Agent Loader** resolves the specific brand's `writer` / `editor` identities from the database.
+3. The prompt is injected with contextual limits (Brand rules, Tone of Voice).
+4. For critical pieces, the **GOD System** acts as an internal feedback loop (Advocate/Creative/Factcheck) before letting human intervention happen.

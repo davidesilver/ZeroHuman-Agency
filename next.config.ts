@@ -5,7 +5,7 @@ import type { NextConfig } from "next";
 // supabase.co is allowed for supabase auth flows
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-eval'",  // unsafe-eval required by Next.js dev mode
+  "script-src 'self' 'unsafe-eval' 'unsafe-inline'",  // unsafe-inline and unsafe-eval required by Next.js dev mode
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
