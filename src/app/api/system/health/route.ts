@@ -1,16 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
 import { jsonResponse, errorResponse } from '@/lib/api-helpers'
 
-const BRAND_ID = 'b6e639ac-33e7-402b-b928-c98af55eec47'
+import { requireAuth } from '@/lib/supabase/auth-helpers'
+import { NextRequest } from 'next/server'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { auth, response } = await requireAuth()
+    if (!auth) return response
+
     const supabase = await createClient()
 
     const { data: health, error } = await supabase
       .from('pipeline_health')
       .select('*')
-      .eq('brand_id', BRAND_ID)
+      .eq('brand_id', auth.brandId)
       .order('agent_name')
 
     if (error) return errorResponse(error.message, 500)

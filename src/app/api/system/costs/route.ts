@@ -2,10 +2,13 @@ import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { jsonResponse, errorResponse } from '@/lib/api-helpers'
 
-const BRAND_ID = 'b6e639ac-33e7-402b-b928-c98af55eec47'
+import { requireAuth } from '@/lib/supabase/auth-helpers'
 
 export async function GET(request: NextRequest) {
   try {
+    const { auth, response } = await requireAuth()
+    if (!auth) return response
+
     const supabase = await createClient()
     const params = request.nextUrl.searchParams
     const period = params.get('period') || 'today'
@@ -27,7 +30,7 @@ export async function GET(request: NextRequest) {
     const { data: costs, error } = await supabase
       .from('api_costs')
       .select('*')
-      .eq('brand_id', BRAND_ID)
+      .eq('brand_id', auth.brandId)
       .gte('created_at', since)
       .order('created_at', { ascending: false })
 
@@ -69,9 +72,9 @@ export async function GET(request: NextRequest) {
     const monthStart = new Date(now.getTime() - 30 * 86400000).toISOString()
 
     const [todayRes, weekRes, monthRes] = await Promise.all([
-      supabase.from('api_costs').select('cost_usd').eq('brand_id', BRAND_ID).gte('created_at', todayStart),
-      supabase.from('api_costs').select('cost_usd').eq('brand_id', BRAND_ID).gte('created_at', weekStart),
-      supabase.from('api_costs').select('cost_usd').eq('brand_id', BRAND_ID).gte('created_at', monthStart),
+      supabase.from('api_costs').select('cost_usd').eq('brand_id', auth.brandId).gte('created_at', todayStart),
+      supabase.from('api_costs').select('cost_usd').eq('brand_id', auth.brandId).gte('created_at', weekStart),
+      supabase.from('api_costs').select('cost_usd').eq('brand_id', auth.brandId).gte('created_at', monthStart),
     ])
 
     const sumCosts = (rows: { cost_usd: number }[] | null) =>

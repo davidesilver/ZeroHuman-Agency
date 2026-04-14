@@ -2,10 +2,13 @@ import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { jsonResponse, errorResponse } from '@/lib/api-helpers'
 
-const BRAND_ID = 'b6e639ac-33e7-402b-b928-c98af55eec47'
+import { requireAuth } from '@/lib/supabase/auth-helpers'
 
 export async function GET(request: NextRequest) {
   try {
+    const { auth, response } = await requireAuth()
+    if (!auth) return response
+
     const supabase = await createClient()
     const params = request.nextUrl.searchParams
     const limit = parseInt(params.get('limit') || '20', 10)
@@ -15,19 +18,19 @@ export async function GET(request: NextRequest) {
       supabase
         .from('research_runs')
         .select('id, status, items_found, sources_scanned, started_at')
-        .eq('brand_id', BRAND_ID)
+        .eq('brand_id', auth.brandId)
         .order('started_at', { ascending: false })
         .limit(10),
       supabase
         .from('content_drafts')
         .select('id, title, content_type, platform, status, created_at, updated_at')
-        .eq('brand_id', BRAND_ID)
+        .eq('brand_id', auth.brandId)
         .order('updated_at', { ascending: false })
         .limit(10),
       supabase
         .from('newsletters')
         .select('id, title, status, created_at')
-        .eq('brand_id', BRAND_ID)
+        .eq('brand_id', auth.brandId)
         .order('created_at', { ascending: false })
         .limit(5),
     ])
