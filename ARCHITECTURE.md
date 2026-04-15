@@ -1,7 +1,7 @@
 # Content Engine — Architecture Document
 
 > End-to-end architecture map requested in Perplexity analysis.
-> Last updated: 2026-04-13
+> Last updated: 2026-04-15
 
 ---
 
@@ -9,7 +9,7 @@
 
 The Content Engine is a **multi-brand AI content pipeline** that automates research, scoring, writing, review, and publishing of content across platforms.
 
-```
+```text
 ┌──────────────────────── Frontend (Next.js) ─────────────────────────┐
 │  src/app/(dashboard)/                                                │
 │  ├── page.tsx          — KPIs, pipeline status, agent health         │
@@ -44,7 +44,8 @@ The Content Engine is a **multi-brand AI content pipeline** that automates resea
 │  Tables: brands, research_runs, research_items, scores,               │
 │          content_drafts, god_mode_reviews, newsletters,                │
 │          calendar_events, social_metrics, feedback, api_costs,         │
-│          writing_lab_sessions, writing_lab_rounds                      │
+│          writing_lab_sessions, writing_lab_rounds, audit_trail,        │
+│          agent_configs, agent_skills, feedback_loop_audit              │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -52,7 +53,7 @@ The Content Engine is a **multi-brand AI content pipeline** that automates resea
 
 ## Pipeline Flow (End-to-End)
 
-```
+```text
 1. RESEARCH          2. SCORING           3. WRITING           4. REVIEW
 ╔═══════════════╗   ╔═══════════════╗   ╔═══════════════╗   ╔═══════════════╗
 ║ 5 Retrievers  ║──▶║ 6-param LLM   ║──▶║ Writer Agent  ║──▶║ GOD System    ║
@@ -81,7 +82,7 @@ The Content Engine is a **multi-brand AI content pipeline** that automates resea
 ### Retrievers (`orchestrator/research.py` + `retrievers/`)
 
 | Retriever | Source | Module |
-|-----------|--------|--------|
+| :--- | :--- | :--- |
 | `TRUSTED_SOURCE` | RSS feeds | `retrievers/rss.py` |
 | `SEMANTIC` | Serper semantic search | `retrievers/serper.py` |
 | `KEYWORD` | Serper keyword search | `retrievers/serper.py` |
@@ -90,13 +91,14 @@ The Content Engine is a **multi-brand AI content pipeline** that automates resea
 
 **Execution**: All run in parallel via `asyncio.gather()` with `return_exceptions=True`.
 **Dedup**: URL-based normalization (strips UTM params, www prefix, trailing slashes).
-**TODO**: Semantic dedup via pgvector post-insert.
+**Semantic Dedup**: Implemented via pgvector and `find_semantic_duplicates` SQL function (Migration 002).
 
 ### Scoring Engine (`scoring/engine.py`)
 
 **6 parameters with weights:**
+
 | Parameter | Weight | Purpose |
-|-----------|--------|---------|
+| :--- | :--- | :--- |
 | `applicability` | 25% | Actionability — can reader apply Monday? |
 | `credibility` | 20% | Source/author reliability, citations |
 | `alignment` | 25% | Brand topics + founder principles |
@@ -109,7 +111,7 @@ The Content Engine is a **multi-brand AI content pipeline** that automates resea
 ### Content Agents (`agents/`)
 
 | Agent | File | Purpose | LLM |
-|-------|------|---------|-----|
+| :--- | :--- | :--- | :--- |
 | Writer | `writer.py` | Generates content from research items | Sonnet |
 | Editor | `editor.py` | Refines writer output | Sonnet |
 | Adapter | `adapter.py` | Platform-specific formatting (LinkedIn, TikTok, etc.) | Sonnet |
@@ -118,7 +120,7 @@ The Content Engine is a **multi-brand AI content pipeline** that automates resea
 
 ### GOD System Pipeline (`agents/god_system.py`)
 
-```
+```text
 Draft → [Advocate] → [FactCheck] → [Creative] → [Synthesis] → Updated Draft
            │              │              │              │
            │         uses advocate   uses advocate   uses all
@@ -135,9 +137,9 @@ Draft → [Advocate] → [FactCheck] → [Creative] → [Synthesis] → Updated 
 ### Services (`services/`)
 
 | Service | File | Status |
-|---------|------|--------|
+| :--- | :--- | :--- |
 | Scheduler | `scheduler.py` | ✅ Pipeline ready, needs external cron trigger |
-| Feedback Loop | `feedback_loop.py` | ✅ Functional, needs real engagement data input |
+| Feedback Loop | `feedback_loop.py` | ✅ Functional, synchronized with DB schema |
 | Newsletter | `newsletter_delivery.py` | ✅ Integrated with **Resend** ESP |
 | Social Publisher | `social_publisher.py` | ✅ LinkedIn UGC API implemented, needs OAuth token |
 
@@ -148,7 +150,7 @@ Draft → [Advocate] → [FactCheck] → [Creative] → [Synthesis] → Updated 
 All routes prefixed with `/api/`. Brand ID currently hardcoded (single-brand mode).
 
 | Method | Route | Rate Limit | Cost Level |
-|--------|-------|------------|-----------|
+| :--- | :--- | :--- | :--- |
 | POST | `/research/trigger` | 3/min | 💰💰💰 (5 retrievers + API calls) |
 | GET | `/research/runs` | — | Free |
 | GET | `/research/items` | — | Free |
@@ -175,14 +177,16 @@ All routes prefixed with `/api/`. Brand ID currently hardcoded (single-brand mod
 ## Data Flow & State Machine
 
 ### Research Item Lifecycle
-```
+
+```text
 new → scored → approved → (draft created) → published
                  └──→ rejected
                  └──→ archived
 ```
 
 ### Content Draft Lifecycle
-```
+
+```text
 draft → in_review → approved → scheduled → published
                        │
                   god_mode → approved (pass)
@@ -197,7 +201,7 @@ draft → in_review → approved → scheduled → published
 All settings loaded from `../.env.local`:
 
 | Variable | Purpose | Required |
-|----------|---------|----------|
+| :--- | :--- | :--- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | ✅ |
 | `SUPABASE_SERVICE_ROLE_KEY` | DB admin access | ✅ |
 | `ANTHROPIC_API_KEY` | Claude API (primary) | One of these |
@@ -211,7 +215,7 @@ All settings loaded from `../.env.local`:
 ## Boundaries
 
 | Concern | Owner | Notes |
-|---------|-------|-------|
+| :--- | :--- | :--- |
 | UI rendering | Next.js (`src/`) | React components, ShadCN UI |
 | API routing | Next.js API routes → FastAPI | Proxy pattern |
 | Business logic | Python (`python/src/`) | All orchestration, agents, scoring |
@@ -225,9 +229,9 @@ All settings loaded from `../.env.local`:
 
 ## Known Limitations & TODOs
 
-1. **Single brand**: `BRAND_ID` hardcoded in `routes.py` — needs multi-tenancy
-2. **No pgvector dedup**: Semantic dedup annotated but not implemented
-3. **No test suite**: Zero tests — critical functions untested
-4. **Social platforms**: Only LinkedIn implemented (Instagram, TikTok, Twitter missing)
-5. **GOD Mode sequential**: 4 agents run in series (dependency chain prevents full parallelization)
-6. **No webhook notifications**: No Slack/Telegram alerts on pipeline events
+1. **Multi-brand**: Core infrastructure supports brand_id isolation, but needs further vetting for enterprise scaling.
+2. **Semantic dedup**: Implemented in 002_semantic_dedup.sql.
+3. **Test suite**: E2E test suite implemented in `python/tests/test_agent_system_e2e.py`.
+4. **Social platforms**: Only LinkedIn implemented (Instagram, TikTok, Twitter missing).
+5. **GOD Mode sequential**: 4 agents run in series (dependency chain prevents full parallelization).
+6. **No webhook notifications**: No Slack/Telegram alerts on pipeline events.

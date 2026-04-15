@@ -60,21 +60,25 @@ CREATE INDEX IF NOT EXISTS idx_agent_skills_brand ON agent_skills(brand_id, targ
 ALTER TABLE agent_configs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agent_skills ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "agent_configs_select" ON agent_configs;
 CREATE POLICY "agent_configs_select" ON agent_configs
   FOR SELECT USING (brand_id = auth_user_brand_id());
 
+DROP POLICY IF EXISTS "agent_configs_insert" ON agent_configs;
 CREATE POLICY "agent_configs_insert" ON agent_configs
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "agent_configs_update" ON agent_configs;
 CREATE POLICY "agent_configs_update" ON agent_configs
   FOR UPDATE USING (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "agent_configs_delete" ON agent_configs;
 CREATE POLICY "agent_configs_delete" ON agent_configs
   FOR DELETE USING (
     brand_id = auth_user_brand_id()
@@ -82,21 +86,25 @@ CREATE POLICY "agent_configs_delete" ON agent_configs
   );
 
 
+DROP POLICY IF EXISTS "agent_skills_select" ON agent_skills;
 CREATE POLICY "agent_skills_select" ON agent_skills
   FOR SELECT USING (brand_id = auth_user_brand_id());
 
+DROP POLICY IF EXISTS "agent_skills_insert" ON agent_skills;
 CREATE POLICY "agent_skills_insert" ON agent_skills
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "agent_skills_update" ON agent_skills;
 CREATE POLICY "agent_skills_update" ON agent_skills
   FOR UPDATE USING (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "agent_skills_delete" ON agent_skills;
 CREATE POLICY "agent_skills_delete" ON agent_skills
   FOR DELETE USING (
     brand_id = auth_user_brand_id()

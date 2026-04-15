@@ -9,100 +9,191 @@
 -- 1. EXTENSIONS
 -- ----------------------------------------------------------------------------
 
+-- Ensure extensions schema exists for Supabase/Postgres
+CREATE SCHEMA IF NOT EXISTS extensions;
+
 -- Vector similarity search for semantic retrieval
 CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA extensions;
 
 -- UUID generation
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
 
--- Scheduled jobs (Supabase manages this; enable if not already active)
-CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
+-- Scheduled jobs
+CREATE EXTENSION IF NOT EXISTS pg_cron;
 
 -- ----------------------------------------------------------------------------
 -- 2. CUSTOM ENUM TYPES
 -- ----------------------------------------------------------------------------
 
 -- User roles within a brand
-CREATE TYPE user_role AS ENUM ('owner', 'editor', 'viewer');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+    CREATE TYPE user_role AS ENUM ('owner', 'editor', 'viewer');
+  END IF;
+END $$;
 
 -- Research run execution status
-CREATE TYPE run_status AS ENUM ('running', 'completed', 'failed');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'run_status') THEN
+    CREATE TYPE run_status AS ENUM ('running', 'completed', 'failed');
+  END IF;
+END $$;
 
 -- Source types for discovered content
-CREATE TYPE source_type AS ENUM ('rss', 'search', 'youtube', 'scrape');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'source_type') THEN
+    CREATE TYPE source_type AS ENUM ('rss', 'search', 'youtube', 'scrape');
+  END IF;
+END $$;
 
 -- Retriever strategies used during research
-CREATE TYPE retriever_type AS ENUM (
-  'semantic', 'practitioner', 'trusted_source', 'keyword', 'trend'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'retriever_type') THEN
+    CREATE TYPE retriever_type AS ENUM (
+      'semantic', 'practitioner', 'trusted_source', 'keyword', 'trend'
+    );
+  END IF;
+END $$;
 
 -- Research item lifecycle status
-CREATE TYPE item_status AS ENUM ('new', 'scored', 'approved', 'rejected', 'archived');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'item_status') THEN
+    CREATE TYPE item_status AS ENUM ('new', 'scored', 'approved', 'rejected', 'archived');
+  END IF;
+END $$;
 
 -- Content draft types
-CREATE TYPE content_type AS ENUM (
-  'post', 'blog', 'newsletter_section', 'carousel', 'video_script', 'thread'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'content_type') THEN
+    CREATE TYPE content_type AS ENUM (
+      'post', 'blog', 'newsletter_section', 'carousel', 'video_script', 'thread'
+    );
+  END IF;
+END $$;
 
 -- Publishing platforms
-CREATE TYPE platform AS ENUM (
-  'linkedin', 'instagram', 'facebook', 'x', 'tiktok', 'blog', 'newsletter'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'platform') THEN
+    CREATE TYPE platform AS ENUM (
+      'linkedin', 'instagram', 'facebook', 'x', 'tiktok', 'blog', 'newsletter'
+    );
+  END IF;
+END $$;
 
 -- Draft workflow status
-CREATE TYPE draft_status AS ENUM (
-  'draft', 'in_review', 'god_mode', 'approved', 'scheduled', 'published', 'archived'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'draft_status') THEN
+    CREATE TYPE draft_status AS ENUM (
+      'draft', 'in_review', 'god_mode', 'approved', 'scheduled', 'published', 'archived'
+    );
+  END IF;
+END $$;
 
 -- GOD mode review verdict
-CREATE TYPE god_verdict AS ENUM ('pass', 'needs_revision', 'reject');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'god_verdict') THEN
+    CREATE TYPE god_verdict AS ENUM ('pass', 'needs_revision', 'reject');
+  END IF;
+END $$;
 
 -- Newsletter lifecycle status
-CREATE TYPE newsletter_status AS ENUM (
-  'draft', 'in_review', 'approved', 'scheduled', 'sent'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'newsletter_status') THEN
+    CREATE TYPE newsletter_status AS ENUM (
+      'draft', 'in_review', 'approved', 'scheduled', 'sent'
+    );
+  END IF;
+END $$;
 
 -- Newsletter slot types (3-slot structure)
-CREATE TYPE slot_type AS ENUM ('sistema', 'strumento_lampo', 'mossa');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'slot_type') THEN
+    CREATE TYPE slot_type AS ENUM ('sistema', 'strumento_lampo', 'mossa');
+  END IF;
+END $$;
 
 -- Campaign distribution status
-CREATE TYPE campaign_status AS ENUM (
-  'draft', 'scheduled', 'publishing', 'completed', 'failed'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'campaign_status') THEN
+    CREATE TYPE campaign_status AS ENUM (
+      'draft', 'scheduled', 'publishing', 'completed', 'failed'
+    );
+  END IF;
+END $$;
 
 -- Calendar event types
-CREATE TYPE event_type AS ENUM ('newsletter', 'social', 'blog_video', 'sponsorship');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'event_type') THEN
+    CREATE TYPE event_type AS ENUM ('newsletter', 'social', 'blog_video', 'sponsorship');
+  END IF;
+END $$;
 
 -- Calendar event status
-CREATE TYPE event_status AS ENUM ('planned', 'confirmed', 'published');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'event_status') THEN
+    CREATE TYPE event_status AS ENUM ('planned', 'confirmed', 'published');
+  END IF;
+END $$;
 
 -- Writing Lab session status
-CREATE TYPE lab_status AS ENUM ('active', 'completed', 'paused');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'lab_status') THEN
+    CREATE TYPE lab_status AS ENUM ('active', 'completed', 'paused');
+  END IF;
+END $$;
 
 -- A/B round winner
-CREATE TYPE round_winner AS ENUM ('champion', 'challenger', 'draw');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'round_winner') THEN
+    CREATE TYPE round_winner AS ENUM ('champion', 'challenger', 'draw');
+  END IF;
+END $$;
 
 -- Revenue deal types
-CREATE TYPE deal_type AS ENUM (
-  'sponsorship', 'affiliate', 'newsletter_feature', 'product'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'deal_type') THEN
+    CREATE TYPE deal_type AS ENUM (
+      'sponsorship', 'affiliate', 'newsletter_feature', 'product'
+    );
+  END IF;
+END $$;
 
 -- Deal recurrence
-CREATE TYPE recurrence_type AS ENUM ('one_time', 'monthly', 'quarterly');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'recurrence_type') THEN
+    CREATE TYPE recurrence_type AS ENUM ('one_time', 'monthly', 'quarterly');
+  END IF;
+END $$;
 
 -- Deal lifecycle status
-CREATE TYPE deal_status AS ENUM (
-  'proposal', 'negotiation', 'confirmed', 'active', 'completed', 'cancelled'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'deal_status') THEN
+    CREATE TYPE deal_status AS ENUM (
+      'proposal', 'negotiation', 'confirmed', 'active', 'completed', 'cancelled'
+    );
+  END IF;
+END $$;
 
 -- Pipeline agent health status
-CREATE TYPE health_status AS ENUM ('healthy', 'degraded', 'down');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'health_status') THEN
+    CREATE TYPE health_status AS ENUM ('healthy', 'degraded', 'down');
+  END IF;
+END $$;
 
 -- Feedback types
-CREATE TYPE feedback_type AS ENUM ('like', 'dislike', 'top_pick', 'comment');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'feedback_type') THEN
+    CREATE TYPE feedback_type AS ENUM ('like', 'dislike', 'top_pick', 'comment');
+  END IF;
+END $$;
 
 -- Feedback origin
-CREATE TYPE feedback_source AS ENUM ('manual', 'writing_lab', 'analytics');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'feedback_source') THEN
+    CREATE TYPE feedback_source AS ENUM ('manual', 'writing_lab', 'analytics');
+  END IF;
+END $$;
 
 
 -- ----------------------------------------------------------------------------
@@ -138,7 +229,7 @@ $$ LANGUAGE sql SECURITY DEFINER STABLE;
 -- ----------------------------------------------------------------------------
 -- 4.1 brands - Multi-brand configuration hub
 -- ----------------------------------------------------------------------------
-CREATE TABLE brands (
+CREATE TABLE IF NOT EXISTS brands (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name            text NOT NULL,
   slug            text NOT NULL UNIQUE,
@@ -158,6 +249,7 @@ COMMENT ON COLUMN brands.scoring_weights IS 'Custom weights for the 5-axis scori
 COMMENT ON COLUMN brands.rss_sources IS 'Array of RSS feed URLs and metadata to monitor.';
 COMMENT ON COLUMN brands.social_accounts IS 'Connected social accounts with platform and tokens.';
 
+DROP TRIGGER IF EXISTS brands_updated_at ON brands;
 CREATE TRIGGER brands_updated_at
   BEFORE UPDATE ON brands
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -166,7 +258,7 @@ CREATE TRIGGER brands_updated_at
 -- ----------------------------------------------------------------------------
 -- 4.2 users - Authenticated users (extends Supabase Auth)
 -- ----------------------------------------------------------------------------
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id          uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   brand_id    uuid NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
   role        user_role NOT NULL DEFAULT 'viewer',
@@ -179,13 +271,13 @@ CREATE TABLE users (
 COMMENT ON TABLE users IS 'User profiles extending Supabase Auth. Each user belongs to exactly one brand.';
 COMMENT ON COLUMN users.role IS 'Access level: owner (full), editor (create/edit), viewer (read-only).';
 
-CREATE INDEX idx_users_brand_id ON users(brand_id);
+CREATE INDEX IF NOT EXISTS idx_users_brand_id ON users(brand_id);
 
 
 -- ----------------------------------------------------------------------------
 -- 4.3 research_runs - Research pipeline execution sessions
 -- ----------------------------------------------------------------------------
-CREATE TABLE research_runs (
+CREATE TABLE IF NOT EXISTS research_runs (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   brand_id         uuid NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
   status           run_status NOT NULL DEFAULT 'running',
@@ -200,13 +292,13 @@ CREATE TABLE research_runs (
 COMMENT ON TABLE research_runs IS 'Tracks each execution of the research pipeline with statistics and outcomes.';
 COMMENT ON COLUMN research_runs.retriever_stats IS 'Per-retriever breakdown: items found, latency, errors.';
 
-CREATE INDEX idx_research_runs_brand_status ON research_runs(brand_id, status);
+CREATE INDEX IF NOT EXISTS idx_research_runs_brand_status ON research_runs(brand_id, status);
 
 
 -- ----------------------------------------------------------------------------
 -- 4.4 research_items - Content discovered by research pipeline
 -- ----------------------------------------------------------------------------
-CREATE TABLE research_items (
+CREATE TABLE IF NOT EXISTS research_items (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   brand_id        uuid NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
   run_id          uuid REFERENCES research_runs(id) ON DELETE SET NULL,
@@ -230,19 +322,19 @@ COMMENT ON TABLE research_items IS 'Content items discovered by research retriev
 COMMENT ON COLUMN research_items.embedding IS '1536-dim vector from text-embedding-3-small for semantic similarity search.';
 COMMENT ON COLUMN research_items.retriever_type IS 'Strategy that found this item: semantic, practitioner, trusted_source, keyword, trend.';
 
-CREATE INDEX idx_research_items_brand_status_created
+CREATE INDEX IF NOT EXISTS idx_research_items_brand_status_created
   ON research_items(brand_id, status, created_at DESC);
 
 -- IVFFlat index for vector similarity search (cosine distance)
 -- Note: requires at least ~1000 rows to be effective; use sequential scan for smaller datasets
-CREATE INDEX idx_research_items_embedding
+CREATE INDEX IF NOT EXISTS idx_research_items_embedding
   ON research_items USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
 
 -- ----------------------------------------------------------------------------
 -- 4.5 scores - Multi-axis content scoring
 -- ----------------------------------------------------------------------------
-CREATE TABLE scores (
+CREATE TABLE IF NOT EXISTS scores (
   id                     uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   research_item_id       uuid NOT NULL UNIQUE REFERENCES research_items(id) ON DELETE CASCADE,
   applicability          float NOT NULL CHECK (applicability >= 0 AND applicability <= 10),
@@ -263,13 +355,13 @@ COMMENT ON TABLE scores IS 'Multi-axis scoring for research items. 1:1 relations
 COMMENT ON COLUMN scores.final_score IS 'Computed: average of 5 axes + feedback_bonus. Range roughly 0-12.';
 COMMENT ON COLUMN scores.feedback_bonus IS 'Bonus points from human feedback (can be negative).';
 
-CREATE INDEX idx_scores_final_score ON scores(final_score DESC);
+CREATE INDEX IF NOT EXISTS idx_scores_final_score ON scores(final_score DESC);
 
 
 -- ----------------------------------------------------------------------------
 -- 4.6 content_drafts - Generated content drafts
 -- ----------------------------------------------------------------------------
-CREATE TABLE content_drafts (
+CREATE TABLE IF NOT EXISTS content_drafts (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   brand_id          uuid NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
   research_item_id  uuid REFERENCES research_items(id) ON DELETE SET NULL,
@@ -294,12 +386,13 @@ COMMENT ON TABLE content_drafts IS 'Content drafts with full versioning and appr
 COMMENT ON COLUMN content_drafts.parent_draft_id IS 'Previous version of this draft (self-referencing for version chain).';
 COMMENT ON COLUMN content_drafts.god_mode_result IS 'Summary of GOD mode review outcome.';
 
-CREATE INDEX idx_content_drafts_brand_status_platform
+CREATE INDEX IF NOT EXISTS idx_content_drafts_brand_status_platform
   ON content_drafts(brand_id, status, platform);
 
-CREATE INDEX idx_content_drafts_research_item
+CREATE INDEX IF NOT EXISTS idx_content_drafts_research_item
   ON content_drafts(research_item_id) WHERE research_item_id IS NOT NULL;
 
+DROP TRIGGER IF EXISTS content_drafts_updated_at ON content_drafts;
 CREATE TRIGGER content_drafts_updated_at
   BEFORE UPDATE ON content_drafts
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -308,7 +401,7 @@ CREATE TRIGGER content_drafts_updated_at
 -- ----------------------------------------------------------------------------
 -- 4.7 god_mode_reviews - GOD system review results (3-agent debate)
 -- ----------------------------------------------------------------------------
-CREATE TABLE god_mode_reviews (
+CREATE TABLE IF NOT EXISTS god_mode_reviews (
   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   draft_id              uuid NOT NULL REFERENCES content_drafts(id) ON DELETE CASCADE,
   advocate_feedback     text,
@@ -327,13 +420,13 @@ COMMENT ON TABLE god_mode_reviews IS 'Three-agent review system: Advocate, FactC
 COMMENT ON COLUMN god_mode_reviews.factcheck_issues IS 'Array of factual issues: [{claim, status, source}].';
 COMMENT ON COLUMN god_mode_reviews.creative_suggestions IS 'Structured creative improvements: [{area, suggestion, priority}].';
 
-CREATE INDEX idx_god_mode_reviews_draft_id ON god_mode_reviews(draft_id);
+CREATE INDEX IF NOT EXISTS idx_god_mode_reviews_draft_id ON god_mode_reviews(draft_id);
 
 
 -- ----------------------------------------------------------------------------
 -- 4.8 newsletters - Composed newsletters (3-slot structure)
 -- ----------------------------------------------------------------------------
-CREATE TABLE newsletters (
+CREATE TABLE IF NOT EXISTS newsletters (
   id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   brand_id           uuid NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
   title              text NOT NULL,
@@ -356,8 +449,9 @@ CREATE TABLE newsletters (
 COMMENT ON TABLE newsletters IS 'Newsletter editions with 3 themed slots: Sistema, Strumento Lampo, Mossa.';
 COMMENT ON COLUMN newsletters.edition_number IS 'Sequential edition number for the brand.';
 
-CREATE INDEX idx_newsletters_brand_status ON newsletters(brand_id, status);
+CREATE INDEX IF NOT EXISTS idx_newsletters_brand_status ON newsletters(brand_id, status);
 
+DROP TRIGGER IF EXISTS newsletters_updated_at ON newsletters;
 CREATE TRIGGER newsletters_updated_at
   BEFORE UPDATE ON newsletters
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -366,7 +460,7 @@ CREATE TRIGGER newsletters_updated_at
 -- ----------------------------------------------------------------------------
 -- 4.9 newsletter_candidates - Candidate items for each newsletter slot
 -- ----------------------------------------------------------------------------
-CREATE TABLE newsletter_candidates (
+CREATE TABLE IF NOT EXISTS newsletter_candidates (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   newsletter_id     uuid NOT NULL REFERENCES newsletters(id) ON DELETE CASCADE,
   slot_type         slot_type NOT NULL,
@@ -378,18 +472,18 @@ CREATE TABLE newsletter_candidates (
 
 COMMENT ON TABLE newsletter_candidates IS 'Candidate research items proposed for each newsletter slot. One is selected per slot.';
 
-CREATE INDEX idx_newsletter_candidates_newsletter
+CREATE INDEX IF NOT EXISTS idx_newsletter_candidates_newsletter
   ON newsletter_candidates(newsletter_id, slot_type);
 
 
 -- ----------------------------------------------------------------------------
 -- 4.10 campaigns - Distribution campaigns
 -- ----------------------------------------------------------------------------
-CREATE TABLE campaigns (
+CREATE TABLE IF NOT EXISTS campaigns (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   brand_id          uuid NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
   name              text NOT NULL,
-  content_draft_ids uuid[] DEFAULT '{}',
+  draft_ids         uuid[] DEFAULT '{}',
   platforms         text[] DEFAULT '{}',
   scheduled_at      timestamptz,
   status            campaign_status NOT NULL DEFAULT 'draft',
@@ -397,19 +491,26 @@ CREATE TABLE campaigns (
   created_at        timestamptz DEFAULT now()
 );
 
-COMMENT ON TABLE campaigns IS 'Multi-platform distribution campaigns grouping multiple content drafts.';
-COMMENT ON COLUMN campaigns.content_draft_ids IS 'Array of content_draft UUIDs included in this campaign.';
+-- Ensure draft_ids exists if table already existed (idempotency polish)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='campaigns' AND column_name='draft_ids') THEN
+    ALTER TABLE campaigns ADD COLUMN draft_ids uuid[] DEFAULT '{}';
+  END IF;
+END $$;
 
-CREATE INDEX idx_campaigns_brand_status ON campaigns(brand_id, status);
+COMMENT ON TABLE campaigns IS 'Multi-platform distribution campaigns grouping multiple content drafts.';
+COMMENT ON COLUMN campaigns.draft_ids IS 'Array of content_draft UUIDs included in this campaign.';
+
+CREATE INDEX IF NOT EXISTS idx_campaigns_brand_status ON campaigns(brand_id, status);
 
 
 -- ----------------------------------------------------------------------------
 -- 4.11 calendar_events - Editorial calendar
 -- ----------------------------------------------------------------------------
-CREATE TABLE calendar_events (
+CREATE TABLE IF NOT EXISTS calendar_events (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   brand_id          uuid NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
-  content_draft_id  uuid REFERENCES content_drafts(id) ON DELETE SET NULL,
+  draft_id          uuid REFERENCES content_drafts(id) ON DELETE SET NULL,
   campaign_id       uuid REFERENCES campaigns(id) ON DELETE SET NULL,
   event_type        event_type NOT NULL,
   title             text NOT NULL,
@@ -420,16 +521,23 @@ CREATE TABLE calendar_events (
   created_at        timestamptz DEFAULT now()
 );
 
+-- Ensure draft_id exists if table already existed (idempotency polish)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='calendar_events' AND column_name='draft_id') THEN
+    ALTER TABLE calendar_events ADD COLUMN draft_id uuid REFERENCES content_drafts(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
 COMMENT ON TABLE calendar_events IS 'Editorial calendar linking drafts and campaigns to specific dates.';
 
-CREATE INDEX idx_calendar_events_brand_date
+CREATE INDEX IF NOT EXISTS idx_calendar_events_brand_date
   ON calendar_events(brand_id, scheduled_date);
 
 
 -- ----------------------------------------------------------------------------
 -- 4.12 api_costs - API cost tracking
 -- ----------------------------------------------------------------------------
-CREATE TABLE api_costs (
+CREATE TABLE IF NOT EXISTS api_costs (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   brand_id       uuid NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
   agent_name     text NOT NULL,
@@ -445,38 +553,18 @@ CREATE TABLE api_costs (
 COMMENT ON TABLE api_costs IS 'Granular cost tracking for every API call (LLM, embedding, scraping).';
 COMMENT ON COLUMN api_costs.agent_name IS 'Pipeline agent that made the call (e.g. scorer, writer, researcher).';
 
-CREATE INDEX idx_api_costs_brand_created ON api_costs(brand_id, created_at DESC);
-CREATE INDEX idx_api_costs_agent_model ON api_costs(agent_name, model);
+CREATE INDEX IF NOT EXISTS idx_api_costs_brand_created ON api_costs(brand_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_api_costs_agent_model ON api_costs(agent_name, model);
 
 
--- ----------------------------------------------------------------------------
--- 4.13 social_metrics - Social media performance metrics
--- ----------------------------------------------------------------------------
-CREATE TABLE social_metrics (
-  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  content_draft_id  uuid NOT NULL REFERENCES content_drafts(id) ON DELETE CASCADE,
-  platform          text NOT NULL,
-  impressions       int DEFAULT 0,
-  engagement        int DEFAULT 0,
-  clicks            int DEFAULT 0,
-  shares            int DEFAULT 0,
-  comments          int DEFAULT 0,
-  saves             int DEFAULT 0,
-  followers_gained  int DEFAULT 0,
-  fetched_at        timestamptz DEFAULT now(),
-  raw_data          jsonb
-);
 
-COMMENT ON TABLE social_metrics IS 'Performance metrics fetched from social platform APIs for published content.';
 
-CREATE INDEX idx_social_metrics_draft_fetched
-  ON social_metrics(content_draft_id, fetched_at DESC);
 
 
 -- ----------------------------------------------------------------------------
 -- 4.14 writing_lab_sessions - Writing Lab A/B testing sessions
 -- ----------------------------------------------------------------------------
-CREATE TABLE writing_lab_sessions (
+CREATE TABLE IF NOT EXISTS writing_lab_sessions (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   brand_id          uuid NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
   topic             text NOT NULL,
@@ -495,9 +583,10 @@ CREATE TABLE writing_lab_sessions (
 COMMENT ON TABLE writing_lab_sessions IS 'A/B testing sessions for copy optimization. Up to 50 rounds per session.';
 COMMENT ON COLUMN writing_lab_sessions.hook_types_tried IS 'Array of hook types already tested in this session.';
 
-CREATE INDEX idx_writing_lab_sessions_brand_status
+CREATE INDEX IF NOT EXISTS idx_writing_lab_sessions_brand_status
   ON writing_lab_sessions(brand_id, status);
 
+DROP TRIGGER IF EXISTS writing_lab_sessions_updated_at ON writing_lab_sessions;
 CREATE TRIGGER writing_lab_sessions_updated_at
   BEFORE UPDATE ON writing_lab_sessions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -506,7 +595,7 @@ CREATE TRIGGER writing_lab_sessions_updated_at
 -- ----------------------------------------------------------------------------
 -- 4.15 writing_lab_rounds - Individual A/B test rounds
 -- ----------------------------------------------------------------------------
-CREATE TABLE writing_lab_rounds (
+CREATE TABLE IF NOT EXISTS writing_lab_rounds (
   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id            uuid NOT NULL REFERENCES writing_lab_sessions(id) ON DELETE CASCADE,
   round_number          int NOT NULL,
@@ -521,14 +610,14 @@ CREATE TABLE writing_lab_rounds (
 
 COMMENT ON TABLE writing_lab_rounds IS 'Single A/B comparison round between champion and challenger texts.';
 
-CREATE INDEX idx_writing_lab_rounds_session
+CREATE INDEX IF NOT EXISTS idx_writing_lab_rounds_session
   ON writing_lab_rounds(session_id, round_number);
 
 
 -- ----------------------------------------------------------------------------
 -- 4.16 revenue_deals - Revenue deals and sponsorships
 -- ----------------------------------------------------------------------------
-CREATE TABLE revenue_deals (
+CREATE TABLE IF NOT EXISTS revenue_deals (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   brand_id      uuid NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
   partner_name  text NOT NULL,
@@ -546,8 +635,9 @@ CREATE TABLE revenue_deals (
 
 COMMENT ON TABLE revenue_deals IS 'Revenue tracking: sponsorships, affiliates, newsletter features, product deals.';
 
-CREATE INDEX idx_revenue_deals_brand_status ON revenue_deals(brand_id, status);
+CREATE INDEX IF NOT EXISTS idx_revenue_deals_brand_status ON revenue_deals(brand_id, status);
 
+DROP TRIGGER IF EXISTS revenue_deals_updated_at ON revenue_deals;
 CREATE TRIGGER revenue_deals_updated_at
   BEFORE UPDATE ON revenue_deals
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -556,7 +646,7 @@ CREATE TRIGGER revenue_deals_updated_at
 -- ----------------------------------------------------------------------------
 -- 4.17 pipeline_health - System health monitoring
 -- ----------------------------------------------------------------------------
-CREATE TABLE pipeline_health (
+CREATE TABLE IF NOT EXISTS pipeline_health (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   brand_id        uuid NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
   agent_name      text NOT NULL,
@@ -571,17 +661,17 @@ CREATE TABLE pipeline_health (
 
 COMMENT ON TABLE pipeline_health IS 'Real-time health monitoring for each pipeline agent. Periodic heartbeat check.';
 
-CREATE INDEX idx_pipeline_health_brand_agent
+CREATE INDEX IF NOT EXISTS idx_pipeline_health_brand_agent
   ON pipeline_health(brand_id, agent_name, created_at DESC);
 
 
 -- ----------------------------------------------------------------------------
 -- 4.18 feedback - Human feedback on content
 -- ----------------------------------------------------------------------------
-CREATE TABLE feedback (
+CREATE TABLE IF NOT EXISTS feedback (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   brand_id          uuid NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
-  content_draft_id  uuid REFERENCES content_drafts(id) ON DELETE SET NULL,
+  draft_id          uuid REFERENCES content_drafts(id) ON DELETE SET NULL,
   research_item_id  uuid REFERENCES research_items(id) ON DELETE SET NULL,
   feedback_type     feedback_type NOT NULL,
   value             text,
@@ -589,10 +679,17 @@ CREATE TABLE feedback (
   created_at        timestamptz DEFAULT now()
 );
 
+-- Ensure draft_id exists if table already existed (idempotency polish)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='feedback' AND column_name='draft_id') THEN
+    ALTER TABLE feedback ADD COLUMN draft_id uuid REFERENCES content_drafts(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
 COMMENT ON TABLE feedback IS 'Explicit human feedback on content and research items. Feeds back into scoring bonus.';
 
-CREATE INDEX idx_feedback_brand_draft ON feedback(brand_id, content_draft_id);
-CREATE INDEX idx_feedback_research_item ON feedback(research_item_id)
+CREATE INDEX IF NOT EXISTS idx_feedback_brand_draft ON feedback(brand_id, draft_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_research_item ON feedback(research_item_id)
   WHERE research_item_id IS NOT NULL;
 
 
@@ -703,7 +800,6 @@ ALTER TABLE newsletter_candidates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE campaigns             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE calendar_events       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE api_costs             ENABLE ROW LEVEL SECURITY;
-ALTER TABLE social_metrics        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE writing_lab_sessions  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE writing_lab_rounds    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE revenue_deals         ENABLE ROW LEVEL SECURITY;
@@ -714,12 +810,14 @@ ALTER TABLE feedback              ENABLE ROW LEVEL SECURITY;
 -- ── brands ──────────────────────────────────────────────────────────────────
 
 -- Users can see their own brand
+DROP POLICY IF EXISTS "brands_select" ON brands;
 CREATE POLICY "brands_select" ON brands
   FOR SELECT USING (
     id = auth_user_brand_id()
   );
 
 -- Only owners can update brand configuration
+DROP POLICY IF EXISTS "brands_update" ON brands;
 CREATE POLICY "brands_update" ON brands
   FOR UPDATE USING (
     id = auth_user_brand_id()
@@ -730,24 +828,28 @@ CREATE POLICY "brands_update" ON brands
 -- ── users ───────────────────────────────────────────────────────────────────
 
 -- Users can see other users in their brand
+DROP POLICY IF EXISTS "users_select" ON users;
 CREATE POLICY "users_select" ON users
   FOR SELECT USING (
     brand_id = auth_user_brand_id()
   );
 
 -- Only owners can manage users
+DROP POLICY IF EXISTS "users_insert" ON users;
 CREATE POLICY "users_insert" ON users
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()
     AND auth_user_role() = 'owner'
   );
 
+DROP POLICY IF EXISTS "users_update" ON users;
 CREATE POLICY "users_update" ON users
   FOR UPDATE USING (
     brand_id = auth_user_brand_id()
     AND auth_user_role() = 'owner'
   );
 
+DROP POLICY IF EXISTS "users_delete" ON users;
 CREATE POLICY "users_delete" ON users
   FOR DELETE USING (
     brand_id = auth_user_brand_id()
@@ -765,21 +867,25 @@ CREATE POLICY "users_delete" ON users
 
 -- ── research_runs ───────────────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "research_runs_select" ON research_runs;
 CREATE POLICY "research_runs_select" ON research_runs
   FOR SELECT USING (brand_id = auth_user_brand_id());
 
+DROP POLICY IF EXISTS "research_runs_insert" ON research_runs;
 CREATE POLICY "research_runs_insert" ON research_runs
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "research_runs_update" ON research_runs;
 CREATE POLICY "research_runs_update" ON research_runs
   FOR UPDATE USING (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "research_runs_delete" ON research_runs;
 CREATE POLICY "research_runs_delete" ON research_runs
   FOR DELETE USING (
     brand_id = auth_user_brand_id()
@@ -789,21 +895,25 @@ CREATE POLICY "research_runs_delete" ON research_runs
 
 -- ── research_items ──────────────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "research_items_select" ON research_items;
 CREATE POLICY "research_items_select" ON research_items
   FOR SELECT USING (brand_id = auth_user_brand_id());
 
+DROP POLICY IF EXISTS "research_items_insert" ON research_items;
 CREATE POLICY "research_items_insert" ON research_items
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "research_items_update" ON research_items;
 CREATE POLICY "research_items_update" ON research_items
   FOR UPDATE USING (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "research_items_delete" ON research_items;
 CREATE POLICY "research_items_delete" ON research_items
   FOR DELETE USING (
     brand_id = auth_user_brand_id()
@@ -814,6 +924,7 @@ CREATE POLICY "research_items_delete" ON research_items
 -- ── scores ──────────────────────────────────────────────────────────────────
 -- Scores are accessed via research_item_id; we join to check brand ownership
 
+DROP POLICY IF EXISTS "scores_select" ON scores;
 CREATE POLICY "scores_select" ON scores
   FOR SELECT USING (
     EXISTS (
@@ -823,6 +934,7 @@ CREATE POLICY "scores_select" ON scores
     )
   );
 
+DROP POLICY IF EXISTS "scores_insert" ON scores;
 CREATE POLICY "scores_insert" ON scores
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -833,6 +945,7 @@ CREATE POLICY "scores_insert" ON scores
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "scores_update" ON scores;
 CREATE POLICY "scores_update" ON scores
   FOR UPDATE USING (
     EXISTS (
@@ -843,6 +956,7 @@ CREATE POLICY "scores_update" ON scores
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "scores_delete" ON scores;
 CREATE POLICY "scores_delete" ON scores
   FOR DELETE USING (
     EXISTS (
@@ -856,21 +970,25 @@ CREATE POLICY "scores_delete" ON scores
 
 -- ── content_drafts ──────────────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "content_drafts_select" ON content_drafts;
 CREATE POLICY "content_drafts_select" ON content_drafts
   FOR SELECT USING (brand_id = auth_user_brand_id());
 
+DROP POLICY IF EXISTS "content_drafts_insert" ON content_drafts;
 CREATE POLICY "content_drafts_insert" ON content_drafts
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "content_drafts_update" ON content_drafts;
 CREATE POLICY "content_drafts_update" ON content_drafts
   FOR UPDATE USING (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "content_drafts_delete" ON content_drafts;
 CREATE POLICY "content_drafts_delete" ON content_drafts
   FOR DELETE USING (
     brand_id = auth_user_brand_id()
@@ -881,6 +999,7 @@ CREATE POLICY "content_drafts_delete" ON content_drafts
 -- ── god_mode_reviews ────────────────────────────────────────────────────────
 -- Access through draft_id -> content_drafts.brand_id
 
+DROP POLICY IF EXISTS "god_mode_reviews_select" ON god_mode_reviews;
 CREATE POLICY "god_mode_reviews_select" ON god_mode_reviews
   FOR SELECT USING (
     EXISTS (
@@ -890,6 +1009,7 @@ CREATE POLICY "god_mode_reviews_select" ON god_mode_reviews
     )
   );
 
+DROP POLICY IF EXISTS "god_mode_reviews_insert" ON god_mode_reviews;
 CREATE POLICY "god_mode_reviews_insert" ON god_mode_reviews
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -900,6 +1020,7 @@ CREATE POLICY "god_mode_reviews_insert" ON god_mode_reviews
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "god_mode_reviews_update" ON god_mode_reviews;
 CREATE POLICY "god_mode_reviews_update" ON god_mode_reviews
   FOR UPDATE USING (
     EXISTS (
@@ -910,6 +1031,7 @@ CREATE POLICY "god_mode_reviews_update" ON god_mode_reviews
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "god_mode_reviews_delete" ON god_mode_reviews;
 CREATE POLICY "god_mode_reviews_delete" ON god_mode_reviews
   FOR DELETE USING (
     EXISTS (
@@ -923,21 +1045,25 @@ CREATE POLICY "god_mode_reviews_delete" ON god_mode_reviews
 
 -- ── newsletters ─────────────────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "newsletters_select" ON newsletters;
 CREATE POLICY "newsletters_select" ON newsletters
   FOR SELECT USING (brand_id = auth_user_brand_id());
 
+DROP POLICY IF EXISTS "newsletters_insert" ON newsletters;
 CREATE POLICY "newsletters_insert" ON newsletters
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "newsletters_update" ON newsletters;
 CREATE POLICY "newsletters_update" ON newsletters
   FOR UPDATE USING (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "newsletters_delete" ON newsletters;
 CREATE POLICY "newsletters_delete" ON newsletters
   FOR DELETE USING (
     brand_id = auth_user_brand_id()
@@ -948,6 +1074,7 @@ CREATE POLICY "newsletters_delete" ON newsletters
 -- ── newsletter_candidates ───────────────────────────────────────────────────
 -- Access through newsletter_id -> newsletters.brand_id
 
+DROP POLICY IF EXISTS "newsletter_candidates_select" ON newsletter_candidates;
 CREATE POLICY "newsletter_candidates_select" ON newsletter_candidates
   FOR SELECT USING (
     EXISTS (
@@ -957,6 +1084,7 @@ CREATE POLICY "newsletter_candidates_select" ON newsletter_candidates
     )
   );
 
+DROP POLICY IF EXISTS "newsletter_candidates_insert" ON newsletter_candidates;
 CREATE POLICY "newsletter_candidates_insert" ON newsletter_candidates
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -967,6 +1095,7 @@ CREATE POLICY "newsletter_candidates_insert" ON newsletter_candidates
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "newsletter_candidates_update" ON newsletter_candidates;
 CREATE POLICY "newsletter_candidates_update" ON newsletter_candidates
   FOR UPDATE USING (
     EXISTS (
@@ -977,6 +1106,7 @@ CREATE POLICY "newsletter_candidates_update" ON newsletter_candidates
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "newsletter_candidates_delete" ON newsletter_candidates;
 CREATE POLICY "newsletter_candidates_delete" ON newsletter_candidates
   FOR DELETE USING (
     EXISTS (
@@ -990,21 +1120,25 @@ CREATE POLICY "newsletter_candidates_delete" ON newsletter_candidates
 
 -- ── campaigns ───────────────────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "campaigns_select" ON campaigns;
 CREATE POLICY "campaigns_select" ON campaigns
   FOR SELECT USING (brand_id = auth_user_brand_id());
 
+DROP POLICY IF EXISTS "campaigns_insert" ON campaigns;
 CREATE POLICY "campaigns_insert" ON campaigns
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "campaigns_update" ON campaigns;
 CREATE POLICY "campaigns_update" ON campaigns
   FOR UPDATE USING (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "campaigns_delete" ON campaigns;
 CREATE POLICY "campaigns_delete" ON campaigns
   FOR DELETE USING (
     brand_id = auth_user_brand_id()
@@ -1014,21 +1148,25 @@ CREATE POLICY "campaigns_delete" ON campaigns
 
 -- ── calendar_events ─────────────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "calendar_events_select" ON calendar_events;
 CREATE POLICY "calendar_events_select" ON calendar_events
   FOR SELECT USING (brand_id = auth_user_brand_id());
 
+DROP POLICY IF EXISTS "calendar_events_insert" ON calendar_events;
 CREATE POLICY "calendar_events_insert" ON calendar_events
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "calendar_events_update" ON calendar_events;
 CREATE POLICY "calendar_events_update" ON calendar_events
   FOR UPDATE USING (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "calendar_events_delete" ON calendar_events;
 CREATE POLICY "calendar_events_delete" ON calendar_events
   FOR DELETE USING (
     brand_id = auth_user_brand_id()
@@ -1038,9 +1176,11 @@ CREATE POLICY "calendar_events_delete" ON calendar_events
 
 -- ── api_costs ───────────────────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "api_costs_select" ON api_costs;
 CREATE POLICY "api_costs_select" ON api_costs
   FOR SELECT USING (brand_id = auth_user_brand_id());
 
+DROP POLICY IF EXISTS "api_costs_insert" ON api_costs;
 CREATE POLICY "api_costs_insert" ON api_costs
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()
@@ -1050,66 +1190,29 @@ CREATE POLICY "api_costs_insert" ON api_costs
 -- No update/delete for cost records (append-only audit log)
 
 
--- ── social_metrics ──────────────────────────────────────────────────────────
--- Access through content_draft_id -> content_drafts.brand_id
-
-CREATE POLICY "social_metrics_select" ON social_metrics
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM content_drafts cd
-      WHERE cd.id = social_metrics.content_draft_id
-        AND cd.brand_id = auth_user_brand_id()
-    )
-  );
-
-CREATE POLICY "social_metrics_insert" ON social_metrics
-  FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM content_drafts cd
-      WHERE cd.id = social_metrics.content_draft_id
-        AND cd.brand_id = auth_user_brand_id()
-    )
-    AND auth_user_role() IN ('owner', 'editor')
-  );
-
-CREATE POLICY "social_metrics_update" ON social_metrics
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM content_drafts cd
-      WHERE cd.id = social_metrics.content_draft_id
-        AND cd.brand_id = auth_user_brand_id()
-    )
-    AND auth_user_role() IN ('owner', 'editor')
-  );
-
-CREATE POLICY "social_metrics_delete" ON social_metrics
-  FOR DELETE USING (
-    EXISTS (
-      SELECT 1 FROM content_drafts cd
-      WHERE cd.id = social_metrics.content_draft_id
-        AND cd.brand_id = auth_user_brand_id()
-    )
-    AND auth_user_role() = 'owner'
-  );
 
 
 -- ── writing_lab_sessions ────────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "writing_lab_sessions_select" ON writing_lab_sessions;
 CREATE POLICY "writing_lab_sessions_select" ON writing_lab_sessions
   FOR SELECT USING (brand_id = auth_user_brand_id());
 
+DROP POLICY IF EXISTS "writing_lab_sessions_insert" ON writing_lab_sessions;
 CREATE POLICY "writing_lab_sessions_insert" ON writing_lab_sessions
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "writing_lab_sessions_update" ON writing_lab_sessions;
 CREATE POLICY "writing_lab_sessions_update" ON writing_lab_sessions
   FOR UPDATE USING (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "writing_lab_sessions_delete" ON writing_lab_sessions;
 CREATE POLICY "writing_lab_sessions_delete" ON writing_lab_sessions
   FOR DELETE USING (
     brand_id = auth_user_brand_id()
@@ -1120,6 +1223,7 @@ CREATE POLICY "writing_lab_sessions_delete" ON writing_lab_sessions
 -- ── writing_lab_rounds ──────────────────────────────────────────────────────
 -- Access through session_id -> writing_lab_sessions.brand_id
 
+DROP POLICY IF EXISTS "writing_lab_rounds_select" ON writing_lab_rounds;
 CREATE POLICY "writing_lab_rounds_select" ON writing_lab_rounds
   FOR SELECT USING (
     EXISTS (
@@ -1129,6 +1233,7 @@ CREATE POLICY "writing_lab_rounds_select" ON writing_lab_rounds
     )
   );
 
+DROP POLICY IF EXISTS "writing_lab_rounds_insert" ON writing_lab_rounds;
 CREATE POLICY "writing_lab_rounds_insert" ON writing_lab_rounds
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -1139,6 +1244,7 @@ CREATE POLICY "writing_lab_rounds_insert" ON writing_lab_rounds
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "writing_lab_rounds_update" ON writing_lab_rounds;
 CREATE POLICY "writing_lab_rounds_update" ON writing_lab_rounds
   FOR UPDATE USING (
     EXISTS (
@@ -1149,6 +1255,7 @@ CREATE POLICY "writing_lab_rounds_update" ON writing_lab_rounds
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "writing_lab_rounds_delete" ON writing_lab_rounds;
 CREATE POLICY "writing_lab_rounds_delete" ON writing_lab_rounds
   FOR DELETE USING (
     EXISTS (
@@ -1162,21 +1269,25 @@ CREATE POLICY "writing_lab_rounds_delete" ON writing_lab_rounds
 
 -- ── revenue_deals ───────────────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "revenue_deals_select" ON revenue_deals;
 CREATE POLICY "revenue_deals_select" ON revenue_deals
   FOR SELECT USING (brand_id = auth_user_brand_id());
 
+DROP POLICY IF EXISTS "revenue_deals_insert" ON revenue_deals;
 CREATE POLICY "revenue_deals_insert" ON revenue_deals
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "revenue_deals_update" ON revenue_deals;
 CREATE POLICY "revenue_deals_update" ON revenue_deals
   FOR UPDATE USING (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "revenue_deals_delete" ON revenue_deals;
 CREATE POLICY "revenue_deals_delete" ON revenue_deals
   FOR DELETE USING (
     brand_id = auth_user_brand_id()
@@ -1186,21 +1297,25 @@ CREATE POLICY "revenue_deals_delete" ON revenue_deals
 
 -- ── pipeline_health ─────────────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "pipeline_health_select" ON pipeline_health;
 CREATE POLICY "pipeline_health_select" ON pipeline_health
   FOR SELECT USING (brand_id = auth_user_brand_id());
 
+DROP POLICY IF EXISTS "pipeline_health_insert" ON pipeline_health;
 CREATE POLICY "pipeline_health_insert" ON pipeline_health
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "pipeline_health_update" ON pipeline_health;
 CREATE POLICY "pipeline_health_update" ON pipeline_health
   FOR UPDATE USING (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "pipeline_health_delete" ON pipeline_health;
 CREATE POLICY "pipeline_health_delete" ON pipeline_health
   FOR DELETE USING (
     brand_id = auth_user_brand_id()
@@ -1210,21 +1325,25 @@ CREATE POLICY "pipeline_health_delete" ON pipeline_health
 
 -- ── feedback ────────────────────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "feedback_select" ON feedback;
 CREATE POLICY "feedback_select" ON feedback
   FOR SELECT USING (brand_id = auth_user_brand_id());
 
+DROP POLICY IF EXISTS "feedback_insert" ON feedback;
 CREATE POLICY "feedback_insert" ON feedback
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "feedback_update" ON feedback;
 CREATE POLICY "feedback_update" ON feedback
   FOR UPDATE USING (
     brand_id = auth_user_brand_id()
     AND auth_user_role() IN ('owner', 'editor')
   );
 
+DROP POLICY IF EXISTS "feedback_delete" ON feedback;
 CREATE POLICY "feedback_delete" ON feedback
   FOR DELETE USING (
     brand_id = auth_user_brand_id()

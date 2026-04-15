@@ -19,7 +19,7 @@ async def record_social_metrics(
     db = get_db()
 
     data = {
-        "content_draft_id": draft_id,
+        "draft_id": draft_id,
         "platform": platform,
         "impressions": impressions,
         "clicks": clicks,
@@ -38,7 +38,7 @@ async def compute_engagement_score(draft_id: str) -> float:
     db = get_db()
 
     metrics = db.table("social_metrics").select("*").eq(
-        "content_draft_id", draft_id
+        "draft_id", draft_id
     ).execute().data
 
     if not metrics:

@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes import router
+from .api.routes_agents import router as agents_router
 from .api.auth_middleware import JWTAuthMiddleware
 from .utils.rate_limiter_persistent import PersistentRateLimitMiddleware
 from .utils.logging_config import setup_logging
@@ -40,6 +41,7 @@ app.add_middleware(PersistentRateLimitMiddleware)
 app.add_middleware(JWTAuthMiddleware)
 
 app.include_router(router)
+app.include_router(agents_router)
 
 
 @app.get("/health")

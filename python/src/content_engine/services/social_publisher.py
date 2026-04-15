@@ -126,7 +126,7 @@ async def schedule_post(brand_id: str, draft_id: str, scheduled_at: str) -> dict
         "title": draft.get("title", "Scheduled Post"),
         "event_type": draft.get("content_type", "post"),
         "scheduled_at": scheduled_at,
-        "content_draft_id": draft_id,
+        "draft_id": draft_id,
         "status": "scheduled",
     }).execute()
 

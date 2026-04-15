@@ -7,15 +7,10 @@ import json
 from ..utils.llm_client import call_llm
 from ..agents.mcp_client import augment_prompt_with_mcp
 from ..db import get_db
+from .agent_loader import get_agent_identity
 
 
-ADVOCATE_PROMPT = """<identity>
-You are the Devil's Advocate of the GOD System — the intellectual counterweight protecting the brand from mediocrity.
-You possess an incredibly demanding and critical mindset.
-Your goal is to meticulously scrutinize content, identify logical flaws, unsupported claims, and reputational risks before they reach the public.
-</identity>
-
-<context>
+ADVOCATE_PROMPT_BASE = """<context>
 Target Platform: {platform}
 
 Content Under Scrutiny:
@@ -66,13 +61,7 @@ Return ONLY a valid JSON object matching this schema. Do not include markdown co
 </output_format>
 """
 
-FACTCHECK_PROMPT = """<identity>
-You are the Fact-Checker of the GOD System — the sentinel of factual truth for the brand.
-You operate on pure logic and rigorous verification.
-Your goal is to scrutinize every statement, identify unverifiable claims, and prevent factual errors from destroying the brand's credibility.
-</identity>
-
-<context>
+FACTCHECK_PROMPT_BASE = """<context>
 Content to Verify:
 Title: {title}
 Body:
@@ -106,7 +95,7 @@ Return ONLY a valid JSON object matching this schema. Do not include markdown co
 {{
   "feedback": "Fact-check analysis (2-3 paragraphs in English)",
   "issues": [
-    {{"claim": "The specific claim made", "status": "verified|plausible|dubious|unverifiable", "note": "Explanation"}}
+    {"claim": "The specific claim made", "status": "verified|plausible|dubious|unverifiable", "note": "Explanation"}
   ],
   "overall_reliability": 8
 }}
@@ -115,8 +104,8 @@ Return ONLY a valid JSON object matching this schema. Do not include markdown co
 {{
   "feedback": "The text contains mostly sound logic but relies heavily on one specific statistic that lacks attribution. Without citing a source for the '80% conversion rate' claim, the piece borders on misinformation.",
   "issues": [
-    {{"claim": "Emails with emojis have an 80% higher open rate.", "status": "dubious", "note": "Highly specific statistic without any source cited. Needs attribution."}},
-    {{"claim": "Email marketing remains a powerful tool.", "status": "verified", "note": "Common industry knowledge."}}
+    {"claim": "Emails with emojis have an 80% higher open rate.", "status": "dubious", "note": "Highly specific statistic without any source cited. Needs attribution."}},
+    {"claim": "Email marketing remains a powerful tool.", "status": "verified", "note": "Common industry knowledge."}}
   ],
   "overall_reliability": 5
 }}
@@ -124,13 +113,7 @@ Return ONLY a valid JSON object matching this schema. Do not include markdown co
 </output_format>
 """
 
-CREATIVE_PROMPT = """<identity>
-You are the Creative Director of the GOD System — the alchemist who transforms "correct" content into "memorable" content.
-You possess a profound instinct for engagement, virality, and emotional resonance.
-Your goal is to find hidden opportunities, propose brilliant hooks, and elevate the narrative without diluting the core message.
-</identity>
-
-<context>
+CREATIVE_PROMPT_BASE = """<context>
 Target Platform: {platform}
 
 Content to Elevate:
@@ -166,7 +149,7 @@ Return ONLY a valid JSON object matching this schema. Do not include markdown co
 {{
   "feedback": "Creative analysis (2-3 paragraphs in English)",
   "suggestions": [
-    {{"type": "hook|angle|emotion|structure", "suggestion": "Specific description", "priority": "high|medium|low"}}
+    {"type": "hook|angle|emotion|structure", "suggestion": "Specific description", "priority": "high|medium|low"}
   ],
   "engagement_potential": 7
 }}
@@ -175,8 +158,8 @@ Return ONLY a valid JSON object matching this schema. Do not include markdown co
 {{
   "feedback": "The content is solid but structurally boring. It buries the most interesting insight at the very end. We need to flip the narrative, starting with the surprising conclusion and working backward.",
   "suggestions": [
-    {{"type": "structure", "suggestion": "Move the final paragraph to the beginning as the main hook.", "priority": "high"}},
-    {{"type": "hook", "suggestion": "Start with: 'I wasted $10k on ads before I learned this single lesson.'", "priority": "medium"}}
+    {"type": "structure", "suggestion": "Move the final paragraph to the beginning as the main hook.", "priority": "high"}},
+    {"type": "hook", "suggestion": "Start with: 'I wasted $10k on ads before I learned this single lesson.'", "priority": "medium"}
   ],
   "engagement_potential": 6
 }}
@@ -184,13 +167,7 @@ Return ONLY a valid JSON object matching this schema. Do not include markdown co
 </output_format>
 """
 
-SYNTHESIS_PROMPT = """<identity>
-You are the Synthesizer of the GOD System — the orchestrator who merges contrasting perspectives into a flawless final piece.
-You excel at editorial decision-making, balancing rigorous logic, creativity, and absolute factual accuracy.
-Your goal is to weight the feedback from your three experts and produce a definitive, published-ready version that is greater than the sum of its parts.
-</identity>
-
-<context>
+SYNTHESIS_PROMPT_BASE = """<context>
 Target Platform: {platform}
 
 Original Content:
@@ -242,7 +219,7 @@ Return ONLY a valid JSON object matching this schema. Do not include markdown co
 <example>
 {{
   "title": "Il vero costo del turnover",
-  "body": "Perdere un dipendente ti costa il 30% del suo stipendio annuale.\\n\\nNon lo dico io, lo dicono i bilanci. Eppure le aziende continuano a tagliare il budget per la formazione.\\n\\nEcco come invertire la rotta in 2 mesi...",
+  "body": "Perdere un dipendente ti costa il 30% del suo stipendio annuale.\n\nNon lo dico io, lo dicono i bilanci. Eppure le aziende continuano a tagliare il budget per la formazione.\n\nEcco come invertire la rotta in 2 mesi...",
   "verdict": "pass",
   "summary": "Implemented the punchier hook suggested by Creative, removed the unverified statistic flagged by Fact-Checker, and tightened the logic as requested by Advocate."
 }}
@@ -277,7 +254,7 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
             "status": "god_mode_failed",
             "god_mode_result": error_info,
         }).eq("id", draft_id).execute()
-        
+
         # Fire and forget Telegram alert
         await send_telegram_alert(f"Failed drafting `{draft_id}` at step `{step}`.\nError: `{error}`")
 
@@ -293,7 +270,18 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
     # Define parallel agent tasks
     async def run_advocate():
         try:
-            adv_prompt = ADVOCATE_PROMPT.format(title=title, platform=platform, body=body)
+            # Fase 1: Load agent identity from DB
+            identity = await get_agent_identity(brand_id, "advocate")
+
+            # Build complete prompt with identity
+            full_prompt = f"""<identity>
+{identity}
+</identity>
+
+{ADVOCATE_PROMPT_BASE}
+"""
+
+            adv_prompt = full_prompt.format(title=title, platform=platform, body=body)
             adv_resp = await call_llm(adv_prompt, brand_id, context="god_advocate", action="advocate", task_type="knowledge")
             adv_raw = adv_resp.content
             adv = _parse_json(adv_raw)
@@ -303,16 +291,25 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
 
     async def run_factcheck():
         try:
-            fc_prompt = FACTCHECK_PROMPT.format(title=title, body=body)
-            
+            # Fase 1: Load agent identity from DB
+            identity = await get_agent_identity(brand_id, "factcheck")
+
+            # Build complete prompt with identity
+            full_prompt = f"""<identity>
+{identity}
+</identity>
+
+{FACTCHECK_PROMPT_BASE}
+"""
+
             # Check brand settings for Context7 usage
             brand = db.table("brands").select("use_context7").eq("id", brand_id).single().execute().data
             use_context7 = brand.get("use_context7", False) if brand else False
 
-            mcp_context_prompt = fc_prompt
+            mcp_context_prompt = full_prompt.format(title=title, body=body)
             if use_context7:
-                mcp_context_prompt = await augment_prompt_with_mcp(fc_prompt, queries=[title])
-            
+                mcp_context_prompt = await augment_prompt_with_mcp(mcp_context_prompt, queries=[title])
+
             fc_resp = await call_llm(mcp_context_prompt, brand_id, context="god_factcheck", action="factcheck", task_type="reasoning")
             fc_raw = fc_resp.content
             fc = _parse_json(fc_raw)
@@ -322,7 +319,18 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
 
     async def run_creative():
         try:
-            cr_prompt = CREATIVE_PROMPT.format(title=title, platform=platform, body=body)
+            # Fase 1: Load agent identity from DB
+            identity = await get_agent_identity(brand_id, "creative")
+
+            # Build complete prompt with identity
+            full_prompt = f"""<identity>
+{identity}
+</identity>
+
+{CREATIVE_PROMPT_BASE}
+"""
+
+            cr_prompt = full_prompt.format(title=title, platform=platform, body=body)
             cr_resp = await call_llm(cr_prompt, brand_id, context="god_creative", action="creative", task_type="creative")
             cr_raw = cr_resp.content
             cr = _parse_json(cr_raw)
@@ -334,7 +342,7 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
     adv_fut = run_advocate()
     fc_fut = run_factcheck()
     cr_fut = run_creative()
-    
+
     (advocate_feedback, advocate_score, adv_err), \
     (factcheck_feedback, factcheck_issues, fc_err), \
     (creative_feedback, creative_suggestions, cr_err) = await asyncio.gather(adv_fut, fc_fut, cr_fut)
@@ -349,7 +357,18 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
 
     # 4. Synthesis
     try:
-        syn_prompt = SYNTHESIS_PROMPT.format(
+        # Fase 1: Load agent identity from DB
+        identity = await get_agent_identity(brand_id, "synthesis")
+
+        # Build complete prompt with identity
+        full_prompt = f"""<identity>
+{identity}
+</identity>
+
+{SYNTHESIS_PROMPT_BASE}
+"""
+
+        syn_prompt = full_prompt.format(
             title=title, platform=platform, body=body,
             advocate_score=advocate_score,
             advocate_feedback=advocate_feedback,

@@ -442,3 +442,61 @@ La schermata attuale ha Agent Identities + Agent Skills. Va bene come struttura.
 **Regola di avanzamento:** non si passa alla fase successiva se quella precedente non ha una metrica di successo verde per almeno 3 giorni consecutivi
 
 ***
+
+## NotebookLM è d'accordo — con alcune aggiunte importanti
+
+Il piano a 5 fasi è stato **approvato** da NotebookLM. Ecco il verdetto fase per fase e cosa aggiungere: [notebooklm.google](https://notebooklm.google.com/notebook/9d94ed2c-3409-48ba-8285-80e9696fff40?authuser=2)
+
+***
+
+### ✅ Piano approvato con piena motivazione
+
+**FASE 0 — Confermata come indispensabile** [notebooklm.google](https://notebooklm.google.com/notebook/9d94ed2c-3409-48ba-8285-80e9696fff40?authuser=2)
+Il problema del `feedback_bonus` hardcoded a 5.0 è il limite critico più evidente: l'LLM non "impara", esegue solo un compito statico. Spostare l'iniezione server-side dal DB è l'unico modo per rendere il sistema data-driven.
+
+**FASE 1 — Confermata come fondamentale** [notebooklm.google](https://notebooklm.google.com/notebook/9d94ed2c-3409-48ba-8285-80e9696fff40?authuser=2)
+Marco stesso descrive momenti in cui "va tutto giù" legato ad API esterne fuori controllo. La diagnosi SQL prima è essenziale per non costruire automazioni (Fase 3) su dati fake.
+
+**FASE 2 — Confermata come il "vero salto di qualità"** [notebooklm.google](https://notebooklm.google.com/notebook/9d94ed2c-3409-48ba-8285-80e9696fff40?authuser=2)
+Lo scoring con modelli reasoning su ogni item è la seconda voce di costo API più alta nel sistema di Marco. Il gate binario con modello fast è una scelta geniale. La soglia 0.75 con coda `pending_review` è ottima: mantiene quel 5% umano su cui Marco insiste.
+
+**FASE 3 — Confermata come l'essenza della Zero Human Company** [notebooklm.google](https://notebooklm.google.com/notebook/9d94ed2c-3409-48ba-8285-80e9696fff40?authuser=2)
+Marco dichiara di voler usare gli analytics ma i log mostrano un processo ancora manuale. La tua automazione Supabase + Postiz renderebbe il sistema autonomo nel gusto, superando le 4 ore/giorno di babysitteraggio.
+
+**FASE 4 — Confermata come modularità B2B vincente** [notebooklm.google](https://notebooklm.google.com/notebook/9d94ed2c-3409-48ba-8285-80e9696fff40?authuser=2)
+Trasforma il progetto da "person-centric" (Marco con 4.000 video) a "empty box" vendibile a qualsiasi verticale.
+
+***
+
+### ⚠️ Cosa manca secondo NotebookLM
+
+**1. God Mode di Sintesi — manca una Fase 5** [notebooklm.google](https://notebooklm.google.com/notebook/9d94ed2c-3409-48ba-8285-80e9696fff40?authuser=2)
+Il piano si ferma alla *selezione*. Marco usa un "consiglio di amministrazione" di 3 modelli in parallelo (Claude, GPT, Gemini) che si criticano a vicenda prima della stesura finale. Serve una **Fase 5 sulla Generazione Multimodale** per garantire che il testo finale non sappia di "AI slop".
+
+**2. Writing Lab integrato nel feedback loop** [notebooklm.google](https://notebooklm.google.com/notebook/9d94ed2c-3409-48ba-8285-80e9696fff40?authuser=2)
+Il feedback umano nel sistema di Marco non è solo numerico (engagement) ma **stilistico** (Sì/No tra varianti di testo). La Fase 3 dovrebbe integrare anche le preferenze di tono espresse manualmente nella UI, non solo l'engagement social.
+
+**3. Agente di QA automatico — non previsto nel piano** [notebooklm.google](https://notebooklm.google.com/notebook/9d94ed2c-3409-48ba-8285-80e9696fff40?authuser=2)
+Marco funge da "collaudatore" manuale che rileva link rotti e tag HTML sbagliati. Il piano manca di un **agente QA** che verifichi l'integrità dei contenuti (validità link, HTML) prima del deploy in produzione.
+
+***
+
+### ⚡ Rischi tecnici identificati
+
+- **Loop sequenziale**: All'aumentare delle fonti in Fase 3, il sistema diventa troppo lento. Le chiamate LLM **devono diventare asincrone**. [notebooklm.google](https://notebooklm.google.com/notebook/9d94ed2c-3409-48ba-8285-80e9696fff40?authuser=2)
+- **Decay temporale**: Nella Fase 3, assicurarsi che il decay non sia troppo aggressivo — in settori B2B un contenuto evergreen di 3 giorni può valere più di una breaking news di oggi. [notebooklm.google](https://notebooklm.google.com/notebook/9d94ed2c-3409-48ba-8285-80e9696fff40?authuser=2)
+
+***
+
+### Piano aggiornato con le integrazioni
+
+| Fase | Cosa | Aggiunta |
+|------|------|----------|
+| 0 | Fix 3 bug critici | — |
+| 1 | Diagnosi SQL | — |
+| 2 | Anti-Hype Gate | few-shot con gold/discard examples ✅ |
+| 3 | Feedback loop reale | **+ Writing Lab stilistico nella UI** |
+| 4 | Pesi per brand + UI Agenti | **+ Agente QA automatico** |
+| **5** | **God Mode di Sintesi** | **Multi-model parallel (nuovo)** |
+
+Il piano è solido. Le tre aggiunte (Writing Lab nella Fase 3, QA agent nella Fase 4, God Mode come Fase 5) sono ciò che separa il tuo sistema dall'essere "meglio di Marco" all'essere **strutturalmente superiore**.

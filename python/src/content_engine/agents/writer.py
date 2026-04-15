@@ -8,14 +8,10 @@ from ..db import get_db
 from ..utils.cost_tracker import track_cost
 from ..utils.llm_client import call_llm
 from ..utils.security_utils import sanitize_for_prompt  # H-07: prompt injection guard
+from .agent_loader import get_agent_identity  # Fase 1: Use DB-based identity loader
 
-WRITER_PROMPT = """<identity>
-You are the Writer for {brand_name} — the founder's right hand in digital communication.
-Your expertise is transforming industry insights into scroll-stopping content.
-Your goal is to build a bridge between the founder's expertise and the reader's specific pain point, making them say "this is about me".
-</identity>
-
-<context>
+# Base prompt template without identity section (identity will be loaded dynamically)
+WRITER_PROMPT_BASE = """<context>
 Target Platform: {platform}
 Content Type: {content_type}
 Length Guideline: {length_hint}
@@ -27,10 +23,10 @@ Key Insight: {summary}
 </context>
 
 <instructions>
-1. Analyze the Context data perfectly.
-2. Draft an original piece of content based exclusively on the Key Insight.
-3. Write entirely in Italian (it's crucial for the Italian audience).
-4. Apply the brand's tone of voice and principles perfectly.
+1. Analyze Context data perfectly.
+2. Draft an original piece of content based exclusively on Key Insight.
+3. Write entirely in Italian (it's crucial for Italian audience).
+4. Apply brand's tone of voice and principles perfectly.
 </instructions>
 
 <guidelines>
@@ -39,23 +35,23 @@ Key Insight: {summary}
 - Brand Principles:
 {principles}
 - Standards:
-  - Create a magnetic hook in the first sentence to grab attention.
+  - Create a magnetic hook in first sentence to grab attention.
   - Ensure every sentence adds tangible value.
   - Prioritize concrete data over vague opinions.
   - End with a clear and actionable call to action (CTA).
-- Language: Italian ONLY.
+  - Language: Italian ONLY.
 </guidelines>
 
 <verification>
 Check yourself before outputting:
-- Is the language strictly Italian?
-- Is the content completely original and not just a recycled summary?
-- Does it strictly adhere to the {length_hint} guideline for {platform}?
-If you cannot fulfill the request due to missing insight, output "I do not have enough context to write this." in the body.
+- Is language strictly Italian?
+- Is content completely original and not just a recycled summary?
+- Does it strictly adhere to {length_hint} guideline for {platform}?
+If you cannot fulfill request due to missing insight, output "I do not have enough context to write this." in body.
 </verification>
 
 <output_format>
-Return ONLY a valid JSON object matching this schema. Do not include markdown codeblocks outside the JSON.
+Return ONLY a valid JSON object matching this schema. Do not include markdown codeblocks outside of JSON.
 {{
   "title": "A captivating title",
   "body": "The complete formatted content with paragraphs and line breaks",
@@ -63,6 +59,7 @@ Return ONLY a valid JSON object matching this schema. Do not include markdown co
   "cta": "The final call to action",
   "hashtags": ["hashtag1", "hashtag2", "hashtag3"]
 }}
+</output_format>
 
 <example>
 {{
@@ -73,7 +70,6 @@ Return ONLY a valid JSON object matching this schema. Do not include markdown co
   "hashtags": ["#startup", "#kpi", "#marketing"]
 }}
 </example>
-</output_format>
 """
 
 PLATFORM_LENGTH = {
@@ -105,14 +101,25 @@ async def generate_draft(
     tone_rules = "\n".join(f"- {r}" for r in (tone.get("rules") or []))
     principles = (brand_data.get("scoring_weights") or {}).get("founder_principles", [])
 
-    prompt = WRITER_PROMPT.format(
+    # Fase 1: Load agent identity from DB (or fallback hardcoded)
+    identity = await get_agent_identity(brand_id, "writer")
+
+    # Build complete prompt with identity
+    full_prompt = f"""<identity>
+{identity}
+</identity>
+
+{WRITER_PROMPT_BASE}
+"""
+
+    prompt = full_prompt.format(
         brand_name=brand_data.get("name", ""),
-        tone_rules=tone_rules or "Diretto, pratico, entusiasta",
+        tone_rules=tone_rules or "Diretto, pratico, entusiast",
         principles="\n".join(f"- {p}" for p in principles),
-        # H-07: sanitize web-scraped fields before inserting into the LLM prompt
-        title=sanitize_for_prompt(item_data.get("title", ""), context="research_item.title"),
-        source_name=sanitize_for_prompt(item_data.get("source_name", ""), context="research_item.source_name"),
-        summary=sanitize_for_prompt(item_data.get("summary", ""), context="research_item.summary"),
+        # H-07: sanitize web-scraped fields before inserting into LLM prompt
+        title=sanitize_for_prompt(item_data.get("title", ""), context="research_item.title",
+        source_name=sanitize_for_prompt(item_data.get("source_name", ""), context="research_item.source_name",
+        summary=sanitize_for_prompt(item_data.get("summary", ""), context="research_item.summary",
         platform=platform,
         content_type=content_type,
         length_hint=PLATFORM_LENGTH.get(platform, "medio"),
@@ -150,3 +157,7 @@ async def generate_draft(
         "cta": parsed.get("cta", ""),
         "hashtags": parsed.get("hashtags", []),
     }
+
+
+# Bug 0.2 Fix: Export for auto-optimizer
+__all__ = ["WRITER_PROMPT_BASE", "generate_draft"]

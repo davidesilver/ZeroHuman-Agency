@@ -111,15 +111,17 @@ CREATE TABLE IF NOT EXISTS audit_trail (
 
 COMMENT ON TABLE audit_trail IS 'Immutable log of publish operations for debugging and compliance.';
 
-CREATE INDEX idx_audit_trail_brand_action
+CREATE INDEX IF NOT EXISTS idx_audit_trail_brand_action
   ON audit_trail(brand_id, action, timestamp DESC);
 
 -- RLS
 ALTER TABLE audit_trail ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "audit_trail_select" ON audit_trail;
 CREATE POLICY "audit_trail_select" ON audit_trail
   FOR SELECT USING (brand_id = auth_user_brand_id());
 
+DROP POLICY IF EXISTS "audit_trail_insert" ON audit_trail;
 CREATE POLICY "audit_trail_insert" ON audit_trail
   FOR INSERT WITH CHECK (
     brand_id = auth_user_brand_id()

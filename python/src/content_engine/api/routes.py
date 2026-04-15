@@ -36,6 +36,7 @@ from ..scoring.engine import run_scoring
 from ..services.newsletter_delivery import send_newsletter, preview_newsletter
 from ..services.social_publisher import publish_to_postiz, schedule_post
 from ..services.feedback_loop import record_social_metrics, update_feedback_bonus
+from ..services.postiz_analytics import pull_daily_metrics, run_daily_analytics_cycle
 from ..services.scheduler import daily_research_pipeline, publish_scheduled_posts
 
 router = APIRouter(prefix="/api")
@@ -524,6 +525,21 @@ async def api_feedback_loop(request: Request):
     brand_id = _get_brand_id(request)
     result = await update_feedback_bonus(brand_id)
     return {"success": True, "data": result}
+
+# ── Postiz Analytics Scheduler ─────────────────────────────────────────────────────
+
+@router.post("/analytics/pull-metrics", dependencies=[Depends(_require_scheduler_secret)])
+async def api_pull_metrics():
+    """Pull daily Postiz analytics for all brands. Requires X-Scheduler-Secret header."""
+    from ..services.postiz_analytics import run_daily_analytics_cycle
+    try:
+        result = await run_daily_analytics_cycle()
+        return {"success": True, "data": result}
+    except HTTPException:
+        raise
+    except Exception as e:
+        _logger.error("Pull metrics failed: %s", e, exc_info=True)
+        raise HTTPException(500, "Pull metrics failed")
 
 
 # ── Scheduler ────────────────────────────────────────────────────────────────
