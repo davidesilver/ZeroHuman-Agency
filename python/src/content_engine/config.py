@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     auto_approve_threshold: float = 8.0
     auto_reject_threshold: float = 3.0
 
+    # LLM Provider Preference
+    use_claude_subscription: bool = False  # If TRUE, uses Claude via Anthropic API (your subscription)
+                                            # If FALSE, uses OpenRouter free models (default)
+
+    # Fallback Monitoring
+    fallback_alert_threshold: float = 10.0  # Alert if fallbacks exceed X% of daily calls
+    fallback_daily_reset_hour: int = 0       # Hour when daily fallback counter resets (UTC)
+
     # Research
     dedup_threshold: float = 0.85
     max_items_per_retriever: int = 100

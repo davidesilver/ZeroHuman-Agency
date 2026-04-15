@@ -28,7 +28,7 @@ from pydantic import BaseModel
 from ..db import get_db, get_user_db
 from ..models import TriggerRequest, ScoringRequest
 from ..orchestrator.research import run_research
-from ..orchestrator.content import generate_content, generate_and_god
+from ..orchestrator.content import generate_content, generate_and_god, generate_and_god_and_humanize
 from ..agents.god_system import run_god_mode
 from ..agents.adapter import adapt_content
 from ..agents.writing_lab import create_session, vote_round
@@ -211,6 +211,7 @@ class GenerateRequest(BaseModel):
     platform: str = "linkedin"
     content_type: str = "post"
     run_god: bool = False
+    run_humanizer: bool = False  # NEW: Enable Humanizer after GOD mode
 
 
 class GodModeRequest(BaseModel):
@@ -224,14 +225,24 @@ class AdaptRequest(BaseModel):
 @router.post("/content/generate")
 async def api_generate_content(req: GenerateRequest, request: Request):
     brand_id = _get_brand_id(request)
-    if req.run_god:
+
+    # Choose pipeline based on flags
+    if req.run_humanizer and req.run_god:
+        # Full pipeline: Writer -> Editor -> GOD -> Humanizer
+        result = await generate_and_god_and_humanize(
+            brand_id, req.research_item_id, req.platform, req.content_type,
+        )
+    elif req.run_god:
+        # Standard pipeline: Writer -> Editor -> GOD
         result = await generate_and_god(
             brand_id, req.research_item_id, req.platform, req.content_type,
         )
     else:
+        # Basic pipeline: Writer -> Editor only
         result = await generate_content(
             brand_id, req.research_item_id, req.platform, req.content_type,
         )
+
     return {"success": True, "data": result}
 
 
@@ -247,6 +258,57 @@ async def api_adapt_content(draft_id: str, req: AdaptRequest, request: Request):
     brand_id = _get_brand_id(request)
     results = await adapt_content(brand_id, draft_id, req.target_platforms)
     return {"success": True, "data": results}
+
+
+@router.post("/content/drafts/{draft_id}/humanize")
+async def api_humanize_draft(draft_id: str, request: Request):
+    """Manually trigger humanization on an existing draft.
+
+    Uses brand settings (use_humanizer, humanizer_channels) and optional model_override.
+    Returns humanization result with AI patterns found and remaining AI tells.
+    """
+    from ..agents.humanizer import humanize_draft
+    from ..db import get_db
+
+    brand_id = _get_brand_id(request)
+
+    # Check if humanizer is enabled for this brand
+    db = get_db()
+    brand = db.table("brands").select("*").eq("id", brand_id).single().execute()
+    brand_data = brand.data
+
+    if not brand_data.get("use_humanizer", False):
+        raise HTTPException(
+            status_code=400,
+            detail="Humanizer is disabled for this brand. Enable it in brand settings."
+        )
+
+    # Check draft platform
+    draft = db.table("content_drafts").select("*").eq("id", draft_id).single().execute()
+    draft_data = draft.data
+    if not draft_data:
+        raise HTTPException(404, "Draft not found")
+
+    platform = draft_data.get("platform", "")
+    enabled_channels = brand_data.get("humanizer_channels", ["linkedin", "blog"])
+    if platform not in enabled_channels:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Humanizer is not enabled for platform '{platform}'. Enable it in brand settings."
+        )
+
+    # Run humanizer
+    try:
+        model_override = brand_data.get("humanizer_model_override")
+        result = await humanize_draft(
+            brand_id=brand_id,
+            draft_id=draft_id,
+            model_override=model_override,
+        )
+        return {"success": True, "data": result}
+    except Exception as e:
+        _logger.error("Manual humanization failed for draft %s: %s", draft_id, e)
+        raise HTTPException(500, f"Humanization failed: {str(e)}")
 
 
 @router.get("/content/drafts")
@@ -598,4 +660,75 @@ async def api_auth_cache_invalidate():
     except Exception:
         # _AUTH_CACHE is lazily initialized — may not exist yet
         return {"success": True, "data": {"cleared_entries": 0}}
+
+
+# ── LLM Fallback Monitoring ────────────────────────────────────────────────────
+
+
+@router.get("/llm/fallback-stats")
+async def api_get_fallback_stats(request: Request):
+    """Get current LLM fallback monitoring statistics.
+
+    Returns daily fallback count, total calls, and fallback percentage.
+    Useful for monitoring provider health and cost escalation.
+    """
+    from ..utils.fallback_monitor import get_fallback_stats
+
+    stats = get_fallback_stats()
+    return {"success": True, "data": stats}
+
+
+@router.get("/llm/fallback-log")
+async def api_get_fallback_log(
+    request: Request,
+    limit: int = Query(50, ge=1, le=500),
+    emergency_only: bool = Query(False),
+):
+    """Get recent LLM fallback attempts from database.
+
+    Args:
+        limit: Maximum number of entries to return (1-500)
+        emergency_only: If True, only return emergency fallbacks (critical incidents)
+    """
+    brand_id = _get_brand_id(request)
+    db = _get_client_db(request)
+
+    query = db.table("llm_fallback_log").select("*", count="exact")
+
+    if emergency_only:
+        query = query.eq("is_emergency", True)
+
+    query = query.eq("brand_id", brand_id).order("created_at", desc=True).limit(limit)
+
+    resp = query.execute()
+    return {
+        "success": True,
+        "data": resp.data,
+        "meta": {
+            "limit": limit,
+            "emergency_only": emergency_only,
+            "total": resp.count or 0,
+        },
+    }
+
+
+@router.post("/llm/fallback-monitor/reset", dependencies=[Depends(_require_scheduler_secret)])
+async def api_reset_fallback_monitor():
+    """Reset the in-memory fallback monitor counters.
+
+    Useful for testing or after resolving a major incident.
+    Requires X-Scheduler-Secret header.
+    """
+    from ..utils.fallback_monitor import get_fallback_monitor
+
+    monitor = get_fallback_monitor()
+    old_stats = monitor.get_stats()
+    monitor.reset()
+
+    _logger.info(
+        "Fallback monitor reset - previous stats: %s",
+        old_stats
+    )
+
+    return {"success": True, "data": {"previous_stats": old_stats}}
 

@@ -117,9 +117,9 @@ async def generate_draft(
         tone_rules=tone_rules or "Diretto, pratico, entusiast",
         principles="\n".join(f"- {p}" for p in principles),
         # H-07: sanitize web-scraped fields before inserting into LLM prompt
-        title=sanitize_for_prompt(item_data.get("title", ""), context="research_item.title",
-        source_name=sanitize_for_prompt(item_data.get("source_name", ""), context="research_item.source_name",
-        summary=sanitize_for_prompt(item_data.get("summary", ""), context="research_item.summary",
+        title=sanitize_for_prompt(item_data.get("title", ""), context="research_item.title"),
+        source_name=sanitize_for_prompt(item_data.get("source_name", ""), context="research_item.source_name"),
+        summary=sanitize_for_prompt(item_data.get("summary", ""), context="research_item.summary"),
         platform=platform,
         content_type=content_type,
         length_hint=PLATFORM_LENGTH.get(platform, "medio"),
