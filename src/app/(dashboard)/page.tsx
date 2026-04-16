@@ -17,7 +17,25 @@ export default function DashboardPage() {
   const [stats, setStats] = useState({ new: 0, scored: 0, approved: 0, published: 0 })
   const [activities, setActivities] = useState<{ type: string; message: string; timestamp: string }[]>([])
   const [costs, setCosts] = useState({ spend_today: 0, daily_budget: 15 })
-  const [health, setHealth] = useState<{ agents: { agent_name: string; status: string; uptime_pct: number | null }[]; summary: { agents_healthy: number; agents_down: number; agents_degraded: number } }>({ agents: [], summary: { agents_healthy: 0, agents_down: 0, agents_degraded: 0 } })
+  const [health, setHealth] = useState<{
+    agents: {
+      agent_name: string
+      status: string
+      uptime_pct: number | null
+      current_model: string
+      fallback_model: string | null
+      engine: string
+      last_latency_ms: number | null
+    }[]
+    summary: {
+      agents_healthy: number
+      agents_down: number
+      agents_degraded: number
+      active_models: string[]
+      active_engines: string[]
+      emergency_fallbacks_24h: number
+    }
+  }>({ agents: [], summary: { agents_healthy: 0, agents_down: 0, agents_degraded: 0, active_models: [], active_engines: [], emergency_fallbacks_24h: 0 } })
 
   const fetchData = useCallback(async () => {
     const [statsRes, activityRes, costsRes, healthRes] = await Promise.all([
@@ -58,6 +76,25 @@ export default function DashboardPage() {
           value={`${health.summary.agents_healthy} / ${health.agents.length || 5}`}
         />
         <KPICard title="API spend today" value={`$${costs.spend_today.toFixed(2)}`} />
+      </div>
+
+      {/* LLM Observability KPI cards */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <KPICard
+          title="Active LLM Models"
+          value={health.summary.active_models.length}
+          subtitle={health.summary.active_models.slice(0, 2).join(', ') + (health.summary.active_models.length > 2 ? '...' : '')}
+        />
+        <KPICard
+          title="Engines Active"
+          value={health.summary.active_engines.length}
+          subtitle={health.summary.active_engines.join(', ')}
+        />
+        <KPICard
+          title="Emergency Fallbacks (24h)"
+          value={health.summary.emergency_fallbacks_24h}
+          subtitle={health.summary.emergency_fallbacks_24h > 0 ? '⚠️ Alert!' : '✓ Normal'}
+        />
       </div>
 
       {/* Pipeline mini */}
@@ -139,17 +176,44 @@ export default function DashboardPage() {
               </ul>
             ) : (
               <ul className="space-y-3">
-                {health.agents.map(a => (
-                  <li key={a.agent_name} className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{a.agent_name}</span>
-                    <Badge
-                      variant={a.status === 'healthy' ? 'default' : 'secondary'}
-                      className="text-xs"
-                    >
-                      {a.status === 'healthy' ? 'Online' : a.status === 'degraded' ? 'Degraded' : 'Offline'}
-                    </Badge>
-                  </li>
-                ))}
+                {health.agents.map(a => {
+                  const isUsingFallback = a.fallback_model !== null
+                  const latencyColor = a.last_latency_ms && a.last_latency_ms > 5000
+                    ? 'text-red-500'
+                    : a.last_latency_ms && a.last_latency_ms > 2000
+                    ? 'text-yellow-500'
+                    : 'text-green-500'
+
+                  return (
+                    <li key={a.agent_name} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{a.agent_name}</span>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant={a.status === 'healthy' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {a.status === 'healthy' ? 'Online' : a.status === 'degraded' ? 'Degraded' : 'Offline'}
+                          </Badge>
+                          {isUsingFallback && (
+                            <Badge variant="destructive" className="text-xs">
+                              Fallback
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground pl-2">
+                        <span>{a.current_model}</span>
+                        <span className={`font-mono ${latencyColor}`}>
+                          {a.last_latency_ms ? `${a.last_latency_ms}ms` : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground pl-2">
+                        Engine: <span className="font-medium">{a.engine}</span>
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </CardContent>

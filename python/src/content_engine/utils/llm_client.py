@@ -16,6 +16,9 @@ class LLMResponse(BaseModel):
     model_used: str
     tokens_prompt: int
     tokens_completion: int
+    engine: str = "unknown"          # "anthropic" | "openrouter"
+    latency_ms: Optional[int] = None
+    fallback_to: Optional[str] = None
 
 async def call_llm(
     prompt: str,
@@ -42,7 +45,11 @@ async def call_llm(
     - coding: Sonnet (Claude sub) or Qwen 3.5 (OpenRouter free)
     """
     import logging
+    import time
+    import asyncio
+
     logger = logging.getLogger("content_engine.llm")
+    start_time = time.monotonic()
 
     # Check if user wants to use Claude subscription
     use_claude = settings.use_claude_subscription and settings.anthropic_api_key
@@ -169,7 +176,30 @@ async def call_llm(
                     await track_cost(brand_id, context, current_model, action, prompt_tok, comp_tok)
                     record_call()  # Track successful call
 
-                    return LLMResponse(content=content, model_used=current_model, tokens_prompt=prompt_tok, tokens_completion=comp_tok)
+                    # Calculate latency
+                    latency_ms = int((time.monotonic() - start_time) * 1000)
+
+                    # Record heartbeat (fire-and-forget, never fails)
+                    llm_meta = {
+                        "model_used": current_model,
+                        "engine": "openrouter",
+                        "latency_ms": latency_ms,
+                        "tokens_prompt": prompt_tok,
+                        "tokens_completion": comp_tok,
+                    }
+                    asyncio.create_task(
+                        _record_heartbeat_safely(brand_id, llm_meta, context, action, "healthy")
+                    )
+
+                    return LLMResponse(
+                        content=content,
+                        model_used=current_model,
+                        tokens_prompt=prompt_tok,
+                        tokens_completion=comp_tok,
+                        engine="openrouter",
+                        latency_ms=latency_ms,
+                        fallback_to=models[i+1] if i+1 < len(models) else None
+                    )
                 except Exception as e:
                     logger.warning("OpenRouter failed for model %s: %s. Trying fallback...", current_model, e)
                     last_error = e
@@ -264,7 +294,30 @@ async def _call_anthropic_direct(
 
     await track_cost(brand_id, context, model, action, prompt_tok, comp_tok)
     record_call()  # Track successful call
-    return LLMResponse(content=content, model_used=model, tokens_prompt=prompt_tok, tokens_completion=comp_tok)
+
+    # Calculate latency
+    latency_ms = int((time.monotonic() - start_time) * 1000)
+
+    # Record heartbeat (fire-and-forget, never fails)
+    llm_meta = {
+        "model_used": model,
+        "engine": "anthropic",
+        "latency_ms": latency_ms,
+        "tokens_prompt": prompt_tok,
+        "tokens_completion": comp_tok,
+    }
+    asyncio.create_task(
+        _record_heartbeat_safely(brand_id, llm_meta, context, action, "healthy")
+    )
+
+    return LLMResponse(
+        content=content,
+        model_used=model,
+        tokens_prompt=prompt_tok,
+        tokens_completion=comp_tok,
+        engine="anthropic",
+        latency_ms=latency_ms
+    )
 
 
 async def _emergency_openrouter_fallback(
@@ -351,11 +404,30 @@ async def _emergency_openrouter_fallback(
 
                 logger.warning("Emergency fallback successful: used %s instead of Anthropic API", current_model)
 
+                # Calculate latency
+                latency_ms = int((time.monotonic() - start_time) * 1000)
+
+                # Record heartbeat with fallback status
+                llm_meta = {
+                    "model_used": current_model,
+                    "engine": "openrouter",
+                    "latency_ms": latency_ms,
+                    "tokens_prompt": prompt_tok,
+                    "tokens_completion": comp_tok,
+                    "fallback_to": models[models.index(current_model) + 1] if models.index(current_model) + 1 < len(models) else None,
+                }
+                asyncio.create_task(
+                    _record_heartbeat_safely(brand_id, llm_meta, context, action, "degraded")
+                )
+
                 return LLMResponse(
                     content=content,
                     model_used=current_model,
                     tokens_prompt=prompt_tok,
-                    tokens_completion=comp_tok
+                    tokens_completion=comp_tok,
+                    engine="openrouter",
+                    latency_ms=latency_ms,
+                    fallback_to=models[models.index(current_model) + 1] if models.index(current_model) + 1 < len(models) else None
                 )
             except Exception as e:
                 logger.warning("Emergency fallback model %s failed: %s", current_model, e)
@@ -443,3 +515,36 @@ async def _send_fallback_alert(
     except Exception as e:
         # Don't fail the main pipeline if alerting fails
         logger.error("Failed to send fallback alert: %s", e)
+
+
+async def _record_heartbeat_safely(
+    brand_id: str,
+    llm_meta: Dict[str, Any],
+    context: str,
+    action: str,
+    status: str,
+) -> None:
+    """Safely record heartbeat, never failing the main pipeline.
+
+    This is a fire-and-forget wrapper around record_agent_heartbeat that
+    ensures any errors in heartbeat recording don't impact the main LLM pipeline.
+
+    Args:
+        brand_id: Brand ID
+        llm_meta: LLM metadata dictionary
+        context: Context label
+        action: Action label
+        status: Status string
+    """
+    try:
+        from .heartbeat import record_agent_heartbeat
+        await record_agent_heartbeat(
+            brand_id=brand_id,
+            llm_meta=llm_meta,
+            context=context,
+            action=action,
+            status=status,
+        )
+    except Exception as e:
+        # Log but never fail
+        logger.debug("Heartbeat recording failed (non-critical): %s", e)
