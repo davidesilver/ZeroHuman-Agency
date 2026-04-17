@@ -9,11 +9,12 @@ interface AgentHealth {
   brand_id: string
   agent_name: string
   status: 'healthy' | 'degraded' | 'down'
-  last_seen: string
-  current_model: string
+  last_heartbeat: string
+  current_model: string | null
   fallback_model: string | null
-  engine: 'anthropic' | 'openrouter' | 'unknown'
+  engine: 'anthropic' | 'openrouter' | 'unknown' | null
   last_latency_ms: number | null
+  avg_latency_ms: number | null
   uptime_pct: number
   errors_today: number
   queue_size: number
@@ -57,11 +58,12 @@ export async function GET(request: NextRequest) {
     const totalQueue = typedAgents.reduce((sum, a) => sum + (a.queue_size || 0), 0)
 
     // Extract unique active models and engines
+    // Filter out null values for backward compatibility with old records
     const activeModels = [...new Set(
-      typedAgents.map(a => a.current_model).filter(Boolean)
+      typedAgents.map(a => a.current_model).filter((m): m is string => Boolean(m))
     )]
     const activeEngines = [...new Set(
-      typedAgents.map(a => a.engine).filter(Boolean)
+      typedAgents.map(a => a.engine).filter((e): e is string => Boolean(e))
     )]
 
     // Count emergency fallbacks in last 24h

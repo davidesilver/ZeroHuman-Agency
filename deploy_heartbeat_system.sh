@@ -85,6 +85,14 @@ done
 
 log_success "Required frontend files verified"
 
+# Check if database migration exists
+if [ ! -f "$FRONTEND_DIR/supabase/migrations/013_add_llm_metadata_to_pipeline_health.sql" ]; then
+    log_error "Critical migration file missing: 013_add_llm_metadata_to_pipeline_health.sql"
+    exit 1
+fi
+
+log_success "Database migration file verified"
+
 # Create backup directory
 log_info "Creating backup directory..."
 mkdir -p "$BACKUP_DIR"
@@ -129,6 +137,23 @@ log_success "Backend files already in place (heartbeat.py, llm_client.py)"
 # Deploy frontend components
 log_info "Deploying frontend components..."
 log_success "Frontend files already in place (route.ts, page.tsx)"
+
+# Apply database migration (CRITICAL)
+log_info "Applying database migration 013..."
+if [ -f "$FRONTEND_DIR/supabase/migrations/013_add_llm_metadata_to_pipeline_health.sql" ]; then
+    cd "$FRONTEND_DIR/supabase"
+    if supabase db push; then
+        log_success "Database migration 013 applied successfully"
+    else
+        log_error "Database migration 013 failed"
+        log_warn "This is a CRITICAL step - cannot proceed without it"
+        exit 1
+    fi
+    cd "$FRONTEND_DIR"
+else
+    log_error "Database migration file not found"
+    exit 1
+fi
 
 # Set environment variables (if provided)
 log_info "Configuring environment variables..."

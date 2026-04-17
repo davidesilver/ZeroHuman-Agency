@@ -37,7 +37,7 @@ const CONFIG_SECTIONS = [
     title: 'Social Platforms',
     icon: Share2,
     items: [
-      { key: 'linkedin', label: 'LinkedIn', status: 'configured' },
+      { key: 'linkedin', label: 'LinkedIn', status: 'not_configured' },
       { key: 'twitter', label: 'Twitter/X', status: 'not_configured' },
       { key: 'instagram', label: 'Instagram', status: 'not_configured' },
       { key: 'tiktok', label: 'TikTok', status: 'not_configured' },

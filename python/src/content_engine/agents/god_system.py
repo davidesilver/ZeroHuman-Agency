@@ -6,6 +6,7 @@ import json
 
 from ..utils.llm_client import call_llm
 from ..agents.mcp_client import augment_prompt_with_mcp
+from ..utils.json_parser import RobustJSONParser
 from ..db import get_db
 from .agent_loader import get_agent_identity
 
@@ -284,7 +285,7 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
             adv_prompt = full_prompt.format(title=title, platform=platform, body=body)
             adv_resp = await call_llm(adv_prompt, brand_id, context="god_advocate", action="advocate", task_type="knowledge")
             adv_raw = adv_resp.content
-            adv = _parse_json(adv_raw)
+            adv = _parse_json(adv_raw, context="god_advocate")
             return adv.get("feedback", ""), adv.get("score", 5), None
         except Exception as e:
             return None, None, e
@@ -312,7 +313,7 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
 
             fc_resp = await call_llm(mcp_context_prompt, brand_id, context="god_factcheck", action="factcheck", task_type="reasoning")
             fc_raw = fc_resp.content
-            fc = _parse_json(fc_raw)
+            fc = _parse_json(fc_raw, context="god_factcheck")
             return fc.get("feedback", ""), fc.get("issues", []), None
         except Exception as e:
             return None, None, e
@@ -333,7 +334,7 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
             cr_prompt = full_prompt.format(title=title, platform=platform, body=body)
             cr_resp = await call_llm(cr_prompt, brand_id, context="god_creative", action="creative", task_type="creative")
             cr_raw = cr_resp.content
-            cr = _parse_json(cr_raw)
+            cr = _parse_json(cr_raw, context="god_creative")
             return cr.get("feedback", ""), cr.get("suggestions", []), None
         except Exception as e:
             return None, None, e
@@ -377,7 +378,7 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
         )
         syn_resp = await call_llm(syn_prompt, brand_id, context="god_synthesis", action="synthesis", task_type="reasoning")
         syn_raw = syn_resp.content
-        syn = _parse_json(syn_raw)
+        syn = _parse_json(syn_raw, context="god_synthesis")
     except Exception as e:
         return await _fail("synthesis", e)
 
@@ -426,22 +427,37 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
     }
 
 
-def _parse_json(raw: str) -> dict:
-    """Parse JSON from LLM response, stripping markdown code fences.
+def _parse_json(raw: str, context: str = "god_system") -> dict:
+    """Parse JSON from LLM response using robust multi-strategy parser.
 
-    Raises ValueError if the response cannot be parsed as JSON,
-    instead of silently returning fallback data.
+    This function uses RobustJSONParser which implements 4 fallback strategies:
+    1. Direct parse for clean JSON
+    2. Strip outer markdown fences
+    3. Extract first JSON using brace counting
+    4. Regex-based extraction
+
+    Critical improvement: Handles nested code blocks in JSON strings that
+    would cause the original rsplit approach to fail.
+
+    Args:
+        raw: Raw LLM response text containing JSON
+        context: Context identifier for logging (e.g., "god_advocate", "god_factcheck")
+
+    Returns:
+        Parsed JSON dictionary
+
+    Raises:
+        ValueError: If all parsing strategies fail
     """
     import logging
 
     logger = logging.getLogger("content_engine.god_system")
 
-    text = raw.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
-        text = text.rsplit("```", 1)[0]
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError as e:
-        logger.error("Failed to parse LLM JSON response: %s | Raw: %.200s", e, raw)
-        raise ValueError(f"LLM returned invalid JSON: {e}") from e
+    # Use robust parser with all strategies enabled
+    result = RobustJSONParser.parse_llm_response(raw, context=context, allow_partial=False)
+
+    if result is None:
+        logger.error("All JSON parsing strategies failed for context: %s | Raw: %.200s", context, raw)
+        raise ValueError(f"LLM returned invalid JSON for {context}: all parsing strategies failed")
+
+    return result

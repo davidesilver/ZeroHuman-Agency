@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { KPICard } from '@/components/dashboard/kpi-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Activity } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -22,9 +23,9 @@ export default function DashboardPage() {
       agent_name: string
       status: string
       uptime_pct: number | null
-      current_model: string
+      current_model: string | null
       fallback_model: string | null
-      engine: string
+      engine: string | null
       last_latency_ms: number | null
     }[]
     summary: {
@@ -78,6 +79,27 @@ export default function DashboardPage() {
         <KPICard title="API spend today" value={`$${costs.spend_today.toFixed(2)}`} />
       </div>
 
+      {/* Agent Health KPI cards */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <KPICard
+          title="Avg Uptime"
+          value={`${health.summary.avg_uptime}%`}
+          subtitle={health.summary.avg_uptime < 95 ? '⚠️ Degraded' : '✓ Excellent'}
+          variant={health.summary.avg_uptime < 95 ? 'destructive' : 'default'}
+        />
+        <KPICard
+          title="Total Pipeline Errors"
+          value={health.summary.total_errors}
+          subtitle={health.summary.total_errors > 0 ? 'Action required' : 'System healthy'}
+          variant={health.summary.total_errors > 0 ? 'destructive' : 'default'}
+        />
+        <KPICard
+          title="Total Tasks in Queue"
+          value={health.summary.total_queue}
+          subtitle={health.summary.total_queue > 50 ? 'High load' : 'Normal queue'}
+        />
+      </div>
+
       {/* LLM Observability KPI cards */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <KPICard
@@ -94,6 +116,7 @@ export default function DashboardPage() {
           title="Emergency Fallbacks (24h)"
           value={health.summary.emergency_fallbacks_24h}
           subtitle={health.summary.emergency_fallbacks_24h > 0 ? '⚠️ Alert!' : '✓ Normal'}
+          variant={health.summary.emergency_fallbacks_24h > 0 ? 'destructive' : 'default'}
         />
       </div>
 
@@ -166,14 +189,13 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {health.agents.length === 0 ? (
-              <ul className="space-y-3">
-                {['ResearchBot', 'ScoringAgent', 'WriterAgent', 'EditorAgent', 'FactChecker'].map(name => (
-                  <li key={name} className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{name}</span>
-                    <Badge variant="secondary" className="text-xs">Offline</Badge>
-                  </li>
-                ))}
-              </ul>
+              <div className="text-center py-8 text-muted-foreground">
+                <Activity className="size-8 mx-auto mb-3 opacity-40" />
+                <p className="text-sm">No agent activity yet</p>
+                <p className="text-xs mt-1">
+                  Generate content to see real-time agent status
+                </p>
+              </div>
             ) : (
               <ul className="space-y-3">
                 {health.agents.map(a => {
@@ -203,13 +225,13 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground pl-2">
-                        <span>{a.current_model}</span>
+                        <span>{a.current_model || 'Unknown'}</span>
                         <span className={`font-mono ${latencyColor}`}>
                           {a.last_latency_ms ? `${a.last_latency_ms}ms` : 'N/A'}
                         </span>
                       </div>
                       <div className="text-xs text-muted-foreground pl-2">
-                        Engine: <span className="font-medium">{a.engine}</span>
+                        Engine: <span className="font-medium">{a.engine || 'Unknown'}</span>
                       </div>
                     </li>
                   )

@@ -44,13 +44,14 @@
 ### ✅ Database Readiness
 
 - [x] **Required Tables**
-  - [x] `pipeline_health` exists (from previous migration)
+  - [x] `pipeline_health` exists (from migration 001)
   - [x] `llm_fallback_log` exists (from migration 012)
-  - [x] Both tables have correct schema
 
-- [x] **No New Migrations Required**
-  - [x] Uses existing tables only
-  - [x] No schema changes needed
+- [ ] **Apply Migration 013** - CRITICAL STEP
+  - [ ] `013_add_llm_metadata_to_pipeline_health.sql` must be applied
+  - [ ] Adds LLM metadata fields: current_model, engine, last_latency_ms, etc.
+  - [ ] Updates existing records with default values
+  - [ ] **MANDATORY before deployment**
 
 ## 📋 Deployment Steps
 

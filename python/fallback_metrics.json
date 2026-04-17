@@ -1,0 +1,102 @@
+[
+  {
+    "timestamp": "2026-04-16T22:10:19.911809+00:00",
+    "primary_model": "claude-sonnet",
+    "fallback_model": "gpt-4o",
+    "reason": "timeout",
+    "task_type": "scoring",
+    "latency_ms_primary": 30000,
+    "latency_ms_fallback": 5000,
+    "success": true
+  },
+  {
+    "timestamp": "2026-04-16T22:10:19.911863+00:00",
+    "primary_model": "claude-sonnet",
+    "fallback_model": "gpt-4o",
+    "reason": "timeout",
+    "task_type": "scoring",
+    "latency_ms_primary": 30000,
+    "latency_ms_fallback": 5000,
+    "success": true
+  },
+  {
+    "timestamp": "2026-04-16T22:10:19.911868+00:00",
+    "primary_model": "claude-sonnet",
+    "fallback_model": "gpt-4o",
+    "reason": "timeout",
+    "task_type": "scoring",
+    "latency_ms_primary": 30000,
+    "latency_ms_fallback": 5000,
+    "success": true
+  },
+  {
+    "timestamp": "2026-04-16T22:10:19.911872+00:00",
+    "primary_model": "claude-sonnet",
+    "fallback_model": "gpt-4o",
+    "reason": "timeout",
+    "task_type": "scoring",
+    "latency_ms_primary": 30000,
+    "latency_ms_fallback": 5000,
+    "success": true
+  },
+  {
+    "timestamp": "2026-04-16T22:10:19.911875+00:00",
+    "primary_model": "claude-sonnet",
+    "fallback_model": "gpt-4o",
+    "reason": "timeout",
+    "task_type": "scoring",
+    "latency_ms_primary": 30000,
+    "latency_ms_fallback": 5000,
+    "success": true
+  },
+  {
+    "timestamp": "2026-04-16T22:10:19.911878+00:00",
+    "primary_model": "claude-sonnet",
+    "fallback_model": "gpt-4o",
+    "reason": "timeout",
+    "task_type": "scoring",
+    "latency_ms_primary": 30000,
+    "latency_ms_fallback": 5000,
+    "success": true
+  },
+  {
+    "timestamp": "2026-04-16T22:10:19.911882+00:00",
+    "primary_model": "claude-sonnet",
+    "fallback_model": "gpt-4o",
+    "reason": "timeout",
+    "task_type": "scoring",
+    "latency_ms_primary": 30000,
+    "latency_ms_fallback": 5000,
+    "success": true
+  },
+  {
+    "timestamp": "2026-04-16T22:10:19.911885+00:00",
+    "primary_model": "claude-sonnet",
+    "fallback_model": "gpt-4o",
+    "reason": "timeout",
+    "task_type": "scoring",
+    "latency_ms_primary": 30000,
+    "latency_ms_fallback": 5000,
+    "success": true
+  },
+  {
+    "timestamp": "2026-04-16T22:10:19.911888+00:00",
+    "primary_model": "claude-sonnet",
+    "fallback_model": "gpt-4o",
+    "reason": "timeout",
+    "task_type": "scoring",
+    "latency_ms_primary": 30000,
+    "latency_ms_fallback": 5000,
+    "success": true
+  },
+  {
+    "timestamp": "2026-04-16T22:10:19.911892+00:00",
+    "primary_model": "claude-sonnet",
+    "fallback_model": "gpt-4o",
+    "reason": "timeout",
+    "task_type": "scoring",
+    "latency_ms_primary": 30000,
+    "latency_ms_fallback": 5000,
+    "success": true
+  }
+]

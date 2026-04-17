@@ -244,14 +244,14 @@ async def _write_to_db(heartbeat_data: Dict[str, Any], agent_identifier: str) ->
         db = get_db()
 
         # Prepare data for pipeline_health table
-        now = datetime.utcnow().isoformat()
+        now = datetime.utcnow()
         llm_meta = heartbeat_data.get("llm_meta", {})
 
         upsert_data = {
             "brand_id": heartbeat_data["brand_id"],
             "agent_name": agent_identifier,
             "status": heartbeat_data["status"],
-            "last_seen": now,
+            "last_heartbeat": now,  # Use existing field name
             "current_model": llm_meta.get("model_used", "unknown"),
             "fallback_model": llm_meta.get("fallback_to"),
             "engine": llm_meta.get("engine", "unknown"),

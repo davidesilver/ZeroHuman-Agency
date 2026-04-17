@@ -1,7 +1,8 @@
-"""Agent Configuration Dashboard — Manage agent identities and skills.
-
-Phase 3: Next.js/Shadcn-UI dashboard for agent_configs and agent_skills.
-"""
+/**
+ * Agent Configuration Dashboard — Manage agent identities and skills.
+ *
+ * Phase 3: Next.js/Shadcn-UI dashboard for agent_configs and agent_skills.
+ */
 
 "use client"
 
@@ -15,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
+import { AGENT_METADATA, AgentKey, getAgentDisplayName } from "@/lib/agents"
 
 type AgentConfig = {
   id: string
@@ -39,16 +41,6 @@ type AgentSkill = {
   is_active: boolean
   created_at: string
   updated_at: string
-}
-
-const AGENT_LABELS: Record<string, string> = {
-  writer: "Writer",
-  editor: "Editor",
-  adapter: "Adapter",
-  god_advocate: "GOD Advocate",
-  god_factcheck: "GOD Fact-Checker",
-  god_creative: "GOD Creative",
-  god_synthesis: "GOD Synthesis",
 }
 
 export default function AgentSettingsPage() {
@@ -272,9 +264,11 @@ export default function AgentSettingsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(AGENT_LABELS).map(([key, label]) => (
+                      {Object.entries(AGENT_METADATA)
+                        .filter(([_, label]) => !label.parent) // Only show top-level agents
+                        .map(([key, label]) => (
                         <SelectItem key={key} value={key}>
-                          {label}
+                          {label.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -319,7 +313,15 @@ export default function AgentSettingsPage() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <CardTitle className="flex items-center gap-2">
-                        {AGENT_LABELS[config.agent_key]}
+                        {typeof AGENT_METADATA[config.agent_key] === 'string'
+                          ? AGENT_METADATA[config.agent_key]
+                          : AGENT_METADATA[config.agent_key]?.name || config.agent_key
+                        }
+                        {AGENT_METADATA[config.agent_key]?.parent && (
+                          <Badge variant="outline" className="text-xs">
+                            Sub-agent of {AGENT_METADATA[AGENT_METADATA[config.agent_key].parent]?.name}
+                          </Badge>
+                        )}
                         <Badge variant={config.is_active ? "default" : "secondary"}>
                           {config.is_active ? "Active" : "Inactive"}
                         </Badge>
@@ -380,9 +382,9 @@ export default function AgentSettingsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(AGENT_LABELS).map(([key, label]) => (
+                      {Object.entries(AGENT_METADATA).map(([key, label]) => (
                         <SelectItem key={key} value={key}>
-                          {label}
+                          {label.name} {label.parent ? `(sub-agent of ${AGENT_METADATA[label.parent]?.name})` : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -476,7 +478,10 @@ export default function AgentSettingsPage() {
                         </Badge>
                       </CardTitle>
                       <CardDescription>
-                        {AGENT_LABELS[skill.target_agent]} • {skill.description}
+                        {typeof AGENT_METADATA[skill.target_agent] === 'string'
+                          ? AGENT_METADATA[skill.target_agent]
+                          : AGENT_METADATA[skill.target_agent]?.name || skill.target_agent
+                        } • {skill.description}
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">

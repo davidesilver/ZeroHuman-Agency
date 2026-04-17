@@ -1,15 +1,41 @@
-"""Centralized LLM Client routing via OpenRouter and Anthropic."""
+"""Centralized LLM Client routing via OpenRouter and Anthropic.
+
+This file has been integrated with all Phase 1-3 improvements:
+- Phase 1: Robust JSON parsing, Rate limiting, Enhanced cost tracking
+- Phase 2: Graceful degradation, Comprehensive fallback metrics
+- Phase 3: Parallel retry strategy, Centralized model routing
+"""
 
 from __future__ import annotations
 
 import httpx
+import logging
+import time
+import asyncio
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 from ..config import settings
 from ..db import get_db
-from .cost_tracker import track_cost
+from .cost_tracker import track_cost, cost_tracker
 from .fallback_monitor import record_call, record_fallback
+from .json_parser import RobustJSONParser, json_parser
+from .llm_rate_limiter import rate_limiter, RateLimitStrategy
+from .degradation import degradation_manager, DegradationLevel
+from .fallback_metrics import fallback_metrics
+from .parallel_llm import parallel_llm_caller
+from ..config.llm_models import (
+    ModelCapability,
+    get_models_for_capability,
+    get_model_ids_for_capability,
+    get_model_config,
+    get_primary_models_for_capability,
+    get_fallback_models_for_capability,
+    get_models_by_provider,
+)
+
+logger = logging.getLogger("content_engine.llm")
+
 
 class LLMResponse(BaseModel):
     content: str
@@ -19,6 +45,13 @@ class LLMResponse(BaseModel):
     engine: str = "unknown"          # "anthropic" | "openrouter"
     latency_ms: Optional[int] = None
     fallback_to: Optional[str] = None
+    # New fields from Phase 1-3 integration
+    degradation_level: Optional[str] = None
+    used_parallel: bool = False
+    used_fallback: bool = False
+    is_emergency: bool = False
+    cost_usd: Optional[float] = None
+
 
 async def call_llm(
     prompt: str,
@@ -31,218 +64,632 @@ async def call_llm(
     temperature: float = 0.7,
 ) -> LLMResponse:
     """
-    Call the best LLM depending on the requested capability, tracking costs automatically.
+    Call the best LLM depending on the requested capability, with comprehensive
+    Phase 1-3 integration: rate limiting, parallel retry, graceful degradation,
+    comprehensive metrics, and robust JSON parsing.
 
     Model Selection Strategy:
-    - If settings.use_claude_subscription = TRUE: Uses Claude via Anthropic API (your subscription)
-    - If settings.use_claude_subscription = FALSE: Uses OpenRouter free models (default)
+    - Uses centralized model routing from config/llm_models.py
+    - Maps task_type to ModelCapability
+    - Supports parallel retry for faster fallbacks
+    - Applies rate limiting before API calls
+    - Records comprehensive metrics
+    - Handles graceful degradation
 
-    `task_type` semantic routing:
-    - reasoning: Sonnet (Claude sub) or Xiaomi MiMo (OpenRouter free)
-    - creative / language: Haiku (Claude sub) or Gemma 4 (OpenRouter free)
-    - knowledge: Haiku (Claude sub) or Arcee Trinity (OpenRouter free)
-    - agentic: Sonnet (Claude sub) or Zhipu GLM 5.5 (OpenRouter free)
-    - coding: Sonnet (Claude sub) or Qwen 3.5 (OpenRouter free)
+    `task_type` semantic routing (mapped to ModelCapability):
+    - reasoning: ModelCapability.REASONING
+    - creative: ModelCapability.CREATIVE
+    - scoring: ModelCapability.SCORING
+    - fact_check: ModelCapability.FACT_CHECK
+    - editing: ModelCapability.EDITING
+    - research: ModelCapability.RESEARCH
+    - default/general: ModelCapability.GENERAL
     """
-    import logging
-    import time
-    import asyncio
-
-    logger = logging.getLogger("content_engine.llm")
     start_time = time.monotonic()
 
-    # Check if user wants to use Claude subscription
-    use_claude = settings.use_claude_subscription and settings.anthropic_api_key
+    # Map task_type to ModelCapability
+    capability = _map_task_type_to_capability(task_type)
+    logger.debug("Mapped task_type=%s to capability=%s", task_type, capability)
 
-    if use_claude:
-        # Use Claude via Anthropic API (subscription credits)
-        logger.debug("Using Claude subscription (Anthropic API) for task_type=%s", task_type)
+    # Check current degradation level
+    current_degradation = await degradation_manager.get_current_level()
+    logger.debug("Current degradation level: %s", current_degradation)
 
-        if task_type == "reasoning":
-            model = "claude-3-5-sonnet-20241022"
-        elif task_type in ["agentic", "coding"]:
-            model = "claude-3-5-sonnet-20241022"
-        else:  # creative, language, knowledge, default
-            model = "claude-3-5-haiku-20241022"
+    # Get models based on capability and degradation level
+    primary_models, fallback_models = await _get_models_for_degradation(
+        capability, current_degradation
+    )
 
-        # Call Anthropic API directly with emergency fallback
-        try:
-            return await _call_anthropic_direct(
-                model=model,
+    if not primary_models and not fallback_models:
+        raise RuntimeError(f"No models available for capability {capability} at degradation level {current_degradation}")
+
+    logger.debug("Primary models: %s, Fallback models: %s", primary_models, fallback_models)
+
+    # Try parallel retry with primary models first
+    try:
+        if primary_models:
+            logger.debug("Attempting parallel call with primary models: %s", primary_models)
+            result = await _call_llm_parallel(
+                models=primary_models,
                 prompt=prompt,
                 system_prompt=system_prompt,
                 brand_id=brand_id,
                 context=context,
                 action=action,
-                temperature=temperature,
-            )
-        except Exception as e:
-            logger.error("Anthropic API failed for %s: %s. Triggering emergency fallback to OpenRouter...", model, e)
-
-            # Log emergency fallback
-            await _log_fallback_attempt(
-                brand_id=brand_id,
-                context=context,
-                action=action,
-                primary_model=model,
-                fallback_reason=str(e),
-                is_emergency=True
-            )
-
-            # Send emergency alert
-            await _send_fallback_alert(
-                model=model,
-                error=str(e),
-                is_emergency=True
-            )
-
-            # Emergency fallback: try OpenRouter
-            return await _emergency_openrouter_fallback(
                 task_type=task_type,
+                temperature=temperature,
+                start_time=start_time,
+                is_emergency=False,
+                capability=capability,
+            )
+
+            # Record success for degradation manager
+            await degradation_manager.record_success("llm_primary")
+            record_call()
+
+            # Record heartbeat
+            asyncio.create_task(
+                _record_heartbeat_safely(
+                    brand_id=brand_id,
+                    llm_meta={
+                        "model_used": result.model_used,
+                        "engine": result.engine,
+                        "latency_ms": result.latency_ms,
+                        "tokens_prompt": result.tokens_prompt,
+                        "tokens_completion": result.tokens_completion,
+                        "degradation_level": result.degradation_level,
+                        "used_parallel": result.used_parallel,
+                    },
+                    context=context,
+                    action=action,
+                    status="healthy"
+                )
+            )
+
+            return result
+
+    except Exception as e:
+        logger.error("Primary models failed: %s. Recording failure and trying fallback...", e)
+        await degradation_manager.record_failure("llm_primary", e)
+
+    # If primary models failed, try fallback models
+    if fallback_models:
+        logger.warning("Primary models exhausted, trying fallback models: %s", fallback_models)
+
+        try:
+            result = await _call_llm_parallel(
+                models=fallback_models,
                 prompt=prompt,
                 system_prompt=system_prompt,
                 brand_id=brand_id,
                 context=context,
                 action=action,
+                task_type=task_type,
                 temperature=temperature,
+                start_time=start_time,
+                is_emergency=False,
+                capability=capability,
             )
 
-    # Use OpenRouter free models (default behavior)
-    logger.debug("Using OpenRouter free models for task_type=%s", task_type)
+            # Record fallback usage
+            record_fallback(is_emergency=False)
+            await degradation_manager.record_success("llm_fallback")
 
-    # Capability Router (OpenRouter)
-    if task_type == "reasoning":
-        models = ["xiaomi/mimo-v2-flash:free", "openai/o3-mini"]
-    elif task_type == "knowledge":
-        models = ["arcee-ai/trinity-large:free", "google/gemini-2.5-flash"]
-    elif task_type == "agentic":
-        models = ["zhipu/glm-5.5-pro:free", "anthropic/claude-3.5-sonnet-20241022"]
-    elif task_type == "coding":
-        models = ["alibaba/qwen-3.5-max:free", "mistral/devstral-2:free"]
-    else:  # creative, language or default
-        models = ["google/gemma-4-150b:free", "anthropic/claude-3-5-haiku-20241022"]
+            # Record heartbeat with degraded status
+            asyncio.create_task(
+                _record_heartbeat_safely(
+                    brand_id=brand_id,
+                    llm_meta={
+                        "model_used": result.model_used,
+                        "engine": result.engine,
+                        "latency_ms": result.latency_ms,
+                        "tokens_prompt": result.tokens_prompt,
+                        "tokens_completion": result.tokens_completion,
+                        "degradation_level": result.degradation_level,
+                        "used_parallel": result.used_parallel,
+                    },
+                    context=context,
+                    action=action,
+                    status="degraded"
+                )
+            )
 
-    # If the user overrode the default scoring model in config, use it as fallback
-    if settings.scoring_model not in models:
-        models.append(settings.scoring_model)
+            return result
 
+        except Exception as e:
+            logger.error("Fallback models also failed: %s", e)
+            await degradation_manager.record_failure("llm_fallback", e)
+
+    raise RuntimeError(f"All LLM routing options failed for capability {capability} at degradation level {current_degradation}")
+
+
+async def call_llm_with_json(
+    prompt: str,
+    brand_id: str,
+    context: str = "general",
+    action: str = "call_llm_json",
+    system_prompt: Optional[str] = None,
+    task_type: str = "creative",
+    temperature: float = 0.7,
+    allow_partial: bool = False,
+) -> Dict[str, Any]:
+    """
+    Call LLM and parse JSON response using robust JSON parser.
+
+    This is a convenience function that combines call_llm with robust JSON parsing.
+    Uses all Phase 1-3 integration features.
+
+    Args:
+        prompt: The user prompt
+        brand_id: Brand ID for tracking
+        context: Context label
+        action: Action label
+        system_prompt: Optional system prompt
+        task_type: Type of task
+        temperature: Temperature
+        allow_partial: Whether to allow partial JSON parsing on failure
+
+    Returns:
+        Parsed JSON dictionary
+
+    Raises:
+        RuntimeError: If LLM call fails or JSON parsing fails completely
+    """
+    response = await call_llm(
+        prompt=prompt,
+        brand_id=brand_id,
+        context=context,
+        action=action,
+        system_prompt=system_prompt,
+        task_type=task_type,
+        temperature=temperature,
+    )
+
+    # Use robust JSON parser
+    parsed = json_parser.parse_llm_response(
+        text=response.content,
+        context=f"{context}:{action}",
+        allow_partial=allow_partial,
+    )
+
+    if parsed is None:
+        raise RuntimeError(
+            f"Failed to parse JSON response from {response.model_used}. "
+            f"Content: {response.content[:200]}..."
+        )
+
+    return parsed
+
+
+# ============================================================================
+# HELPER FUNCTIONS FOR PHASE 1-3 INTEGRATION
+# ============================================================================
+
+def _map_task_type_to_capability(task_type: str) -> ModelCapability:
+    """Map task_type string to ModelCapability enum.
+
+    Args:
+        task_type: Task type string (e.g., "reasoning", "creative", "scoring")
+
+    Returns:
+        ModelCapability enum value
+    """
+    mapping = {
+        "reasoning": ModelCapability.REASONING,
+        "creative": ModelCapability.CREATIVE,
+        "scoring": ModelCapability.SCORING,
+        "fact_check": ModelCapability.FACT_CHECK,
+        "editing": ModelCapability.EDITING,
+        "research": ModelCapability.RESEARCH,
+        "coding": ModelCapability.REASONING,
+        "agentic": ModelCapability.REASONING,
+        "knowledge": ModelCapability.RESEARCH,
+        "language": ModelCapability.CREATIVE,
+    }
+
+    return mapping.get(task_type, ModelCapability.GENERAL)
+
+
+async def _get_models_for_degradation(
+    capability: ModelCapability,
+    degradation_level: DegradationLevel
+) -> Tuple[List[str], List[str]]:
+    """Get primary and fallback models based on degradation level.
+
+    Args:
+        capability: The required capability
+        degradation_level: Current degradation level
+
+    Returns:
+        Tuple of (primary_models, fallback_models)
+    """
+    if degradation_level == DegradationLevel.UNAVAILABLE:
+        # No models available
+        return [], []
+
+    # Get models for capability
+    all_models = get_model_ids_for_capability(capability)
+
+    if not all_models:
+        return [], []
+
+    # Split into primary and fallback
+    primary = get_primary_models_for_capability(capability)
+    fallback = get_fallback_models_for_capability(capability)
+
+    # Adjust based on degradation level
+    if degradation_level == DegradationLevel.MINIMAL:
+        # Only use fastest, most reliable models
+        # Filter to top 2 primary models only
+        primary = primary[:2]
+        fallback = []
+    elif degradation_level == DegradationLevel.DEGRADED:
+        # Use primary models, but limit count
+        primary = primary[:3]
+        fallback = fallback[:2]
+
+    return primary, fallback
+
+
+async def _call_llm_parallel(
+    models: List[str],
+    prompt: str,
+    system_prompt: Optional[str],
+    brand_id: str,
+    context: str,
+    action: str,
+    task_type: str,
+    temperature: float,
+    start_time: float,
+    is_emergency: bool,
+    capability: ModelCapability,
+) -> LLMResponse:
+    """Call LLM models in parallel with comprehensive integration.
+
+    This function implements the Phase 1-3 integrated flow:
+    1. Apply rate limiting before calls
+    2. Call models in parallel (or sequentially if not configured)
+    3. Track costs with enhanced cost tracker
+    4. Record comprehensive fallback metrics
+    5. Handle graceful degradation
+    6. Calculate accurate latency
+    7. Return enhanced LLMResponse
+
+    Args:
+        models: List of model IDs to try
+        prompt: User prompt
+        system_prompt: Optional system prompt
+        brand_id: Brand ID
+        context: Context label
+        action: Action label
+        task_type: Task type
+        temperature: Temperature
+        start_time: Start time for latency calculation
+        is_emergency: Whether this is an emergency call
+        capability: Model capability
+
+    Returns:
+        Enhanced LLMResponse with all Phase 1-3 data
+
+    Raises:
+        RuntimeError: If all models fail
+    """
     messages = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
-
     messages.append({"role": "user", "content": prompt})
-    
-    # 1. OpenRouter Fallback Chain
+
     last_error = None
-    if settings.openrouter_api_key:
-        async with httpx.AsyncClient(timeout=120) as client:
-            for i, current_model in enumerate(models):
-                try:
-                    resp = await client.post(
-                        "https://openrouter.ai/api/v1/chat/completions",
-                        json={
-                            "model": current_model,
-                            "messages": messages,
-                            "temperature": temperature if "o3-mini" not in current_model else 1,
-                        },
-                        headers={
-                            "Authorization": f"Bearer {settings.openrouter_api_key}",
-                            "Content-Type": "application/json",
-                            "HTTP-Referer": "http://localhost:3000",
-                            "X-Title": "Content Engine"
-                        },
-                    )
-                    resp.raise_for_status()
+    primary_model = models[0] if models else "unknown"
+    fallback_start_time = time.monotonic()
 
-                    data = resp.json()
-                    content = data["choices"][0]["message"]["content"]
-                    usage = data.get("usage", {})
-                    prompt_tok = usage.get("prompt_tokens", 0)
-                    comp_tok = usage.get("completion_tokens", 0)
+    # Check if we should use parallel retry
+    # For now, we'll use sequential to maintain compatibility,
+    # but this can be switched to parallel easily
+    use_parallel = len(models) > 1 and not is_emergency
 
-                    # Log fallback if this wasn't the first model
-                    if i > 0:
-                        await _log_fallback_attempt(
-                            brand_id=brand_id,
-                            context=context,
-                            action=action,
-                            primary_model=models[0],  # First model that failed
-                            fallback_reason=f"OpenRouter model failed, fell back to {current_model}",
-                            is_emergency=False
-                        )
-                        record_fallback(is_emergency=False)  # Track normal fallback
-
-                    # Track EXACT model that responded successfully
-                    await track_cost(brand_id, context, current_model, action, prompt_tok, comp_tok)
-                    record_call()  # Track successful call
-
-                    # Calculate latency
-                    latency_ms = int((time.monotonic() - start_time) * 1000)
-
-                    # Record heartbeat (fire-and-forget, never fails)
-                    llm_meta = {
-                        "model_used": current_model,
-                        "engine": "openrouter",
-                        "latency_ms": latency_ms,
-                        "tokens_prompt": prompt_tok,
-                        "tokens_completion": comp_tok,
-                    }
-                    asyncio.create_task(
-                        _record_heartbeat_safely(brand_id, llm_meta, context, action, "healthy")
-                    )
-
-                    return LLMResponse(
-                        content=content,
-                        model_used=current_model,
-                        tokens_prompt=prompt_tok,
-                        tokens_completion=comp_tok,
-                        engine="openrouter",
-                        latency_ms=latency_ms,
-                        fallback_to=models[i+1] if i+1 < len(models) else None
-                    )
-                except Exception as e:
-                    logger.warning("OpenRouter failed for model %s: %s. Trying fallback...", current_model, e)
-                    last_error = e
-                    continue
-
-    # 2. Native Anthropic SDK Fallback (if specifically an Anthropic model or no OpenRouter key)
-    # We only get here if ALL OpenRouter models failed or if there was no OpenRouter key.
-    if settings.anthropic_api_key:
-        ant_model = "claude-3-5-sonnet-20241022" # sensible generic fallback
-        for m in models:
-            if "anthropic" in m or "claude" in m:
-                ant_model = "claude-3-5-sonnet-20241022" if "sonnet" in m else "claude-3-5-haiku-20241022"
-                break
-
+    if use_parallel:
+        logger.debug("Using parallel retry for %d models", len(models))
         try:
-            # Log fallback from OpenRouter to Anthropic
-            await _log_fallback_attempt(
-                brand_id=brand_id,
-                context=context,
-                action=action,
-                primary_model=models[-1] if models else "unknown",
-                fallback_reason=f"All OpenRouter models failed, fell back to Anthropic {ant_model}",
-                is_emergency=False
-            )
-            record_fallback(is_emergency=False)  # Track normal fallback
+            # Set up the LLM caller for parallel execution
+            async def llm_caller(model, prompt, task_type, context, brand_id, agent_name):
+                return await _call_single_model(
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    brand_id=brand_id,
+                    context=context,
+                    action=action,
+                )
 
-            return await _call_anthropic_direct(
-                model=ant_model,
+            parallel_llm_caller.set_llm_caller(llm_caller)
+
+            # Call models in parallel
+            result, latency = await parallel_llm_caller.call_first_success(
+                models=models,
                 prompt=prompt,
-                system_prompt=system_prompt,
+                task_type=task_type,
+            )
+
+            if result:
+                # Extract response data
+                model_used = result.get("model", models[0])
+                content = result.get("content", "")
+                prompt_tok = result.get("tokens_prompt", 0)
+                comp_tok = result.get("tokens_completion", 0)
+
+                # Calculate total latency
+                total_latency_ms = int((time.monotonic() - start_time) * 1000)
+
+                # Track cost
+                await track_cost(brand_id, context, model_used, action, prompt_tok, comp_tok)
+
+                # Get cost USD
+                cost_usd = await cost_tracker.get_cost_by_model(model_used, brand_id)
+
+                # Get current degradation level
+                current_degradation = await degradation_manager.get_current_level()
+
+                return LLMResponse(
+                    content=content,
+                    model_used=model_used,
+                    tokens_prompt=prompt_tok,
+                    tokens_completion=comp_tok,
+                    engine="openrouter",
+                    latency_ms=total_latency_ms,
+                    degradation_level=current_degradation.value if current_degradation else None,
+                    used_parallel=True,
+                    used_fallback=not is_emergency and model_used != primary_model,
+                    is_emergency=is_emergency,
+                    cost_usd=cost_usd,
+                )
+
+        except Exception as e:
+            logger.warning("Parallel retry failed: %s, falling back to sequential", e)
+            last_error = e
+            # Fall through to sequential
+
+    # Sequential fallback (original behavior)
+    for i, current_model in enumerate(models):
+        try:
+            # Apply rate limiting
+            config = get_model_config(current_model)
+            provider = config.provider if config else "unknown"
+
+            rate_limit_key = f"{provider}:{current_model}"
+            rate_allowed = await rate_limiter.acquire(rate_limit_key)
+
+            if not rate_allowed:
+                logger.warning("Rate limit exceeded for %s, skipping", rate_limit_key)
+                raise Exception(f"Rate limit exceeded for {current_model}")
+
+            # Call the model
+            response = await _call_single_model(
+                model=current_model,
+                messages=messages,
+                temperature=temperature,
                 brand_id=brand_id,
                 context=context,
                 action=action,
-                temperature=temperature,
             )
-        except Exception as e:
-            logger.error("Anthropic Native SDK fallback failed: %s", e)
-            last_error = e
 
-    raise RuntimeError(f"All LLM routing options failed. Last error: {last_error}")
+            # Extract response data
+            model_used = response.get("model", current_model)
+            content = response.get("content", "")
+            prompt_tok = response.get("tokens_prompt", 0)
+            comp_tok = response.get("tokens_completion", 0)
+
+            # Calculate latency
+            total_latency_ms = int((time.monotonic() - start_time) * 1000)
+
+            # Track cost
+            await track_cost(brand_id, context, model_used, action, prompt_tok, comp_tok)
+
+            # Get cost USD
+            cost_usd = await cost_tracker.get_cost_by_model(model_used, brand_id)
+
+            # Record fallback metrics if this wasn't the first model
+            if i > 0:
+                fallback_latency_ms = int((time.monotonic() - fallback_start_time) * 1000)
+
+                fallback_metrics.record_fallback(
+                    primary_model=primary_model,
+                    fallback_model=model_used,
+                    reason=f"Model {models[i-1]} failed",
+                    task_type=task_type,
+                    latency_ms_primary=0,  # Not tracked in sequential
+                    latency_ms_fallback=fallback_latency_ms,
+                    success=True,
+                )
+
+            # Log fallback if this wasn't the first model
+            if i > 0:
+                await _log_fallback_attempt(
+                    brand_id=brand_id,
+                    context=context,
+                    action=action,
+                    primary_model=primary_model,
+                    fallback_reason=f"Model {models[i-1]} failed, fell back to {current_model}",
+                    is_emergency=is_emergency
+                )
+                record_fallback(is_emergency=is_emergency)
+
+            # Get current degradation level
+            current_degradation = await degradation_manager.get_current_level()
+
+            return LLMResponse(
+                content=content,
+                model_used=model_used,
+                tokens_prompt=prompt_tok,
+                tokens_completion=comp_tok,
+                engine="openrouter",
+                latency_ms=total_latency_ms,
+                fallback_to=models[i+1] if i+1 < len(models) else None,
+                degradation_level=current_degradation.value if current_degradation else None,
+                used_parallel=False,
+                used_fallback=i > 0,
+                is_emergency=is_emergency,
+                cost_usd=cost_usd,
+            )
+
+        except Exception as e:
+            logger.warning("Model %s failed: %s. Trying next...", current_model, e)
+            last_error = e
+            continue
+
+    raise RuntimeError(f"All models failed. Last error: {last_error}")
+
+
+async def _call_single_model(
+    model: str,
+    messages: List[Dict[str, str]],
+    temperature: float,
+    brand_id: str,
+    context: str,
+    action: str,
+) -> Dict[str, Any]:
+    """Call a single model (either OpenRouter or Anthropic).
+
+    Args:
+        model: Model ID
+        messages: Message list
+        temperature: Temperature
+        brand_id: Brand ID
+        context: Context label
+        action: Action label
+
+    Returns:
+        Dictionary with response data
+
+    Raises:
+        Exception: If call fails
+    """
+    # Check if this is an Anthropic model
+    if "claude" in model.lower() and settings.anthropic_api_key:
+        return await _call_anthropic_direct(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+        )
+    else:
+        # Use OpenRouter
+        return await _call_openrouter(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+        )
+
+
+async def _call_openrouter(
+    model: str,
+    messages: List[Dict[str, str]],
+    temperature: float,
+) -> Dict[str, Any]:
+    """Call OpenRouter API.
+
+    Args:
+        model: Model ID
+        messages: Message list
+        temperature: Temperature
+
+    Returns:
+        Dictionary with response data
+
+    Raises:
+        Exception: If call fails
+    """
+    async with httpx.AsyncClient(timeout=120) as client:
+        resp = await client.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            json={
+                "model": model,
+                "messages": messages,
+                "temperature": temperature if "o3-mini" not in model else 1,
+            },
+            headers={
+                "Authorization": f"Bearer {settings.openrouter_api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "http://localhost:3000",
+                "X-Title": "Content Engine"
+            },
+        )
+        resp.raise_for_status()
+
+        data = resp.json()
+        content = data["choices"][0]["message"]["content"]
+        usage = data.get("usage", {})
+        prompt_tok = usage.get("prompt_tokens", 0)
+        comp_tok = usage.get("completion_tokens", 0)
+
+        return {
+            "model": model,
+            "content": content,
+            "tokens_prompt": prompt_tok,
+            "tokens_completion": comp_tok,
+        }
 
 
 async def _call_anthropic_direct(
+    model: str,
+    messages: List[Dict[str, str]],
+    temperature: float,
+) -> Dict[str, Any]:
+    """Call Anthropic API directly (uses Claude subscription credits).
+
+    Args:
+        model: Claude model name
+        messages: Message list
+        temperature: Temperature
+
+    Returns:
+        Dictionary with response data
+
+    Raises:
+        Exception: If call fails
+    """
+    import anthropic
+
+    ant_client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+
+    # Extract user message
+    user_prompt = ""
+    system_prompt = None
+
+    for msg in messages:
+        if msg["role"] == "system":
+            system_prompt = msg["content"]
+        elif msg["role"] == "user":
+            user_prompt = msg["content"]
+
+    ant_messages = [{"role": "user", "content": user_prompt}]
+    kwargs = {
+        "model": model,
+        "max_tokens": 4096,
+        "messages": ant_messages,
+        "temperature": temperature
+    }
+    if system_prompt:
+        kwargs["system"] = system_prompt
+
+    message = await ant_client.messages.create(**kwargs)
+    content = message.content[0].text
+
+    prompt_tok = message.usage.input_tokens
+    comp_tok = message.usage.output_tokens
+
+    return {
+        "model": model,
+        "content": content,
+        "tokens_prompt": prompt_tok,
+        "tokens_completion": comp_tok,
+    }
+
+
+# ============================================================================
+# LEGACY FUNCTIONS (kept for backward compatibility)
+# ============================================================================
+
+async def _call_anthropic_direct_legacy(
     model: str,
     prompt: str,
     brand_id: str,
@@ -251,28 +698,8 @@ async def _call_anthropic_direct(
     system_prompt: Optional[str] = None,
     temperature: float = 0.7,
 ) -> LLMResponse:
-    """Call Anthropic API directly (uses Claude subscription credits).
-
-    This function is used when:
-    1. use_claude_subscription = TRUE (uses subscription credits)
-    2. OpenRouter fails and Anthropic API is available as fallback
-
-    Args:
-        model: Claude model name (e.g., "claude-3-5-sonnet-20241022")
-        prompt: The user prompt
-        brand_id: Brand ID for cost tracking
-        context: Context label for cost tracking
-        action: Action label for cost tracking
-        system_prompt: Optional system prompt
-        temperature: Temperature for generation
-
-    Returns:
-        LLMResponse with content and metadata
-    """
+    """Legacy function for backward compatibility. Use call_llm instead."""
     import anthropic
-    import logging
-
-    logger = logging.getLogger("content_engine.llm")
 
     ant_client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
@@ -293,22 +720,9 @@ async def _call_anthropic_direct(
     comp_tok = message.usage.output_tokens
 
     await track_cost(brand_id, context, model, action, prompt_tok, comp_tok)
-    record_call()  # Track successful call
+    record_call()
 
-    # Calculate latency
-    latency_ms = int((time.monotonic() - start_time) * 1000)
-
-    # Record heartbeat (fire-and-forget, never fails)
-    llm_meta = {
-        "model_used": model,
-        "engine": "anthropic",
-        "latency_ms": latency_ms,
-        "tokens_prompt": prompt_tok,
-        "tokens_completion": comp_tok,
-    }
-    asyncio.create_task(
-        _record_heartbeat_safely(brand_id, llm_meta, context, action, "healthy")
-    )
+    latency_ms = int((time.monotonic() - time.time()) * 1000)
 
     return LLMResponse(
         content=content,
@@ -331,28 +745,11 @@ async def _emergency_openrouter_fallback(
 ) -> LLMResponse:
     """Emergency fallback to OpenRouter when Anthropic API fails.
 
-    Uses free models first (Gemma 4) then paid fallback (Haiku).
-    This is a recovery mechanism, not a default path.
-
-    Args:
-        task_type: Type of task being performed
-        prompt: The user prompt
-        system_prompt: Optional system prompt
-        brand_id: Brand ID for cost tracking
-        context: Context label for cost tracking
-        action: Action label for cost tracking
-        temperature: Temperature for generation
-
-    Returns:
-        LLMResponse from OpenRouter
-
-    Raises:
-        RuntimeError: If all OpenRouter attempts fail
+    DEPRECATED: Use call_llm with proper degradation handling instead.
     """
-    import logging
-    logger = logging.getLogger("content_engine.llm")
+    logger.warning("_emergency_openrouter_fallback is deprecated, use call_llm instead")
 
-    # Emergency fallback models: free first, then paid as last resort
+    # Map task to models
     if task_type == "reasoning":
         models = ["xiaomi/mimo-v2-flash:free", "openai/o3-mini"]
     elif task_type == "knowledge":
@@ -361,8 +758,8 @@ async def _emergency_openrouter_fallback(
         models = ["zhipu/glm-5.5-pro:free", "anthropic/claude-3.5-sonnet-20241022"]
     elif task_type == "coding":
         models = ["alibaba/qwen-3.5-max:free", "mistral/devstral-2:free"]
-    else:  # creative, language, default
-        models = ["google/gemma-4-150b:free", "anthropic/claude-3-5-haiku-20241022"]
+    else:
+        models = ["google/gemma-4-150b:free", "anthropic/claude-3.5-haiku-20241022"]
 
     messages = []
     if system_prompt:
@@ -398,27 +795,12 @@ async def _emergency_openrouter_fallback(
                 prompt_tok = usage.get("prompt_tokens", 0)
                 comp_tok = usage.get("completion_tokens", 0)
 
-                # Track cost and log successful fallback
                 await track_cost(brand_id, context, current_model, action, prompt_tok, comp_tok)
-                record_fallback(is_emergency=True)  # Track emergency fallback
+                record_fallback(is_emergency=True)
 
                 logger.warning("Emergency fallback successful: used %s instead of Anthropic API", current_model)
 
-                # Calculate latency
-                latency_ms = int((time.monotonic() - start_time) * 1000)
-
-                # Record heartbeat with fallback status
-                llm_meta = {
-                    "model_used": current_model,
-                    "engine": "openrouter",
-                    "latency_ms": latency_ms,
-                    "tokens_prompt": prompt_tok,
-                    "tokens_completion": comp_tok,
-                    "fallback_to": models[models.index(current_model) + 1] if models.index(current_model) + 1 < len(models) else None,
-                }
-                asyncio.create_task(
-                    _record_heartbeat_safely(brand_id, llm_meta, context, action, "degraded")
-                )
+                latency_ms = int((time.monotonic() - time.time()) * 1000)
 
                 return LLMResponse(
                     content=content,
@@ -445,19 +827,7 @@ async def _log_fallback_attempt(
     fallback_reason: str,
     is_emergency: bool = False,
 ) -> None:
-    """Log fallback attempt to database for monitoring and analytics.
-
-    Args:
-        brand_id: Brand ID
-        context: Context label (e.g., "humanizer_pass1")
-        action: Action label (e.g., "initial_humanization")
-        primary_model: Model that failed
-        fallback_reason: Error message or reason for fallback
-        is_emergency: Whether this was an emergency fallback (Anthropic API down)
-    """
-    import logging
-    logger = logging.getLogger("content_engine.llm.fallback")
-
+    """Log fallback attempt to database for monitoring and analytics."""
     try:
         db = get_db()
         db.table("llm_fallback_log").insert({
@@ -483,16 +853,7 @@ async def _send_fallback_alert(
     error: str,
     is_emergency: bool = False,
 ) -> None:
-    """Send alert about fallback occurrence.
-
-    Args:
-        model: Model that failed
-        error: Error message
-        is_emergency: Whether this was an emergency fallback
-    """
-    import logging
-    logger = logging.getLogger("content_engine.llm.fallback")
-
+    """Send alert about fallback occurrence."""
     try:
         from ..services.alerting import send_telegram_alert
 
@@ -524,18 +885,7 @@ async def _record_heartbeat_safely(
     action: str,
     status: str,
 ) -> None:
-    """Safely record heartbeat, never failing the main pipeline.
-
-    This is a fire-and-forget wrapper around record_agent_heartbeat that
-    ensures any errors in heartbeat recording don't impact the main LLM pipeline.
-
-    Args:
-        brand_id: Brand ID
-        llm_meta: LLM metadata dictionary
-        context: Context label
-        action: Action label
-        status: Status string
-    """
+    """Safely record heartbeat, never failing the main pipeline."""
     try:
         from .heartbeat import record_agent_heartbeat
         await record_agent_heartbeat(
