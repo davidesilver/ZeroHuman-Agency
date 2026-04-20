@@ -27,7 +27,7 @@ export const navigationItems = [
   { label: 'Writing Lab', href: '/writing-lab', icon: FlaskConical },
   { label: 'Metrics', href: '/metriche', icon: BarChart3 },
   { type: 'separator' as const, label: 'SYSTEM' },
-  { label: 'Pipeline Health', href: '/revenue', icon: Activity },
+  { label: 'Revenue', href: '/revenue', icon: Activity },
   { label: 'API Costs', href: '/costi-api', icon: DollarSign },
   { label: 'Brands', href: '/brands', icon: Building },
   { label: 'Settings', href: '/settings', icon: Settings },

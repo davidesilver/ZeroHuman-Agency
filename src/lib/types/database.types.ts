@@ -12,8 +12,165 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
+      agent_config_versions: {
+        Row: {
+          changed_by: string | null
+          config_id: string
+          created_at: string | null
+          id: string
+          identity: string
+          version: number
+        }
+        Insert: {
+          changed_by?: string | null
+          config_id: string
+          created_at?: string | null
+          id?: string
+          identity: string
+          version: number
+        }
+        Update: {
+          changed_by?: string | null
+          config_id?: string
+          created_at?: string | null
+          id?: string
+          identity?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_config_versions_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "agent_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_configs: {
+        Row: {
+          agent_key: string
+          agent_name: string
+          brand_id: string
+          created_at: string | null
+          id: string
+          identity: string
+          is_active: boolean
+          task_type_override: string | null
+          updated_at: string | null
+          version: number
+        }
+        Insert: {
+          agent_key: string
+          agent_name: string
+          brand_id: string
+          created_at?: string | null
+          id?: string
+          identity?: string
+          is_active?: boolean
+          task_type_override?: string | null
+          updated_at?: string | null
+          version?: number
+        }
+        Update: {
+          agent_key?: string
+          agent_name?: string
+          brand_id?: string
+          created_at?: string | null
+          id?: string
+          identity?: string
+          is_active?: boolean
+          task_type_override?: string | null
+          updated_at?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_configs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_skills: {
+        Row: {
+          brand_id: string
+          created_at: string | null
+          description: string
+          id: string
+          instructions: string
+          is_active: boolean
+          priority: string
+          skill_name: string
+          tags: string[] | null
+          target_agent: string
+          updated_at: string | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          instructions?: string
+          is_active?: boolean
+          priority?: string
+          skill_name: string
+          tags?: string[] | null
+          target_agent: string
+          updated_at?: string | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          instructions?: string
+          is_active?: boolean
+          priority?: string
+          skill_name?: string
+          tags?: string[] | null
+          target_agent?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_skills_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_costs: {
         Row: {
           agent_name: string
@@ -61,9 +218,59 @@ export type Database = {
           },
         ]
       }
+      audit_trail: {
+        Row: {
+          action: string
+          brand_id: string
+          details: Json | null
+          draft_id: string | null
+          error: string | null
+          id: string
+          platform: string | null
+          status: string
+          timestamp: string | null
+        }
+        Insert: {
+          action: string
+          brand_id: string
+          details?: Json | null
+          draft_id?: string | null
+          error?: string | null
+          id?: string
+          platform?: string | null
+          status?: string
+          timestamp?: string | null
+        }
+        Update: {
+          action?: string
+          brand_id?: string
+          details?: Json | null
+          draft_id?: string | null
+          error?: string | null
+          id?: string
+          platform?: string | null
+          status?: string
+          timestamp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_trail_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brands: {
         Row: {
           created_at: string | null
+          discard_examples: string[] | null
+          feedback_bonus: number | null
+          founder_principles: string[] | null
+          gold_examples: string[] | null
+          humanizer_channels: string[] | null
+          humanizer_model_override: string | null
           id: string
           name: string
           rss_sources: Json | null
@@ -73,9 +280,16 @@ export type Database = {
           tone_of_voice: Json | null
           topics: string[] | null
           updated_at: string | null
+          use_humanizer: boolean | null
         }
         Insert: {
           created_at?: string | null
+          discard_examples?: string[] | null
+          feedback_bonus?: number | null
+          founder_principles?: string[] | null
+          gold_examples?: string[] | null
+          humanizer_channels?: string[] | null
+          humanizer_model_override?: string | null
           id?: string
           name: string
           rss_sources?: Json | null
@@ -85,9 +299,16 @@ export type Database = {
           tone_of_voice?: Json | null
           topics?: string[] | null
           updated_at?: string | null
+          use_humanizer?: boolean | null
         }
         Update: {
           created_at?: string | null
+          discard_examples?: string[] | null
+          feedback_bonus?: number | null
+          founder_principles?: string[] | null
+          gold_examples?: string[] | null
+          humanizer_channels?: string[] | null
+          humanizer_model_override?: string | null
           id?: string
           name?: string
           rss_sources?: Json | null
@@ -97,6 +318,7 @@ export type Database = {
           tone_of_voice?: Json | null
           topics?: string[] | null
           updated_at?: string | null
+          use_humanizer?: boolean | null
         }
         Relationships: []
       }
@@ -107,6 +329,7 @@ export type Database = {
           color: string | null
           content_draft_id: string | null
           created_at: string | null
+          draft_id: string | null
           event_type: Database["public"]["Enums"]["event_type"]
           id: string
           scheduled_date: string
@@ -120,6 +343,7 @@ export type Database = {
           color?: string | null
           content_draft_id?: string | null
           created_at?: string | null
+          draft_id?: string | null
           event_type: Database["public"]["Enums"]["event_type"]
           id?: string
           scheduled_date: string
@@ -133,6 +357,7 @@ export type Database = {
           color?: string | null
           content_draft_id?: string | null
           created_at?: string | null
+          draft_id?: string | null
           event_type?: Database["public"]["Enums"]["event_type"]
           id?: string
           scheduled_date?: string
@@ -169,6 +394,20 @@ export type Database = {
             referencedRelation: "v_content_pipeline"
             referencedColumns: ["draft_id"]
           },
+          {
+            foreignKeyName: "calendar_events_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "content_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "v_content_pipeline"
+            referencedColumns: ["draft_id"]
+          },
         ]
       }
       campaigns: {
@@ -176,6 +415,7 @@ export type Database = {
           brand_id: string
           content_draft_ids: string[] | null
           created_at: string | null
+          draft_ids: string[] | null
           id: string
           name: string
           platforms: string[] | null
@@ -187,6 +427,7 @@ export type Database = {
           brand_id: string
           content_draft_ids?: string[] | null
           created_at?: string | null
+          draft_ids?: string[] | null
           id?: string
           name: string
           platforms?: string[] | null
@@ -198,6 +439,7 @@ export type Database = {
           brand_id?: string
           content_draft_ids?: string[] | null
           created_at?: string | null
+          draft_ids?: string[] | null
           id?: string
           name?: string
           platforms?: string[] | null
@@ -319,6 +561,7 @@ export type Database = {
           brand_id: string
           content_draft_id: string | null
           created_at: string | null
+          draft_id: string | null
           feedback_type: Database["public"]["Enums"]["feedback_type"]
           id: string
           research_item_id: string | null
@@ -329,6 +572,7 @@ export type Database = {
           brand_id: string
           content_draft_id?: string | null
           created_at?: string | null
+          draft_id?: string | null
           feedback_type: Database["public"]["Enums"]["feedback_type"]
           id?: string
           research_item_id?: string | null
@@ -339,6 +583,7 @@ export type Database = {
           brand_id?: string
           content_draft_id?: string | null
           created_at?: string | null
+          draft_id?: string | null
           feedback_type?: Database["public"]["Enums"]["feedback_type"]
           id?: string
           research_item_id?: string | null
@@ -368,6 +613,20 @@ export type Database = {
             referencedColumns: ["draft_id"]
           },
           {
+            foreignKeyName: "feedback_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "content_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "v_content_pipeline"
+            referencedColumns: ["draft_id"]
+          },
+          {
             foreignKeyName: "feedback_research_item_id_fkey"
             columns: ["research_item_id"]
             isOneToOne: false
@@ -380,6 +639,44 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_content_pipeline"
             referencedColumns: ["research_item_id"]
+          },
+        ]
+      }
+      feedback_loop_audit: {
+        Row: {
+          brand_id: string
+          executed_at: string | null
+          id: string
+          metrics_used: number
+          new_bonus: number
+          previous_bonus: number
+          score_delta: number | null
+        }
+        Insert: {
+          brand_id: string
+          executed_at?: string | null
+          id?: string
+          metrics_used: number
+          new_bonus: number
+          previous_bonus: number
+          score_delta?: number | null
+        }
+        Update: {
+          brand_id?: string
+          executed_at?: string | null
+          id?: string
+          metrics_used?: number
+          new_bonus?: number
+          previous_bonus?: number
+          score_delta?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_loop_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -440,6 +737,105 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_content_pipeline"
             referencedColumns: ["draft_id"]
+          },
+        ]
+      }
+      humanizer_performance: {
+        Row: {
+          ai_patterns_found: number
+          brand_id: string
+          created_at: string | null
+          draft_id: string
+          engagement_score: number | null
+          id: string
+          model_used: string | null
+          platform: string
+          remaining_ai_tells: number
+        }
+        Insert: {
+          ai_patterns_found?: number
+          brand_id: string
+          created_at?: string | null
+          draft_id: string
+          engagement_score?: number | null
+          id?: string
+          model_used?: string | null
+          platform: string
+          remaining_ai_tells?: number
+        }
+        Update: {
+          ai_patterns_found?: number
+          brand_id?: string
+          created_at?: string | null
+          draft_id?: string
+          engagement_score?: number | null
+          id?: string
+          model_used?: string | null
+          platform?: string
+          remaining_ai_tells?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "humanizer_performance_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "humanizer_performance_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "content_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "humanizer_performance_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "v_content_pipeline"
+            referencedColumns: ["draft_id"]
+          },
+        ]
+      }
+      llm_fallback_log: {
+        Row: {
+          action: string
+          brand_id: string
+          context: string
+          created_at: string | null
+          fallback_reason: string
+          id: string
+          is_emergency: boolean
+          primary_model: string
+        }
+        Insert: {
+          action: string
+          brand_id: string
+          context: string
+          created_at?: string | null
+          fallback_reason: string
+          id?: string
+          is_emergency?: boolean
+          primary_model: string
+        }
+        Update: {
+          action?: string
+          brand_id?: string
+          context?: string
+          created_at?: string | null
+          fallback_reason?: string
+          id?: string
+          is_emergency?: boolean
+          primary_model?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "llm_fallback_log_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -618,9 +1014,14 @@ export type Database = {
           avg_latency_ms: number | null
           brand_id: string
           created_at: string | null
+          current_model: string | null
+          engine: string
           errors_today: number | null
+          fallback_model: string | null
           id: string
           last_heartbeat: string | null
+          last_latency_ms: number | null
+          last_seen: string | null
           queue_size: number | null
           status: Database["public"]["Enums"]["health_status"]
           uptime_pct: number | null
@@ -630,9 +1031,14 @@ export type Database = {
           avg_latency_ms?: number | null
           brand_id: string
           created_at?: string | null
+          current_model?: string | null
+          engine?: string
           errors_today?: number | null
+          fallback_model?: string | null
           id?: string
           last_heartbeat?: string | null
+          last_latency_ms?: number | null
+          last_seen?: string | null
           queue_size?: number | null
           status?: Database["public"]["Enums"]["health_status"]
           uptime_pct?: number | null
@@ -642,9 +1048,14 @@ export type Database = {
           avg_latency_ms?: number | null
           brand_id?: string
           created_at?: string | null
+          current_model?: string | null
+          engine?: string
           errors_today?: number | null
+          fallback_model?: string | null
           id?: string
           last_heartbeat?: string | null
+          last_latency_ms?: number | null
+          last_seen?: string | null
           queue_size?: number | null
           status?: Database["public"]["Enums"]["health_status"]
           uptime_pct?: number | null
@@ -658,6 +1069,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      rate_limit_counters: {
+        Row: {
+          count: number
+          key: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          key: string
+          window_start?: string
+        }
+        Update: {
+          count?: number
+          key?: string
+          window_start?: string
+        }
+        Relationships: []
       }
       research_items: {
         Row: {
@@ -887,58 +1316,52 @@ export type Database = {
       }
       social_metrics: {
         Row: {
-          clicks: number | null
-          comments: number | null
-          content_draft_id: string
-          engagement: number | null
-          fetched_at: string | null
-          followers_gained: number | null
+          clicks: number
+          comments: number
+          draft_id: string
           id: string
-          impressions: number | null
+          impressions: number
+          likes: number
           platform: string
-          raw_data: Json | null
-          saves: number | null
-          shares: number | null
+          recorded_at: string | null
+          saves: number
+          shares: number
         }
         Insert: {
-          clicks?: number | null
-          comments?: number | null
-          content_draft_id: string
-          engagement?: number | null
-          fetched_at?: string | null
-          followers_gained?: number | null
+          clicks?: number
+          comments?: number
+          draft_id: string
           id?: string
-          impressions?: number | null
+          impressions?: number
+          likes?: number
           platform: string
-          raw_data?: Json | null
-          saves?: number | null
-          shares?: number | null
+          recorded_at?: string | null
+          saves?: number
+          shares?: number
         }
         Update: {
-          clicks?: number | null
-          comments?: number | null
-          content_draft_id?: string
-          engagement?: number | null
-          fetched_at?: string | null
-          followers_gained?: number | null
+          clicks?: number
+          comments?: number
+          draft_id?: string
           id?: string
-          impressions?: number | null
+          impressions?: number
+          likes?: number
           platform?: string
-          raw_data?: Json | null
-          saves?: number | null
-          shares?: number | null
+          recorded_at?: string | null
+          saves?: number
+          shares?: number
         }
         Relationships: [
           {
-            foreignKeyName: "social_metrics_content_draft_id_fkey"
-            columns: ["content_draft_id"]
+            foreignKeyName: "social_metrics_draft_id_fkey"
+            columns: ["draft_id"]
             isOneToOne: false
             referencedRelation: "content_drafts"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "social_metrics_content_draft_id_fkey"
-            columns: ["content_draft_id"]
+            foreignKeyName: "social_metrics_draft_id_fkey"
+            columns: ["draft_id"]
             isOneToOne: false
             referencedRelation: "v_content_pipeline"
             referencedColumns: ["draft_id"]
@@ -1150,6 +1573,27 @@ export type Database = {
           },
         ]
       }
+      v_daily_fallback_stats: {
+        Row: {
+          brand_id: string | null
+          context: string | null
+          date: string | null
+          emergency_fallbacks: number | null
+          failed_models: string[] | null
+          last_fallback_at: string | null
+          normal_fallbacks: number | null
+          total_fallbacks: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "llm_fallback_log_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_newsletter_performance: {
         Row: {
           brand_id: string | null
@@ -1182,6 +1626,37 @@ export type Database = {
       auth_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      find_semantic_duplicates: {
+        Args: {
+          p_brand_id: string
+          p_embedding: string
+          p_limit?: number
+          p_threshold?: number
+        }
+        Returns: {
+          id: string
+          similarity: number
+          title: string
+          url: string
+        }[]
+      }
+      get_draft_engagement_summary: {
+        Args: { draft_uuid: string }
+        Returns: {
+          first_recorded_at: string
+          last_recorded_at: string
+          platforms_count: number
+          total_comments: number
+          total_impressions: number
+          total_likes: number
+          total_saves: number
+          total_shares: number
+        }[]
+      }
+      mark_semantic_duplicates: {
+        Args: { p_brand_id: string; p_threshold?: number }
+        Returns: number
       }
     }
     Enums: {
@@ -1243,6 +1718,7 @@ export type Database = {
         | "trusted_source"
         | "keyword"
         | "trend"
+        | "manual"
       round_winner: "champion" | "challenger" | "draw"
       run_status: "running" | "completed" | "failed"
       slot_type: "sistema" | "strumento_lampo" | "mossa"
@@ -1373,6 +1849,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       campaign_status: [
@@ -1439,6 +1918,7 @@ export const Constants = {
         "trusted_source",
         "keyword",
         "trend",
+        "manual",
       ],
       round_winner: ["champion", "challenger", "draw"],
       run_status: ["running", "completed", "failed"],

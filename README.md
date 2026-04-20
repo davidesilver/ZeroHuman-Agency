@@ -1,127 +1,79 @@
-# Autonomous Content Engine 🚀
+# Autonomous Content Operations Platform
 
-> **Build once. Adapt forever.**
-> A production-ready, white-label Multi-Agent Platform capable of managing and scaling autonomous content operations for multiple brands from a single deployment.
+This repository contains a multi-tenant content operations platform with:
 
-This repository serves as the definitive architecture for an autonomous, AI-driven content generation engine. Built on a fully decoupled Next.js 15 frontend and FastAPI Python backend, it integrates direct web scraping, AI workflows (via Anthropic/OpenAI), and semantic optimization. 
+- a `Next.js 16` application for authentication, dashboard pages, and first-party API routes
+- a `FastAPI` backend for research, scoring, content generation, review, scheduling, and agent orchestration
+- a `Supabase` database used for auth, storage, Row Level Security, and operational data
 
----
+The codebase already supports research ingestion, scoring, draft generation, multi-agent review, humanization, writing-lab experiments, newsletter delivery, social scheduling, feedback collection, and health/cost monitoring. The documentation in this repository is now organized around what is actually implemented, not around aspirational architecture.
 
-## 🎯 Architecture & Empty Box Principle
+## Scope
 
-The platform acts as a "**White-Label Empty Box**". You can deploy it once and manage an infinite number of independent brands. 
+Use this project if you need a white-label content workflow where each tenant has:
 
-This means the engine pipeline stays identical; the topic, tone, sources, scoring criteria, and output format belong to the vertical configuration injected at runtime.
+- isolated data scoped by `brand_id`
+- configurable sources, tone, scoring weights, and social accounts
+- authenticated dashboard access
+- a research-to-draft pipeline
+- optional review layers such as GOD mode and humanizer
+- scheduling, analytics, and operational visibility
 
-- **Frontend**: Next.js 15, React 19, Tailwind CSS v4.
-- **Backend**: FastAPI (Python 3.10+), LangChain, Anthropic + OpenRouter SDKs.
-- **Database**: Supabase (PostgreSQL 15+) with `pgvector` for semantic duplication and **Row Level Security (RLS)** ensuring strict tenant isolation.
-- **Agent Orchestration**: Sequential and competitive AI pipelines with structured XML prompts.
+## Stack
 
----
+| Layer | Technology | Notes |
+| --- | --- | --- |
+| Frontend | `Next.js 16`, `React 19`, `TypeScript`, `Tailwind CSS 4` | App Router app in [`src`](/Users/claw/Progetti/ai-automation/src) |
+| Backend | `FastAPI`, `Python`, `uvicorn` | Service code in [`python/src/content_engine`](/Users/claw/Progetti/ai-automation/python/src/content_engine) |
+| Database/Auth | `Supabase` / PostgreSQL | Schema, RLS, views, and functions in [`supabase/migrations`](/Users/claw/Progetti/ai-automation/supabase/migrations) |
+| Scheduling | CI/cron caller + protected backend endpoints | See [`docs/DEPLOYMENT.md`](/Users/claw/Progetti/ai-automation/docs/DEPLOYMENT.md) |
 
-## 🔄 How the Pipeline Works
+## What Is Implemented
 
-A full autonomous cycle — from raw signals to published content — runs daily with zero manual intervention.
+- Tenant-aware auth via Supabase session + backend JWT validation
+- Research runs and research items
+- Manual URL ingestion into the research pipeline
+- Score computation and approval/rejection workflow
+- Draft generation, adaptation, GOD mode review, and humanization
+- Writing-lab sessions with round voting
+- Newsletter preview and send
+- Social publish and social schedule endpoints
+- Feedback loop, metrics ingestion, fallback monitoring, and agent health dashboards
+- Agent configuration and agent skills CRUD
 
-```text
-07:00 AM ──► RESEARCH PHASE
-             Research agent queries all configured sources:
-             RSS feeds, web search, YouTube, newsletters.
-             Each item is stored with URL, title, summary, source type.
-             ▼
-08:00 AM ──► DEDUPLICATION
-             URL-based exact dedup + semantic similarity check (pgvector).
-             Filtered against historical items.
-             ▼
-08:30 AM ──► SCORING PHASE
-             Scoring agent evaluates each item against your rubric:
-             Relevance · Novelty · Trend strength · Audience fit · Risk
-             Only items above your threshold proceed.
-             ▼
-10:00 AM ──► WRITING PHASE
-             Writer agent generates content for approved items.
-             Generated in platform-specific formats (LinkedIn, Newsletter, Blog).
-             ▼
-11:00 AM ──► GOD MODE REVIEW (Optional)
-             Multi-agent review panel runs on high-stakes content:
-             Advocate → FactCheck → Creative → Synthesis
-             Final content score determines auto-approve or human-flag.
-             ▼
-12:00 PM ──► PUBLISH PHASE
-             Approved content published to configured channels.
-             ▼
-CONTINUOUS ► FEEDBACK LOOP
-             Engagement metrics flow back into scoring.
-             High-performing topics get boosted in future scoring rounds.
-```
+## Documentation Map
 
----
+- [Setup Guide](/Users/claw/Progetti/ai-automation/docs/SETUP.md): local setup, environment variables, database bootstrap, smoke tests
+- [Architecture](/Users/claw/Progetti/ai-automation/docs/ARCHITECTURE.md): service boundaries, request flow, auth, scheduling, and directory map
+- [API Guide](/Users/claw/Progetti/ai-automation/docs/API.md): route inventory, auth model, request examples, known gaps
+- [Tenant Onboarding](/Users/claw/Progetti/ai-automation/docs/ONBOARDING.md): how to create a new tenant safely
+- [Database Schema](/Users/claw/Progetti/ai-automation/docs/database/SCHEMA.md): tables, enums, views, and migration strategy
+- [Deployment](/Users/claw/Progetti/ai-automation/docs/DEPLOYMENT.md): production topology and required environment variables
+- [Agents](/Users/claw/Progetti/ai-automation/docs/AGENTS.md): dynamic agent configuration model
 
-## 🤖 The Multi-Agent Ecosystem
+## Quick Start
 
-The entire orchestration does not rely on a single LLM pass. Every step is guided by dedicated "Identities" loaded dynamically from the Database `agent_configs` based on the targeted brand. 
+1. Create a Supabase project and apply the migrations in [`supabase/migrations`](/Users/claw/Progetti/ai-automation/supabase/migrations).
+2. Copy [`.env.example`](/Users/claw/Progetti/ai-automation/.env.example) to `.env.local` and fill every required value.
+3. Install frontend dependencies and start the Next.js app:
 
-- **Research Agent**: Collect raw intelligence from the world without bias.
-- **Scoring Agent**: Use a lightweight model to cost-effectively filter noises and score signals.
-- **Writer Agent**: Transform approved items into platform-ready content applying strictly the Brand Guidelines.
-- **Editor Agent**: Quality gate before publish. Detects hallucinations, brand safety violations, and formatting errors.
-- **GOD Mode Panel**: A multi-agent review system meant for high-stakes content. 
-  - *Advocate*: Builds the case FOR the content.
-  - *FactCheck*: Challenges every factual claim.
-  - *Creative*: Suggests improvements to angle framing and hook structure.
-  - *Synthesis*: Integrates all the feedback into the definitive cut.
-
-> Read more in the [**Agents Ecosystem Guide**](./docs/AGENTS.md) and in the [**Architecture Overview**](./docs/ARCHITECTURE.md).
-
----
-
-## 🚀 Quick Start (Local Development)
-
-### 1. Database Setup
-Ensure you have the Supabase CLI installed, or use the Supabase web console to run the SQL migrations located in `supabase/migrations/` sequentially. The engine comes with a pre-configured `005_agent_system.sql` to immediately seed the default 7 agents.
-
-### 2. Frontend Launch
 ```bash
-# Install Node dependencies
 npm install
-
-# Setup your local environment file
-cp .env.example .env.local
-
-# Run the Next.js dev server (default port 3000)
 npm run dev
 ```
 
-### 3. Backend Launch
+4. Install backend dependencies from [`python/pyproject.toml`](/Users/claw/Progetti/ai-automation/python/pyproject.toml) and start FastAPI:
+
 ```bash
-# Navigate to the Python directory
 cd python
-
-# Install Python requirements
-pip install -r requirements.txt
-
-# Start the FastAPI engine (default port 8000)
-uvicorn src.content_engine.main:app --reload
+uv sync
+uv run uvicorn src.content_engine.main:app --reload --port 8000
 ```
 
----
+5. Follow the tenant bootstrap steps in [`docs/ONBOARDING.md`](/Users/claw/Progetti/ai-automation/docs/ONBOARDING.md).
 
-## 📖 Extended Documentation
+## Repository Notes
 
-| Guide | Description |
-|---|---|
-| [**Brand Onboarding**](./docs/ONBOARDING.md) | How to add a new Brand tenant, configure RLS, and generate its JWT. |
-| [**System Architecture**](./docs/ARCHITECTURE.md) | Deep dive into the backend services and decoupled Next.js flow. |
-| [**Deployment Guide**](./docs/DEPLOYMENT.md) | Step-by-step instructions for deploying to Vercel and Railway/Render. |
-| [**Agents System**](./docs/AGENTS.md) | Deep dive into the GOD Panel and the A/B Writing Lab interactions. |
-
----
-
-## 🛡 Security & Cost Optimization
-
-- **Zero Hardcoded IDs**: Brands are loaded dynamically via Request JWTs directly extracted from the HTTP middleware.
-- **Service Rate Limiting**: The backend leverages an IP-based persistent sliding-window throttle (stored in PostgreSQL).
-- **Cost Reduction**: A two-stage scoring model structure significantly cuts LLM tokens by using fast, cheap models (like Claude Haiku) for pre-filtering 80% of the noise, reserving premium models (Claude Opus/Sonnet) exclusively for the GOD Mode or the writing phase.
-
-![Open Source](https://img.shields.io/badge/Status-Production_Ready-success)
+- The public documentation intentionally ignores repository areas that are only useful for local tooling or meta-development.
+- The authoritative contract for data is the migration set plus [`src/lib/types/database.types.ts`](/Users/claw/Progetti/ai-automation/src/lib/types/database.types.ts).
+- The authoritative contract for backend behavior is [`python/src/content_engine/api/routes.py`](/Users/claw/Progetti/ai-automation/python/src/content_engine/api/routes.py) and [`python/src/content_engine/api/routes_agents.py`](/Users/claw/Progetti/ai-automation/python/src/content_engine/api/routes_agents.py).

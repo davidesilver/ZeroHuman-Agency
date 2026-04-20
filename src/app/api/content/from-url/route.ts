@@ -1,7 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { jsonResponse, errorResponse } from '@/lib/api-helpers'
+import { requireAuth } from '@/lib/supabase/auth-helpers'
 
 export async function POST(request: Request) {
+  const { auth, response } = await requireAuth()
+  if (!auth) return response
+
   try {
     const { url } = await request.json()
 
@@ -9,7 +13,6 @@ export async function POST(request: Request) {
       return errorResponse('URL is required', 400)
     }
 
-    // Validate URL format
     try {
       new URL(url)
     } catch {
@@ -18,32 +21,26 @@ export async function POST(request: Request) {
 
     const supabase = await createClient()
 
-    // Get the default brand (hardcoded for now, matches Python backend)
-    const brandId = 'b6e639ac-33e7-402b-b928-c98af55eec47'
-
-    // Check for duplicate URL
     const { data: existing } = await supabase
       .from('research_items')
       .select('id, title')
       .eq('url', url)
-      .eq('brand_id', brandId)
+      .eq('brand_id', auth.brandId)
       .limit(1)
 
     if (existing && existing.length > 0) {
       return errorResponse(`URL already exists: "${existing[0].title}"`, 409)
     }
 
-    // Extract basic info from URL for the research item
     const urlObj = new URL(url)
     const domain = urlObj.hostname.replace('www.', '')
 
-    // Create research item with MANUAL retriever type
     const { data: item, error } = await supabase
       .from('research_items')
       .insert({
-        brand_id: brandId,
-        retriever_type: 'MANUAL',
-        source_type: 'article',
+        brand_id: auth.brandId,
+        retriever_type: 'manual',
+        source_type: 'scrape',
         title: `Manual: ${domain} — ${urlObj.pathname.split('/').filter(Boolean).pop() || 'page'}`,
         url: url,
         source_name: domain,
@@ -60,7 +57,7 @@ export async function POST(request: Request) {
       item,
       message: 'URL added to research pipeline. Run scoring to evaluate.',
     })
-  } catch (err) {
+  } catch {
     return errorResponse('Failed to process URL', 500)
   }
 }

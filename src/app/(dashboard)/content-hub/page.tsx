@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { DraftCard } from '@/components/content/draft-card'
 import { Button } from '@/components/ui/button'
@@ -16,6 +17,13 @@ const STATUS_TABS = [
   { key: 'published', label: 'PUBLISHED' },
   { key: 'archived', label: 'ARCHIVED' },
 ] as const
+
+function normalizeUrl(input: string): string {
+  const trimmed = input.trim()
+  if (!trimmed) return ''
+  if (/^https?:\/\//i.test(trimmed)) return trimmed
+  return `https://${trimmed}`
+}
 
 export default function ContentHubPage() {
   const [drafts, setDrafts] = useState<any[]>([])
@@ -39,21 +47,22 @@ export default function ContentHubPage() {
 
   useEffect(() => { fetchDrafts() }, [fetchDrafts])
 
-  const handleAnalyzeUrl = async () => {
-    if (!urlInput.trim()) return
+  const handleAnalyzeUrl = useCallback(async (rawUrl?: string) => {
+    const candidate = rawUrl ?? urlInput
+    const normalized = normalizeUrl(candidate)
+    if (!normalized) return
     setAnalyzing(true)
     setAnalyzeResult(null)
     try {
       const resp = await fetch('/api/content/from-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: urlInput.trim() }),
+        body: JSON.stringify({ url: normalized }),
       })
       const json = await resp.json()
       if (json.success) {
         setAnalyzeResult('✅ URL added to research pipeline. Scoring will run automatically.')
         setUrlInput('')
-        // Refresh drafts after a moment (scoring + generation may take time)
         setTimeout(fetchDrafts, 2000)
       } else {
         setAnalyzeResult(`❌ ${json.error?.message || 'Failed to analyze URL'}`)
@@ -62,7 +71,19 @@ export default function ContentHubPage() {
       setAnalyzeResult('❌ Failed to connect to backend')
     }
     setAnalyzing(false)
-  }
+  }, [urlInput, fetchDrafts])
+
+  const searchParams = useSearchParams()
+  const autoRan = useRef(false)
+  useEffect(() => {
+    if (autoRan.current) return
+    const incoming = searchParams.get('url')
+    if (incoming) {
+      autoRan.current = true
+      setUrlInput(incoming)
+      handleAnalyzeUrl(incoming)
+    }
+  }, [searchParams, handleAnalyzeUrl])
 
   const handleAction = async (id: string, action: string) => {
     if (action === 'god_mode') {
@@ -96,7 +117,7 @@ export default function ContentHubPage() {
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
           />
           <Button
-            onClick={handleAnalyzeUrl}
+            onClick={() => handleAnalyzeUrl()}
             disabled={analyzing || !urlInput.trim()}
             className="bg-staging-bg hover:bg-staging-bg/90 text-white"
             size="sm"

@@ -1,129 +1,106 @@
-# Secret Rotation — Procedura Operativa
+# Secret Rotation
 
-**Ultima revisione**: 2026-04-13
-**Owner**: Platform Team
-**Classification**: INTERNAL
+**Classification**: internal operations document
 
-> [!IMPORTANT]
-> Ruotare i secret è un'operazione critica. Seguire questa checklist nell'ordine esatto.
-> Un errore può causare downtime del servizio o esporre le credenziali durante la transizione.
+This procedure covers secret rotation for the project without assuming any specific hosting vendor.
 
----
+## Pre-Rotation Checklist
 
-## Checklist Pre-Rotazione
+- notify the team of possible brief disruption
+- verify a non-production environment is available for validation
+- prepare a change record for the rotation
+- confirm access to every provider console involved in the rotation
 
-- [ ] Avvisare il team via Slack/email (possibile breve downtime durante la rotazione)
-- [ ] Verificare che l'ambiente di staging sia aggiornato (per testare prima)
-- [ ] Aprire una PR vuota con il titolo "chore: secret rotation YYYY-MM-DD"
-- [ ] Avere accesso al pannello di gestione del provider (Supabase, Resend, Serper, etc.)
+## 1. Database Service Key
 
----
+Rotate when:
 
-## 1. Supabase Service Role Key
+- on a fixed schedule
+- after suspected exposure
+- after environment cloning or credential sharing mistakes
 
-**Quando ruotare**: ogni 90 giorni, o se sospetti una compromissione.
+Steps:
 
 ```bash
-# 1. Genera nuova chiave nel pannello Supabase
-#    Settings → API → service_role key → Rotate
+# Update local environment
+SUPABASE_SERVICE_ROLE_KEY=<new-value>
 
-# 2. Aggiorna .env.local
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-
-# 3. Aggiorna le variabili d'ambiente in produzione
-#    (Vercel Dashboard → Settings → Environment Variables)
-
-# 4. Invalida la cache JWT del backend Python
+# Flush backend auth cache
 curl -X POST http://localhost:8000/api/auth/cache-invalidate \
   -H "X-Scheduler-Secret: $SCHEDULER_SECRET"
-
-# 5. Restart del backend Python
-#    (se non usa hot-reload)
 ```
 
----
+After rotation:
 
-## 2. Scheduler Secret (X-Scheduler-Secret)
+- update the secret in every deployed environment
+- restart the backend if required by the host
 
-**Quando ruotare**: ogni 180 giorni, o se il secret è apparso in log/output.
+## 2. Scheduler Secret
+
+Rotate when:
+
+- on a fixed schedule
+- after accidental exposure in logs, shells, or CI output
+
+Generate a new value:
 
 ```bash
-# 1. Genera un nuovo secret sicuro
 python3 -c "import secrets; print(secrets.token_hex(32))"
-# oppure
-openssl rand -hex 32
-
-# 2. Aggiorna .env.local e l'ambiente di produzione
-SCHEDULER_SECRET=<nuovo-valore>
-
-# 3. Aggiorna anche il job GitHub Actions o il cron che chiama l'endpoint
-#    (aggiorna il secret in Settings → Secrets → Actions)
-
-# 4. Restart del backend Python per caricare il nuovo valore
 ```
 
----
-
-## 3. API Keys Esterne (Serper, Resend, OpenRouter)
-
-**Quando ruotare**: ogni 90 giorni, o dopo un incidente.
+Apply it everywhere:
 
 ```bash
-# Genera nuova chiave nel pannello del provider
-# Aggiorna .env.local:
-SERPER_API_KEY=<nuova-chiave>
-RESEND_API_KEY=<nuova-chiave>
-OPENROUTER_API_KEY=<nuova-chiave>
-
-# Aggiorna le variabili d'ambiente in produzione
-# Verifica che le nuove chiavi funzionino prima di comunicare la rotazione al team
+SCHEDULER_SECRET=<new-value>
 ```
 
----
+Then update every scheduler caller that invokes protected endpoints.
 
-## 4. Postiz API Key
+## 3. External Provider Keys
 
-```bash
-# Postiz → Settings → API Keys → Revoke + Generate new
+Examples used by the project:
 
-POSTIZ_API_KEY=<nuova-chiave>
-```
+- `SERPER_API_KEY`
+- `RESEND_API_KEY`
+- `OPENROUTER_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `POSTIZ_API_KEY`
 
----
+For each one:
 
-## 5. Endpoint di Cache Invalidation (L-02)
+1. generate or issue the replacement credential
+2. update local and deployed environments
+3. validate one real call
+4. revoke the old credential
 
-Quando cambi `SUPABASE_ANON_KEY` o `SUPABASE_SERVICE_ROLE_KEY`, il backend
-mantiene in cache le validazioni JWT per 5 minuti (`_AUTH_CACHE` in `auth_middleware.py`).
-Per forzare il flush immediato:
+## 4. Cache Invalidation Endpoint
+
+When database auth-related secrets change, clear the backend JWT cache immediately:
 
 ```bash
 curl -X POST http://localhost:8000/api/auth/cache-invalidate \
   -H "X-Scheduler-Secret: $SCHEDULER_SECRET"
-
-# Risposta attesa:
-# {"success": true, "data": {"cleared_entries": 42}}
 ```
 
----
+Expected response:
 
-## Checklist Post-Rotazione
+```json
+{ "success": true, "data": { "cleared_entries": 42 } }
+```
 
-- [ ] Verificare che il backend Python si avvii correttamente
-- [ ] Eseguire `GET /health/db` per verificare la connessione al DB
-- [ ] Verificare che almeno una chiamata API end-to-end funzioni (es. `GET /api/research/items`)
-- [ ] Aggiornare il documento con la data di rotazione
-- [ ] Chiudere la PR aperta in fase di pre-rotazione
+## Post-Rotation Checklist
 
----
+- backend starts correctly
+- `GET /health/db` succeeds
+- one authenticated end-to-end call succeeds
+- the change record is updated with the rotation date
 
-## Calendario di Rotazione
+## Recommended Rotation Register
 
-| Secret | Frequenza | Ultimo rinnovo |
-|--------|-----------|----------------|
-| `SUPABASE_SERVICE_ROLE_KEY` | 90 giorni | 2026-04-13 |
-| `SCHEDULER_SECRET` | 180 giorni | 2026-04-13 |
-| `SERPER_API_KEY` | 90 giorni | 2026-04-13 |
-| `RESEND_API_KEY` | 90 giorni | 2026-04-13 |
-| `OPENROUTER_API_KEY` | 90 giorni | 2026-04-13 |
-| `POSTIZ_API_KEY` | 90 giorni | 2026-04-13 |
+Track at least:
+
+- secret name
+- last rotation date
+- next due date
+- owner
+- validation status

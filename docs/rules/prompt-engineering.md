@@ -1,86 +1,106 @@
-# Prompt Engineering Audit — v1 → v2
+# Prompt Engineering Rules
 
-## Research Sources
+This document defines the internal prompt-writing standard for the project.
 
-- [Anthropic Prompt Engineering Best Practices](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/claude-prompting-best-practices) (official, Claude 4.6)
-- Anthropic's XML tag optimization documentation
-- Claude role-playing and structured output guides
-- Italian creative writing AI prompt patterns
+## Goals
 
-## 8 Critical Gaps Found in v1 Prompts
+Prompts should be:
 
-### 1. No XML Tags ❌
+- easy to inspect
+- stable across agents
+- explicit about data, instructions, and output shape
+- safe when source material is incomplete
 
-Anthropic: "XML tags help Claude parse complex prompts unambiguously. Claude is specifically fine-tuned to interpret XML tags."
-**v1**: Uses markdown `##` headers to separate sections.
-**Fix**: Wrap each section in descriptive XML tags (`<identity>`, `<context>`, `<instructions>`, `<output_format>`).
+## Core Rules
 
-### 2. Italian Prompt Language ❌
+### 1. Use Structured Sections
 
-Claude's training corpus is English-dominant. Prompting in Italian activates weaker pathways even though Claude CAN output Italian.
-**v1**: All 9 prompts written in Italian.
-**Fix**: English instructions + explicit `<language>Italian</language>` output directive.
+Prefer explicit sections such as:
 
-### 3. Zero Few-Shot Examples ❌
+- `<identity>`
+- `<context>`
+- `<instructions>`
+- `<guidelines>`
+- `<verification>`
+- `<output_format>`
 
-Anthropic: "Examples are ONE OF THE MOST RELIABLE ways to steer output format, tone, and structure."
-**v1**: Zero examples in any prompt. JSON schema only described, never demonstrated.
-**Fix**: Add 1 concrete example per prompt inside `<example>` tags.
+The exact tag names can vary, but the structure should stay consistent.
 
-### 4. Verbose Identity (5+ sentences) ❌
+### 2. Separate Data From Instructions
 
-Anthropic: "A 1-3 sentence identity statement is sufficient. Vague personas are less effective than specific, outcome-oriented roles."
-**v1**: 4-6 sentences of narrative prose per identity section.
-**Fix**: Compress to 2-3 sharp sentences. Move philosophy to `<guidelines>`.
+Put source content and business context in a dedicated block before the action instructions. Do not interleave long content with procedural steps.
 
-### 5. Negative Instructions ❌
+### 3. Keep Identity Short
 
-Anthropic: "Tell Claude what to do INSTEAD of what not to do."
-**v1**: "Non scrivi post generici", "Non riciclare", "Non sei un merge automatico"
-**Fix**: Reframe as affirmative: "Write original arguments from scratch", "Make editorial decisions with full context"
+Agent identity should be concise and task-oriented. A short identity is easier to maintain and less likely to conflict with downstream rules.
 
-### 6. Mixed Data and Instructions ❌
+### 4. Use Positive Instructions
 
-Anthropic: "Put longform data at the top, above your query and instructions."
-**v1**: Data (title, body, summary) is sandwiched between instruction blocks.
-**Fix**: Data in `<content>` block at top, instructions below.
+Prefer stating the desired action instead of long lists of prohibitions.
 
-### 7. No Self-Check ❌
+Good:
 
-Anthropic: "Append 'Before you finish, verify your answer against [criteria].' This catches errors reliably."
-**v1**: No self-verification step.
-**Fix**: Add `<verification>` block before output format.
+- "Write a concrete, platform-ready draft grounded in the supplied sources."
 
-### 8. No Uncertainty Handling ❌
+Weak:
 
-Anthropic: "Explicitly instruct the model to say 'I don't know' rather than hallucinating."
-**v1**: No guidance for insufficient source material.
-**Fix**: Add explicit fallback instructions.
+- "Do not be generic. Do not repeat. Do not ramble."
 
-## v2 Prompt Structure (Applied to All 9)
+### 5. Always Define Uncertainty Behavior
+
+If the source material is incomplete, the prompt should tell the model how to respond:
+
+- ask for clarification
+- mark uncertainty explicitly
+- avoid inventing unsupported facts
+
+### 6. Add A Verification Step
+
+Before final output, the prompt should require a self-check against:
+
+- factual grounding
+- formatting requirements
+- tone consistency
+- output schema compliance
+
+### 7. Show The Output Contract Clearly
+
+If the caller expects JSON, table rows, or a strict editorial format, define it explicitly and keep it machine-readable.
+
+## Recommended Prompt Shape
 
 ```xml
 <identity>
-  2-3 sentences: who you are, your expertise, your goal.
+  Short role definition and objective.
 </identity>
 
 <context>
-  Brand, platform, and content data (at the top, per Anthropic).
+  Tenant configuration, platform rules, and source material.
 </context>
 
 <instructions>
-  Affirmative, numbered steps. What to DO.
+  Ordered actions the model must perform.
 </instructions>
 
 <guidelines>
-  Bullet-pointed constraints and quality standards.
+  Quality bars and constraints.
 </guidelines>
 
 <verification>
-  Self-check criteria before outputting.
+  Checks to run before finalizing the answer.
 </verification>
 
 <output_format>
-  JSON schema with concrete example.
+  Exact response contract.
 </output_format>
 ```
+
+## Review Checklist
+
+Before shipping a prompt:
+
+- confirm the input data block contains everything the model needs
+- confirm the output contract matches the parser or consumer
+- confirm uncertainty handling is present
+- confirm examples, if used, are short and directly relevant
+- confirm the prompt does not depend on undocumented external context

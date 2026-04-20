@@ -62,6 +62,7 @@ function retrieverLabel(retriever_type: string): string {
     trusted_source: 'RSS',
     keyword: 'KEYWORD',
     trend: 'TREND',
+    manual: 'MANUAL',
   }
   return map[retriever_type] || retriever_type.toUpperCase()
 }

@@ -1,32 +1,94 @@
-# Deployment Guide 🚢
+# Deployment
 
-The platform dictates a split deployment. Frontend UI components belong on edge/serverless platforms (like Vercel), while the long-running Python orchestrator needs a continuous containerized environment like Railway, Render, or ECS.
+## Production Topology
 
-## 1. Deploying the Python Backend (Railway/Render)
+The project is designed for a split deployment:
 
-The backend handles heavy ML and LLM integrations. Serverless constraints (like 10-second timeouts) are not suitable. 
-1. Push the `python/` folder to your continuous deployment provider using a standard Python `Dockerfile` or buildpack.
-2. Set your Environment Variables:
-   - `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`
-   - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
-   - `SCHEDULER_SECRET` (crucial for protecting cron routes)
-3. Ensure the port binds correctly (typically 8000).
+- one Node-compatible host for the Next.js application
+- one long-running Python host for the FastAPI backend
+- one managed PostgreSQL/Supabase environment
 
-## 2. Deploying Next.js (Vercel)
+This matches the codebase more accurately than a single all-in-one deployment.
 
-The frontend is a classic Next.js 15 App router. 
-1. Link your git repo to Vercel.
-2. Ensure the root directory is set correctly if using a monorepo setup.
-3. Provide the Public Environment Keys:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `PYTHON_BACKEND_URL` (Point this to your deployed Railway/Render URL)
+## Required Environment Variables
 
-## 3. Database Migrations (Supabase)
+### Frontend Host
 
-You must initialize the target Supabase project using the built-in CLI:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `PYTHON_BACKEND_URL`
+- any other variables read by Next.js route handlers
+
+### Backend Host
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `ALLOWED_ORIGINS`
+- `SCHEDULER_SECRET`
+- `SCHEDULER_BRAND_ID` if scheduled jobs are enabled
+- provider keys required by the features you plan to use
+
+## Database Release Process
+
+For every environment:
+
 ```bash
-supabase link --project-ref your-project-id
+supabase link --project-ref <project-ref>
 supabase db push
 ```
-This guarantees all 20+ tables, RLS policies, and triggers are exact clones of your local environment.
+
+Do not document or maintain schema manually in production. The migration folder is the release artifact.
+
+## Backend Start Command
+
+Example:
+
+```bash
+cd python
+uv sync
+uv run uvicorn src.content_engine.main:app --host 0.0.0.0 --port 8000
+```
+
+## Frontend Start Command
+
+Example:
+
+```bash
+npm install
+npm run build
+npm run start
+```
+
+## Scheduler
+
+The repository already includes a CI-style scheduler example in [`.github/workflows/daily-pipeline.yml`](/Users/claw/Progetti/ai-automation/.github/workflows/daily-pipeline.yml).
+
+Required protected endpoints:
+
+- `POST /api/scheduler/daily-pipeline`
+- `POST /api/scheduler/publish-scheduled`
+- `POST /api/analytics/pull-metrics`
+- `POST /api/auth/cache-invalidate`
+
+Every scheduler caller must send:
+
+- `X-Scheduler-Secret: <secret>`
+
+## Deployment Checklist
+
+1. apply database migrations
+2. set all environment variables
+3. deploy backend
+4. deploy frontend with the backend URL
+5. create at least one tenant and one mapped user
+6. verify `/health` and `/health/db`
+7. verify authenticated dashboard access
+8. test one end-to-end content cycle
+
+## Production Notes
+
+- Keep `ALLOWED_ORIGINS` restrictive.
+- Do not expose `SUPABASE_SERVICE_ROLE_KEY` to the frontend.
+- If you rotate Supabase keys, invalidate the backend auth cache using the dedicated protected endpoint.
+- Scheduler jobs depend on `SCHEDULER_BRAND_ID`; they are not multi-tenant fan-out jobs by default.

@@ -1,26 +1,73 @@
-# Multi-Agent Ecosystem 🤖
+# Agents
 
-The core of the Content Engine is powered by a multi-agent orchestration pattern rather than a simple zero-shot LLM pass. All agents load their identity and instructions dynamically from the platform database based on the active `brand_id`.
+The platform uses database-driven agent configuration instead of hardcoded prompt identities.
 
-## 🗃 The Agent Loader
+## Core Model
 
-To avoid hardcoded identities in Python files, the module `python/src/content_engine/agents/agent_loader.py` fetches the raw agent persona during execution using the Supabase JWT.
-- **Table:** `agent_configs`
-- **Fallback:** If a brand hasn't customized its agent, it falls back to a core System Blueprint heavily optimized via XML structured prompt engineering.
+Two tables define agent behavior:
 
-## 👥 The 7 Core Personas
+- `agent_configs`: one record per tenant and agent key
+- `agent_skills`: optional skills attached to a target agent
 
-For each brand, the system recognizes these interconnected personas:
+Version history is stored in:
 
-1. **Writer**: Focuses on drafting content heavily aligned with the brand's exact tone of voice and source materials.
-2. **Editor**: A fastidious agent meant to fix grammar, remove hallucinations, formatting errors, and adapt the piece to the specific layout of the chosen platform (e.g., LinkedIn vs Twitter).
-3. **Adapter**: Capable of reading an anchor piece of content and recycling it seamlessly for secondary networks.
-4. **GOD Advocate**: First element of the *GOD System*. Plays the devil's advocate, critiquing the draft from a structural and logical standpoint.
-5. **GOD Fact-Checker**: Second element of the *GOD System*. Aggressively searches for logical fallacies or fake news within the generated content.
-6. **GOD Creative**: Third element of the *GOD System*. Searches for the "spark" — how can this be angled better?
-7. **GOD Synthesis**: The final judge. Reads the inputs from the Advocate, Fact-Checker, and Creative, delivering a single unified verdict (`pass`, `needs_revision`, `reject`).
+- `agent_config_versions`
 
-## ⚔️ The Writing Lab (A/B Routing)
+Primary implementation files:
 
-Because finding the perfect "hook" is often unpredictable, the system exposes a competitive `writing_lab.py`. 
-You can spin up an arena comparing a "Champion" draft against a "Challenger" prompt iteration. The engine evaluates both results analytically, producing a verified winner, which allows empirical improvement of your content across sprints.
+- [`python/src/content_engine/agents/agent_loader.py`](/Users/claw/Progetti/ai-automation/python/src/content_engine/agents/agent_loader.py)
+- [`python/src/content_engine/api/routes_agents.py`](/Users/claw/Progetti/ai-automation/python/src/content_engine/api/routes_agents.py)
+
+## Supported Agent Keys
+
+The CRUD layer currently validates these keys:
+
+- `writer`
+- `editor`
+- `adapter`
+- `god_advocate`
+- `god_factcheck`
+- `god_creative`
+- `god_synthesis`
+
+If you add new runtime agents in code, you must also update the validation layer and the migration strategy.
+
+## How Agent Resolution Works
+
+At runtime the backend:
+
+1. resolves the tenant from the authenticated request
+2. loads the matching agent config
+3. merges any applicable skills
+4. runs the requested operation with that prompt context
+
+This allows each tenant to keep its own:
+
+- writing style
+- review thresholds
+- formatting rules
+- adaptation logic
+
+## CRUD Endpoints
+
+Available backend routes:
+
+- `GET /api/v1/agent-configs`
+- `POST /api/v1/agent-configs`
+- `GET /api/v1/agent-configs/{config_id}`
+- `PUT /api/v1/agent-configs/{config_id}`
+- `DELETE /api/v1/agent-configs/{config_id}`
+- `GET /api/v1/agent-skills`
+- `POST /api/v1/agent-skills`
+- `GET /api/v1/agent-skills/{skill_id}`
+- `PUT /api/v1/agent-skills/{skill_id}`
+- `DELETE /api/v1/agent-skills/{skill_id}`
+
+All of them are tenant-scoped.
+
+## Operational Guidance
+
+- Keep `agent_key` stable because code paths depend on it.
+- Prefer skill records for incremental behavior changes.
+- Use config replacement only for identity-level changes.
+- Treat the database as the source of truth for prompts, not the README or comments.
