@@ -40,7 +40,7 @@ export default function SocialPage() {
       const json = await resp.json()
       if (json.success) {
         const drafts = json.data.drafts || json.data || []
-        setPosts(drafts.filter((d: any) => d.platform !== 'email'))
+        setPosts(drafts.filter((d: { platform?: string }) => d.platform !== 'email'))
       }
     } catch {}
     setIsLoading(false)
@@ -66,6 +66,9 @@ export default function SocialPage() {
   const publishedCount = posts.filter(p => p.status === 'published').length
   const scheduledCount = posts.filter(p => p.status === 'scheduled').length
 
+  // Count configured platforms from posts (proxy: platforms with at least one post)
+  const activePlatforms = new Set(posts.map(p => p.platform).filter(Boolean)).size
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Social Publishing</h1>
@@ -74,7 +77,7 @@ export default function SocialPage() {
         <KPICard title="Published" value={publishedCount} />
         <KPICard title="Scheduled" value={scheduledCount} />
         <KPICard title="Ready to publish" value={posts.filter(p => p.status === 'approved').length} />
-        <KPICard title="Platforms" value="1" subtitle="LinkedIn active" />
+        <KPICard title="Platforms" value={activePlatforms || '—'} subtitle={activePlatforms > 0 ? `${activePlatforms} active` : 'None configured'} />
       </div>
 
       {isLoading ? (
@@ -112,7 +115,7 @@ export default function SocialPage() {
                     </Button>
                   )}
                   {post.status === 'approved' && post.platform !== 'linkedin' && (
-                    <span className="text-xs text-muted-foreground">Coming soon</span>
+                    <span className="text-xs text-muted-foreground capitalize">{post.platform} — not configured</span>
                   )}
                 </div>
               </CardContent>

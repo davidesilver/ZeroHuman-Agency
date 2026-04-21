@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
       activities: activities.slice(0, limit),
       total: activities.length,
     })
-  } catch (err) {
+  } catch {
     return errorResponse('Failed to fetch activity', 500)
   }
 }

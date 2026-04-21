@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
-import { AGENT_METADATA, AgentKey, getAgentDisplayName } from "@/lib/agents"
+import { AGENT_METADATA, type AgentKey, getAgentDisplayName, getAgentMetadata } from "@/lib/agents"
 
 type AgentConfig = {
   id: string
@@ -50,19 +50,30 @@ export default function AgentSettingsPage() {
   const [error, setError] = useState<string | null>(null)
 
   // Form states
-  const [newConfig, setNewConfig] = useState({
-    agent_key: "writer" as const,
+  const [newConfig, setNewConfig] = useState<{
+    agent_key: AgentKey
+    agent_name: string
+    identity: string
+  }>({
+    agent_key: "writer",
     agent_name: "",
     identity: "",
   })
 
-  const [newSkill, setNewSkill] = useState({
-    target_agent: "writer" as const,
+  const [newSkill, setNewSkill] = useState<{
+    target_agent: AgentKey
+    skill_name: string
+    description: string
+    instructions: string
+    priority: 'high' | 'medium' | 'low'
+    tags: string[]
+  }>({
+    target_agent: "writer",
     skill_name: "",
     description: "",
     instructions: "",
-    priority: "medium" as const,
-    tags: [] as string[],
+    priority: "medium",
+    tags: [],
   })
 
   // Fetch agent configs and skills
@@ -257,7 +268,7 @@ export default function AgentSettingsPage() {
                   <Select
                     value={newConfig.agent_key}
                     onValueChange={(value) =>
-                      setNewConfig({ ...newConfig, agent_key: value as any })
+                      setNewConfig({ ...newConfig, agent_key: value as AgentKey })
                     }
                   >
                     <SelectTrigger id="agent_key">
@@ -265,7 +276,7 @@ export default function AgentSettingsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {Object.entries(AGENT_METADATA)
-                        .filter(([_, label]) => !label.parent) // Only show top-level agents
+                        .filter(([, label]) => !label.parent) // Only show top-level agents
                         .map(([key, label]) => (
                         <SelectItem key={key} value={key}>
                           {label.name}
@@ -313,13 +324,10 @@ export default function AgentSettingsPage() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <CardTitle className="flex items-center gap-2">
-                        {typeof AGENT_METADATA[config.agent_key] === 'string'
-                          ? AGENT_METADATA[config.agent_key]
-                          : AGENT_METADATA[config.agent_key]?.name || config.agent_key
-                        }
-                        {AGENT_METADATA[config.agent_key]?.parent && (
+                        {getAgentDisplayName(config.agent_key)}
+                        {getAgentMetadata(config.agent_key)?.parent && (
                           <Badge variant="outline" className="text-xs">
-                            Sub-agent of {AGENT_METADATA[AGENT_METADATA[config.agent_key].parent]?.name}
+                            Sub-agent of {getAgentDisplayName(getAgentMetadata(config.agent_key)!.parent!)}
                           </Badge>
                         )}
                         <Badge variant={config.is_active ? "default" : "secondary"}>
@@ -375,7 +383,7 @@ export default function AgentSettingsPage() {
                   <Select
                     value={newSkill.target_agent}
                     onValueChange={(value) =>
-                      setNewSkill({ ...newSkill, target_agent: value as any })
+                      setNewSkill({ ...newSkill, target_agent: value as AgentKey })
                     }
                   >
                     <SelectTrigger id="target_agent">
@@ -384,7 +392,7 @@ export default function AgentSettingsPage() {
                     <SelectContent>
                       {Object.entries(AGENT_METADATA).map(([key, label]) => (
                         <SelectItem key={key} value={key}>
-                          {label.name} {label.parent ? `(sub-agent of ${AGENT_METADATA[label.parent]?.name})` : ''}
+                          {label.name} {label.parent ? `(sub-agent of ${getAgentDisplayName(label.parent)})` : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -435,7 +443,7 @@ export default function AgentSettingsPage() {
                 <Select
                   value={newSkill.priority}
                   onValueChange={(value) =>
-                    setNewSkill({ ...newSkill, priority: value as any })
+                    setNewSkill({ ...newSkill, priority: value as 'high' | 'medium' | 'low' })
                   }
                 >
                   <SelectTrigger id="priority">
@@ -478,10 +486,7 @@ export default function AgentSettingsPage() {
                         </Badge>
                       </CardTitle>
                       <CardDescription>
-                        {typeof AGENT_METADATA[skill.target_agent] === 'string'
-                          ? AGENT_METADATA[skill.target_agent]
-                          : AGENT_METADATA[skill.target_agent]?.name || skill.target_agent
-                        } • {skill.description}
+                        {getAgentDisplayName(skill.target_agent)} • {skill.description}
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">

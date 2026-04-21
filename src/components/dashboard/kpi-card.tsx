@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface KPICardProps {
@@ -5,15 +6,16 @@ interface KPICardProps {
   value: string | number
   subtitle?: string
   trend?: string
+  variant?: 'default' | 'destructive'
 }
 
-export function KPICard({ title, value, subtitle, trend }: KPICardProps) {
+export function KPICard({ title, value, subtitle, trend, variant = 'default' }: KPICardProps) {
   return (
-    <Card>
+    <Card className={cn(variant === 'destructive' && 'border-destructive/50')}>
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-3xl font-bold">{value}</p>
+            <p className={cn('text-3xl font-bold', variant === 'destructive' && 'text-destructive')}>{value}</p>
             <p className="text-sm text-muted-foreground mt-1">{title}</p>
             {subtitle && (
               <p className="text-xs text-muted-foreground mt-0.5">

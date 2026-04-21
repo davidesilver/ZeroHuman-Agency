@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       agent_config_versions: {
@@ -280,6 +255,7 @@ export type Database = {
           tone_of_voice: Json | null
           topics: string[] | null
           updated_at: string | null
+          use_context7: boolean
           use_humanizer: boolean | null
         }
         Insert: {
@@ -299,6 +275,7 @@ export type Database = {
           tone_of_voice?: Json | null
           topics?: string[] | null
           updated_at?: string | null
+          use_context7?: boolean
           use_humanizer?: boolean | null
         }
         Update: {
@@ -318,6 +295,7 @@ export type Database = {
           tone_of_voice?: Json | null
           topics?: string[] | null
           updated_at?: string | null
+          use_context7?: boolean
           use_humanizer?: boolean | null
         }
         Relationships: []
@@ -391,6 +369,13 @@ export type Database = {
             foreignKeyName: "calendar_events_content_draft_id_fkey"
             columns: ["content_draft_id"]
             isOneToOne: false
+            referencedRelation: "content_performance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_content_draft_id_fkey"
+            columns: ["content_draft_id"]
+            isOneToOne: false
             referencedRelation: "v_content_pipeline"
             referencedColumns: ["draft_id"]
           },
@@ -399,6 +384,13 @@ export type Database = {
             columns: ["draft_id"]
             isOneToOne: false
             referencedRelation: "content_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "content_performance"
             referencedColumns: ["id"]
           },
           {
@@ -537,6 +529,13 @@ export type Database = {
             foreignKeyName: "content_drafts_parent_draft_id_fkey"
             columns: ["parent_draft_id"]
             isOneToOne: false
+            referencedRelation: "content_performance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_drafts_parent_draft_id_fkey"
+            columns: ["parent_draft_id"]
+            isOneToOne: false
             referencedRelation: "v_content_pipeline"
             referencedColumns: ["draft_id"]
           },
@@ -609,6 +608,13 @@ export type Database = {
             foreignKeyName: "feedback_content_draft_id_fkey"
             columns: ["content_draft_id"]
             isOneToOne: false
+            referencedRelation: "content_performance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_content_draft_id_fkey"
+            columns: ["content_draft_id"]
+            isOneToOne: false
             referencedRelation: "v_content_pipeline"
             referencedColumns: ["draft_id"]
           },
@@ -617,6 +623,13 @@ export type Database = {
             columns: ["draft_id"]
             isOneToOne: false
             referencedRelation: "content_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "content_performance"
             referencedColumns: ["id"]
           },
           {
@@ -735,6 +748,13 @@ export type Database = {
             foreignKeyName: "god_mode_reviews_draft_id_fkey"
             columns: ["draft_id"]
             isOneToOne: false
+            referencedRelation: "content_performance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "god_mode_reviews_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
             referencedRelation: "v_content_pipeline"
             referencedColumns: ["draft_id"]
           },
@@ -787,6 +807,13 @@ export type Database = {
             columns: ["draft_id"]
             isOneToOne: false
             referencedRelation: "content_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "humanizer_performance_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "content_performance"
             referencedColumns: ["id"]
           },
           {
@@ -975,6 +1002,13 @@ export type Database = {
             foreignKeyName: "newsletters_slot_mossa_id_fkey"
             columns: ["slot_mossa_id"]
             isOneToOne: false
+            referencedRelation: "content_performance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "newsletters_slot_mossa_id_fkey"
+            columns: ["slot_mossa_id"]
+            isOneToOne: false
             referencedRelation: "v_content_pipeline"
             referencedColumns: ["draft_id"]
           },
@@ -989,6 +1023,13 @@ export type Database = {
             foreignKeyName: "newsletters_slot_sistema_id_fkey"
             columns: ["slot_sistema_id"]
             isOneToOne: false
+            referencedRelation: "content_performance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "newsletters_slot_sistema_id_fkey"
+            columns: ["slot_sistema_id"]
+            isOneToOne: false
             referencedRelation: "v_content_pipeline"
             referencedColumns: ["draft_id"]
           },
@@ -997,6 +1038,13 @@ export type Database = {
             columns: ["slot_strumento_id"]
             isOneToOne: false
             referencedRelation: "content_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "newsletters_slot_strumento_id_fkey"
+            columns: ["slot_strumento_id"]
+            isOneToOne: false
+            referencedRelation: "content_performance"
             referencedColumns: ["id"]
           },
           {
@@ -1363,6 +1411,13 @@ export type Database = {
             foreignKeyName: "social_metrics_draft_id_fkey"
             columns: ["draft_id"]
             isOneToOne: false
+            referencedRelation: "content_performance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_metrics_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
             referencedRelation: "v_content_pipeline"
             referencedColumns: ["draft_id"]
           },
@@ -1511,6 +1566,25 @@ export type Database = {
       }
     }
     Views: {
+      content_performance: {
+        Row: {
+          body: string | null
+          brand_id: string | null
+          engagement_score: number | null
+          id: string | null
+          platform: Database["public"]["Enums"]["platform"] | null
+          title: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_drafts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_content_pipeline: {
         Row: {
           alignment: number | null
@@ -1626,6 +1700,10 @@ export type Database = {
       auth_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      create_brand_with_owner: {
+        Args: { p_name: string; p_slug: string; p_topics?: string[] }
+        Returns: Json
       }
       find_semantic_duplicates: {
         Args: {
@@ -1849,9 +1927,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       campaign_status: [

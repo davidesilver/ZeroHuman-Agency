@@ -182,7 +182,7 @@ async def get_agent_config(config_id: str, request: Request):
 
     return {
         "success": True,
-        "data": config.data[0],
+        "data": config.data,
     }
 
 
@@ -360,7 +360,7 @@ async def get_agent_skill(skill_id: str, request: Request):
 
     return {
         "success": True,
-        "data": skill.data[0],
+        "data": skill.data,
     }
 
 

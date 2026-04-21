@@ -10,14 +10,14 @@ This package contains all AI agents used in the content pipeline:
 
 from .writer import generate_draft
 from .editor import edit_draft
-from .adapter import adapt_for_platforms
+from .adapter import adapt_content
 from .humanizer import humanize_draft
 from .god_system import run_god_mode
 
 __all__ = [
     "generate_draft",
     "edit_draft",
-    "adapt_for_platforms",
+    "adapt_content",
     "humanize_draft",
     "run_god_mode",
 ]

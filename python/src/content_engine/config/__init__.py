@@ -18,6 +18,10 @@ from .llm_models import (
     MODEL_CAPABILITIES,
 )
 
+# Re-export settings so `from .config import settings` works even though
+# the config/ package shadows the old config.py module.
+from .settings import Settings, settings
+
 __all__ = [
     'ModelCapability',
     'ModelConfig',
@@ -27,4 +31,6 @@ __all__ = [
     'get_model_ids_for_capability',
     'get_model_config',
     'MODEL_CAPABILITIES',
+    'Settings',
+    'settings',
 ]

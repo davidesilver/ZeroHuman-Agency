@@ -27,7 +27,7 @@ export async function GET(
     if (roundsError) return errorResponse(roundsError.message, 500)
 
     return jsonResponse({ session, rounds: rounds || [] })
-  } catch (err) {
+  } catch {
     return errorResponse('Failed to fetch session', 500)
   }
 }

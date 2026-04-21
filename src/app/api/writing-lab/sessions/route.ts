@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     if (error) return errorResponse(error.message, 500)
 
     return jsonResponse({ sessions: data || [] })
-  } catch (err) {
+  } catch {
     return errorResponse('Failed to fetch sessions', 500)
   }
 }

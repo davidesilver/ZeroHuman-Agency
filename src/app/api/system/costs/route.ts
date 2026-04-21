@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
       by_agent: Object.values(byAgent),
       daily_budget: 15.0,
     })
-  } catch (err) {
+  } catch {
     return errorResponse('Failed to fetch costs', 500)
   }
 }

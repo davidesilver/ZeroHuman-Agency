@@ -32,11 +32,14 @@ export default function DashboardPage() {
       agents_healthy: number
       agents_down: number
       agents_degraded: number
+      avg_uptime: number
+      total_errors: number
+      total_queue: number
       active_models: string[]
       active_engines: string[]
       emergency_fallbacks_24h: number
     }
-  }>({ agents: [], summary: { agents_healthy: 0, agents_down: 0, agents_degraded: 0, active_models: [], active_engines: [], emergency_fallbacks_24h: 0 } })
+  }>({ agents: [], summary: { agents_healthy: 0, agents_down: 0, agents_degraded: 0, avg_uptime: 0, total_errors: 0, total_queue: 0, active_models: [], active_engines: [], emergency_fallbacks_24h: 0 } })
 
   const fetchData = useCallback(async () => {
     const [statsRes, activityRes, costsRes, healthRes] = await Promise.all([

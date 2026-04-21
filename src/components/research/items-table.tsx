@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table'
 import { Check, Archive, X, ExternalLink } from 'lucide-react'
 
-interface ResearchItem {
+export interface ResearchItem {
   id: string
   title: string
   url: string

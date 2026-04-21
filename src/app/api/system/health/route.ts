@@ -2,22 +2,21 @@ import { createClient } from '@/lib/supabase/server'
 import { jsonResponse, errorResponse } from '@/lib/api-helpers'
 
 import { requireAuth } from '@/lib/supabase/auth-helpers'
-import { NextRequest } from 'next/server'
 
 interface AgentHealth {
   id: string
   brand_id: string
   agent_name: string
   status: 'healthy' | 'degraded' | 'down'
-  last_heartbeat: string
+  last_heartbeat: string | null
   current_model: string | null
   fallback_model: string | null
-  engine: 'anthropic' | 'openrouter' | 'unknown' | null
+  engine: string | null
   last_latency_ms: number | null
   avg_latency_ms: number | null
-  uptime_pct: number
-  errors_today: number
-  queue_size: number
+  uptime_pct: number | null
+  errors_today: number | null
+  queue_size: number | null
 }
 
 interface HealthSummary {
@@ -32,7 +31,7 @@ interface HealthSummary {
   emergency_fallbacks_24h: number
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const { auth, response } = await requireAuth()
     if (!auth) return response
@@ -92,7 +91,7 @@ export async function GET(request: NextRequest) {
       agents: typedAgents,
       summary,
     })
-  } catch (err) {
+  } catch {
     return errorResponse('Failed to fetch health data', 500)
   }
 }

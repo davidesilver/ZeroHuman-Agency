@@ -30,6 +30,7 @@ export async function GET(request: Request) {
     const review = data?.[0]
     if (!review) return jsonResponse(null)
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { content_drafts: _omit, ...rest } = review as Record<string, unknown>
     return jsonResponse(rest)
   } catch {

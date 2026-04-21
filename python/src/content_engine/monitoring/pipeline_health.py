@@ -63,9 +63,12 @@ async def get_pipeline_health(brand_id: Optional[str] = None) -> dict:
         1 for i in items
         if i.get("status") == "archived"
     )
+    # 'scored' items are awaiting human review/approval — that is what
+    # "pending_review" means in this pipeline context. The item_status enum
+    # has no 'pending_review' value; 'scored' is the correct equivalent.
     pending_review = sum(
         1 for i in items
-        if i.get("status") == "pending_review"
+        if i.get("status") == "scored"
     )
     errors = 0  # Would need to track this in DB or logs
 

@@ -28,6 +28,24 @@ def estimate_cost(model: str, tokens_input: int, tokens_output: int) -> float:
     return round(cost, 6)
 
 
+class CostTracker:
+    """Singleton helper used by llm_client to retrieve per-call cost estimates."""
+
+    async def get_cost_by_model(self, model: str, brand_id: str) -> float:
+        """Return estimated USD cost for a single average call on this model.
+
+        This is an in-process estimate (not a DB aggregate) — it gives the
+        LLMResponse a non-null cost_usd without an extra round-trip.
+        Actual logged costs live in the api_costs table via track_cost().
+        """
+        # Use the same pricing table as estimate_cost; assume ~1k tokens each
+        # direction as a representative single-call value.
+        return estimate_cost(model, tokens_input=1000, tokens_output=500)
+
+
+cost_tracker = CostTracker()
+
+
 async def track_cost(
     brand_id: str,
     agent_name: str,

@@ -25,8 +25,20 @@ function normalizeUrl(input: string): string {
   return `https://${trimmed}`
 }
 
+interface Draft {
+  id: string
+  title: string | null
+  body: string | null
+  platform: string
+  content_type: string
+  status: string
+  version: number | null
+  god_mode_result: unknown
+  created_at: string | null
+}
+
 export default function ContentHubPage() {
-  const [drafts, setDrafts] = useState<any[]>([])
+  const [drafts, setDrafts] = useState<Draft[]>([])
   const [activeTab, setActiveTab] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
   const [urlInput, setUrlInput] = useState('')

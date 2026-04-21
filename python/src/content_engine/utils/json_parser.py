@@ -278,6 +278,10 @@ class RobustJSONParser:
         return result if result else None
 
 
+# Module-level singleton — imported by llm_client as `from .json_parser import json_parser`
+json_parser = RobustJSONParser()
+
+
 def parse_llm_json(text: str, context: str = "unknown") -> Optional[Dict[str, Any]]:
     """
     Convenience wrapper for RobustJSONParser.parse_llm_response.

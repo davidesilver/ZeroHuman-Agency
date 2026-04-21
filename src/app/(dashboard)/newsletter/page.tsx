@@ -14,13 +14,22 @@ import {
 } from '@/components/ui/table'
 import { Plus, Send, Eye, Check, Loader2 } from 'lucide-react'
 
+interface Newsletter {
+  id: string
+  title: string | null
+  edition_number: number | null
+  status: string
+  sent_at: string | null
+  open_rate: number | null
+  click_rate: number | null
+}
+
 export default function NewsletterPage() {
-  const [newsletters, setNewsletters] = useState<any[]>([])
+  const [newsletters, setNewsletters] = useState<Newsletter[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [sendingId, setSendingId] = useState<string | null>(null)
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
-  const [previewId, setPreviewId] = useState<string | null>(null)
 
   const fetchNewsletters = useCallback(async () => {
     setIsLoading(true)
@@ -47,7 +56,6 @@ export default function NewsletterPage() {
   }
 
   const handlePreview = async (id: string) => {
-    setPreviewId(id)
     try {
       const resp = await fetch(`/api/newsletter/${id}/preview`)
       const json = await resp.json()
@@ -86,7 +94,6 @@ export default function NewsletterPage() {
 
   const closePreview = () => {
     setPreviewHtml(null)
-    setPreviewId(null)
   }
 
   const statusVariant = (status: string) => {
@@ -102,17 +109,24 @@ export default function NewsletterPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Newsletter</h1>
+        {/*
+          P0.2: Generate Newsletter is disabled until P4 lands.
+          The Python endpoint POST /newsletter/generate does not exist yet —
+          leaving this enabled produces a 500 on every click.
+          Re-enable by removing `disabled` and the tooltip in P4.6.
+        */}
         <Button
           className="bg-staging-bg hover:bg-staging-bg/90 text-white"
           onClick={handleGenerate}
-          disabled={generating}
+          disabled={true}
+          title="Coming soon — newsletter generation lands in P4 of the memory-native upgrade"
         >
           {generating ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
             <Plus className="size-4" />
           )}
-          {generating ? 'Generating...' : 'Generate Newsletter'}
+          Generate Newsletter (soon)
         </Button>
       </div>
 

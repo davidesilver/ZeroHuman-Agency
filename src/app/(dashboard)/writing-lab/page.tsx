@@ -35,9 +35,9 @@ interface GodReview {
   advocate_feedback: string | null
   advocate_score: number | null
   factcheck_feedback: string | null
-  factcheck_issues: any[] | null
+  factcheck_issues: unknown[] | null
   creative_feedback: string | null
-  creative_suggestions: any[] | null
+  creative_suggestions: unknown[] | null
   synthesis_result: string | null
   final_verdict: string | null
 }
@@ -98,9 +98,8 @@ export default function WritingLabPage() {
     setGodLoading(true)
     setGodReview(null)
     try {
-      // Create a temporary draft from the champion text, then run GOD mode
       const text = session?.current_champion || currentRound?.champion_text || ''
-      const resp = await fetch('/api/content/drafts', {
+      const draftResp = await fetch('/api/content/drafts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -111,8 +110,15 @@ export default function WritingLabPage() {
           status: 'draft',
         }),
       })
-      // If we can't create a draft directly, fetch the latest review instead
-      const reviewResp = await fetch('/api/god-mode-reviews')
+      const draftJson = await draftResp.json()
+      if (!draftJson.success) return
+
+      const draftId = draftJson.data?.id
+      if (!draftId) return
+
+      await fetch(`/api/content/drafts/${draftId}/god-mode`, { method: 'POST' })
+
+      const reviewResp = await fetch(`/api/god-mode-reviews?draft_id=${draftId}`)
       const reviewJson = await reviewResp.json()
       if (reviewJson.success && reviewJson.data) {
         setGodReview(reviewJson.data)

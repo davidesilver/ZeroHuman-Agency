@@ -26,7 +26,7 @@ export function useRealtime(
     const channel = supabase
       .channel(channelName)
       .on(
-        'postgres_changes' as any,
+        'postgres_changes',
         {
           event: '*',
           schema: 'public',

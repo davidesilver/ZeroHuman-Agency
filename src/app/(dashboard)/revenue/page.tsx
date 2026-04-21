@@ -35,7 +35,7 @@ interface AgentHealth {
 }
 
 export default function RevenuePage() {
-  const [deals, setDeals] = useState<Deal[]>([])
+  const [deals] = useState<Deal[]>([])
   const [health, setHealth] = useState<{ agents: AgentHealth[]; summary: { avg_uptime: number; total_errors: number; total_queue: number } }>({
     agents: [],
     summary: { avg_uptime: 0, total_errors: 0, total_queue: 0 },

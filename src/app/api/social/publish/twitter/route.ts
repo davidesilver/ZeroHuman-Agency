@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
 
   // Strip any accidental access_token from client-sent body (defensive)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { access_token: _removed, ...safeBody } = body
 
   return proxyToBackend('/api/social/publish/twitter', { method: 'POST', body: safeBody })

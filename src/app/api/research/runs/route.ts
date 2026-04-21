@@ -19,7 +19,7 @@ export async function GET(request: Request) {
 
   if (status) query = query.eq('status', status)
 
-  const { data, error, count } = await query
+  const { data, error } = await query
 
   if (error) return errorResponse(error.message, 500)
 

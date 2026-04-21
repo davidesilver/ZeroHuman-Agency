@@ -95,7 +95,7 @@ async def edit_draft(brand_id: str, draft_id: str) -> dict:
         # H-07: draft fields may contain web-scraped content — sanitize before LLM injection
         title=sanitize_for_prompt(draft_data.get("title", ""), context="draft.title"),
         platform=draft_data.get("platform", ""),
-        body=sanitize_for_prompt(draft_data.get("body", ""), context="draft.body",
+        body=sanitize_for_prompt(draft_data.get("body", ""), context="draft.body"),
     )
 
     raw_res = await call_llm(

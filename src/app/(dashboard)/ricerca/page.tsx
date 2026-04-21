@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { StatusTabs } from '@/components/research/status-tabs'
 import { VolumeReport } from '@/components/research/volume-report'
-import { ItemsTable } from '@/components/research/items-table'
+import { ItemsTable, ResearchItem } from '@/components/research/items-table'
 import { Search, Loader2 } from 'lucide-react'
 
 interface Counts {
@@ -25,7 +25,7 @@ const RETRIEVER_COLORS: Record<string, string> = {
 }
 
 export default function RicercaPage() {
-  const [items, setItems] = useState<any[]>([])
+  const [items, setItems] = useState<ResearchItem[]>([])
   const [counts, setCounts] = useState<Counts>({ total: 0, new: 0, scored: 0, approved: 0, archived: 0, rejected: 0 })
   const [activeTab, setActiveTab] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
