@@ -245,6 +245,23 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
     platform = d.get("platform", "")
     body = d.get("body", "")
 
+    # P3.5: Load gold/discard examples from semantic memory for brand alignment checks
+    from ..memory.retrieval import recall as memory_recall
+    _gold_facts = await memory_recall(brand_id, "gold example best content approved", kind="gold_example", k=3)
+    _discard_facts = await memory_recall(brand_id, "discard example bad content avoid", kind="discard_example", k=3)
+
+    _gold_block = ""
+    if _gold_facts:
+        _gold_block = "\n\n<gold_examples>\n" + "\n---\n".join(
+            f["statement"] for f in _gold_facts
+        ) + "\n</gold_examples>"
+
+    _discard_block = ""
+    if _discard_facts:
+        _discard_block = "\n\n<discard_examples>\n" + "\n---\n".join(
+            f["statement"] for f in _discard_facts
+        ) + "\n</discard_examples>"
+
     from ..services.alerting import send_telegram_alert
 
     async def _fail(step: str, error: Exception) -> dict:
@@ -283,6 +300,7 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
 """
 
             adv_prompt = full_prompt.format(title=title, platform=platform, body=body)
+            adv_prompt += _gold_block + _discard_block  # P3.5: inject memory examples
             adv_resp = await call_llm(adv_prompt, brand_id, context="god_advocate", action="advocate", task_type="knowledge")
             adv_raw = adv_resp.content
             adv = _parse_json(adv_raw, context="god_advocate")
@@ -332,6 +350,7 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
 """
 
             cr_prompt = full_prompt.format(title=title, platform=platform, body=body)
+            cr_prompt += _gold_block + _discard_block  # P3.5: inject memory examples
             cr_resp = await call_llm(cr_prompt, brand_id, context="god_creative", action="creative", task_type="creative")
             cr_raw = cr_resp.content
             cr = _parse_json(cr_raw, context="god_creative")

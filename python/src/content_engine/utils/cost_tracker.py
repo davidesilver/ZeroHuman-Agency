@@ -73,3 +73,47 @@ async def track_cost(
         "cost_usd": cost,
         "latency_ms": latency_ms,
     }).execute()
+
+
+async def check_daily_cost_cap(brand_id: str) -> None:
+    """Check whether the brand has exceeded the daily cost cap.
+
+    Queries api_costs for the current UTC day, compares against the
+    DAILY_COST_CAP_USD env var (default $5.00), sends a Telegram alert
+    and raises RuntimeError if the cap is exceeded.
+    """
+    import os
+    from datetime import datetime, timezone
+
+    cap = float(os.environ.get("DAILY_COST_CAP_USD", "5.0"))
+
+    # Start of today in UTC (midnight)
+    now_utc = datetime.now(timezone.utc)
+    today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+
+    db = get_db()
+    resp = (
+        db.table("api_costs")
+        .select("cost_usd")
+        .eq("brand_id", brand_id)
+        .gte("created_at", today_start)
+        .execute()
+    )
+    rows = resp.data or []
+    total = sum(float(r.get("cost_usd", 0) or 0) for r in rows)
+
+    if total >= cap:
+        # Lazy import to avoid circular import at module load time
+        from ..monitoring.pipeline_health import send_alerts
+        await send_alerts(
+            [
+                f"🚨 Daily cost cap ${cap:.2f} exceeded for brand {brand_id}"
+                f" — pipeline aborted. Actual spend: ${total:.4f}"
+            ]
+        )
+        raise RuntimeError(
+            f"Daily cost cap ${cap:.2f} exceeded (actual ${total:.4f}) for brand {brand_id}"
+        )
+
+
+CostCapExceeded = RuntimeError  # sentinel for callers

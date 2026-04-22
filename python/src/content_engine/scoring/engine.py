@@ -138,9 +138,19 @@ async def score_item(item: dict, brand: dict) -> tuple[ScoreResult, float, str]:
     brand_resp = db.table("brands").select("*").eq("id", brand.get("id", "")).single().execute()
     brand_data = brand_resp.data if brand_resp.data else brand
 
+    # P3.4: Try memory.recall for principles first (falls back to brand JSON if empty)
+    from ..memory.retrieval import recall as memory_recall
+
+    brand_id = brand.get("id", "")
+    _mem_principles = await memory_recall(brand_id, "brand founding principles values", kind="principle", k=8)
+    if _mem_principles:
+        principles = [f["statement"] for f in _mem_principles]
+    else:
+        principles = brand_data.get("founder_principles") or \
+                     (brand_data.get("scoring_weights") or {}).get("founder_principles", [])
+
+    # Topics: read from DB (memory doesn't store topics as structured lists yet)
     topics = brand_data.get("topics") or []
-    principles = brand_data.get("founder_principles") or \
-                 (brand_data.get("scoring_weights") or {}).get("founder_principles", [])
 
     prompt = SCORING_PROMPT.format(
         topics=", ".join(topics),

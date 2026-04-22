@@ -10,7 +10,7 @@ export async function GET() {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('brands')
-      .select('id, name, slug, topics, tone_of_voice, scoring_weights')
+      .select('id, name, slug, topics, tone_of_voice, scoring_weights, research_sources')
       .order('name')
 
     if (error) return errorResponse('Failed to fetch brands', 500)

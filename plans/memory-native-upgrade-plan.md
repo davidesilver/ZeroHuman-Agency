@@ -454,8 +454,9 @@ The infrastructure that everything else builds on.
 | P2.8 | Arbiter: supersede + temporal reflection summary | `memory/arbiter.py` |
 | P2.9 | Minimal Memory Inspector UI `/memory` — list brand facts, edit, delete, see episodic feed | `src/app/(dashboard)/memory/page.tsx` (NEW) |
 | P2.10 | Wire existing research dedup (migration 002 `find_similar_research_items`) to log episodic event on duplicate | `scoring/*.py` |
+| **P2.T** | **Telegram alert after consolidation**: after each successful worker run, fire `send_telegram_alert` with summary: `"Brand X: +N facts added, M expired, K superseded"` | `memory/consolidation/worker.py` — reuse `services/alerting.send_telegram_alert` already wired |
 
-**Gate**: For a test brand, `memory.recall("brand tone")` returns ranked results from `memory_semantic`; episodic log shows every draft/GOD/feedback event; TTL sweep empties transient entries older than 7 days.
+**Gate**: For a test brand, `memory.recall("brand tone")` returns ranked results from `memory_semantic`; episodic log shows every draft/GOD/feedback event; TTL sweep empties transient entries older than 7 days; Telegram delivers consolidation summary.
 
 ---
 
@@ -470,6 +471,7 @@ Replaces the dead `tone_of_voice` JSON editor with memory-backed flow.
 | P3.3 | "Discover from sources" wizard: paste URLs / upload docs → spawn `brand-voice:discover-brand` agent → verifier → write to memory_semantic | `src/app/api/memory/discover/route.ts` (NEW, proxies to Python) |
 | P3.4 | Python endpoint `POST /memory/discover` runs the brand-voice discover agent, pipes output through verifier | `routes.py` |
 | P3.5 | Python endpoint `POST /memory/upload-source` accepts file, runs document-analysis agent | `routes.py` |
+| **P3.T** | **Telegram alert after discovery**: once the discover/upload pipeline finishes verifying and writing facts, fire `send_telegram_alert`: `"Discovery for Brand X complete: +N facts staged for review. Pending: [list of top 5 statements]"` | `routes.py` POST /memory/discover handler |
 | P3.6 | Scoring pipeline (`scoring/*.py`) reads principles via `memory.recall(kind='principle')` instead of `brands.scoring_weights` JSON | `scoring/` |
 | P3.7 | GOD mode reads `discard_example` and `gold_example` memories for few-shot context | `agents/god_system.py` |
 | P3.8 | Humanizer reads `tone_rule` memories | `agents/humanizer.py` |
@@ -488,6 +490,7 @@ Now that memory is in place, generation can use brand voice properly.
 | P4.1 | Python endpoint `POST /newsletter/generate` | `routes.py` + new `services/newsletter_generator.py` |
 | P4.2 | Logic: fetch last 7 days of `research_items WHERE status='approved'` for active brand, group by topic, call Claude Sonnet with brand tone memories as system prompt, write editorial + section intros, save to `newsletters` | `newsletter_generator.py` |
 | P4.3 | Log episodic event `newsletter_generated` with token usage + cost | `newsletter_generator.py` |
+| **P4.T** | **Telegram alert after generation**: after writing the newsletter draft to DB, fire `send_telegram_alert`: `"Newsletter for Brand X generated: '[title]'\nOpen in dashboard → /newsletter/[id]\nTopics: X • Cost: $Y"` | `newsletter_generator.py` — reuse `services/alerting.send_telegram_alert` |
 | P4.4 | Weekly cron: Monday 05:00 UTC `/scheduler/weekly-newsletter` (secret-protected, per brand) | migration 019 (new cron) |
 | P4.5 | Newsletter page: re-enable button, remove "Coming soon", add progress indicator | `src/app/(dashboard)/newsletter/page.tsx` |
 | P4.6 | Newsletter edit: allow editing sections before send | `src/app/(dashboard)/newsletter/[id]/page.tsx` (NEW) |

@@ -12,7 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Send, Eye, Check, Loader2 } from 'lucide-react'
+import { Plus, Send, Eye, Check, Loader2, Pencil } from 'lucide-react'
+import Link from 'next/link'
 
 interface Newsletter {
   id: string
@@ -30,6 +31,7 @@ export default function NewsletterPage() {
   const [generating, setGenerating] = useState(false)
   const [sendingId, setSendingId] = useState<string | null>(null)
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
+  const [generateMsg, setGenerateMsg] = useState<string | null>(null)
 
   const fetchNewsletters = useCallback(async () => {
     setIsLoading(true)
@@ -45,13 +47,19 @@ export default function NewsletterPage() {
 
   const handleGenerate = async () => {
     setGenerating(true)
+    setGenerateMsg(null)
     try {
       const resp = await fetch('/api/newsletter/generate', { method: 'POST' })
       const json = await resp.json()
       if (json.success) {
+        setGenerateMsg(`✅ Draft created: "${json.data?.title || 'Newsletter'}" (edition #${json.data?.edition_number})`)
         await fetchNewsletters()
+      } else {
+        setGenerateMsg(`❌ ${json.error?.message || 'Generation failed — check approved research items'}`)
       }
-    } catch {}
+    } catch {
+      setGenerateMsg('❌ Network error')
+    }
     setGenerating(false)
   }
 
@@ -109,26 +117,23 @@ export default function NewsletterPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Newsletter</h1>
-        {/*
-          P0.2: Generate Newsletter is disabled until P4 lands.
-          The Python endpoint POST /newsletter/generate does not exist yet —
-          leaving this enabled produces a 500 on every click.
-          Re-enable by removing `disabled` and the tooltip in P4.6.
-        */}
         <Button
           className="bg-staging-bg hover:bg-staging-bg/90 text-white"
           onClick={handleGenerate}
-          disabled={true}
-          title="Coming soon — newsletter generation lands in P4 of the memory-native upgrade"
+          disabled={generating}
         >
           {generating ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-4 animate-spin mr-1" />
           ) : (
-            <Plus className="size-4" />
+            <Plus className="size-4 mr-1" />
           )}
-          Generate Newsletter (soon)
+          {generating ? 'Generating…' : 'Generate Newsletter'}
         </Button>
       </div>
+
+      {generateMsg && (
+        <p className="text-sm text-muted-foreground -mt-2">{generateMsg}</p>
+      )}
 
       <div className="grid grid-cols-4 gap-4">
         <KPICard title="Sent this month" value={newsletters.filter(n => n.status === 'sent').length} />
@@ -182,6 +187,15 @@ export default function NewsletterPage() {
                     >
                       <Eye className="size-3" />
                     </Button>
+                    {nl.status === 'draft' && (
+                      <Link
+                        href={`/newsletter/${nl.id}`}
+                        className="inline-flex items-center h-7 px-2 text-xs rounded hover:bg-muted transition-colors"
+                        title="Edit draft"
+                      >
+                        <Pencil className="size-3" />
+                      </Link>
+                    )}
                     {nl.status === 'draft' && (
                       <Button
                         variant="ghost"

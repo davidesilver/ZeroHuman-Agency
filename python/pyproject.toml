@@ -16,6 +16,8 @@ dependencies = [
     "resend>=2.0.0",
     "supabase>=2.28.3",
     "uvicorn>=0.44.0",
+    "pypdf>=4.0.0",
+    "python-docx>=1.1.0",
 ]
 
 [project.scripts]

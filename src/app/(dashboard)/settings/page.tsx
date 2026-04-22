@@ -1,8 +1,14 @@
 'use client'
 
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Settings as SettingsIcon, Key, Bot, Mail, Share2, Database, Clock } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Settings as SettingsIcon, Key, Bot, Mail, Share2, Database, Clock, Building, Plus, Loader2, ExternalLink, Brain } from 'lucide-react'
+import { useBrand } from '@/lib/brand-context'
+import Link from 'next/link'
 
 const CONFIG_SECTIONS = [
   {
@@ -62,6 +68,134 @@ const CONFIG_SECTIONS = [
   },
 ]
 
+function AddBrandCard() {
+  const { brands, setActiveBrand } = useBrand()
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [slug, setSlug] = useState('')
+  const [topics, setTopics] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+
+  const handleNameChange = (v: string) => {
+    setName(v)
+    setSlug(v.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, ''))
+  }
+
+  const handleCreate = async () => {
+    if (!name.trim() || !slug.trim()) return
+    setSaving(true)
+    setError(null)
+    try {
+      const resp = await fetch('/api/brands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          slug: slug.trim(),
+          topics: topics ? topics.split(',').map(t => t.trim()).filter(Boolean) : [],
+        }),
+      })
+      const json = await resp.json()
+      if (json.success) {
+        const newBrand = { id: json.data.id, name: json.data.name, slug: json.data.slug }
+        setActiveBrand(newBrand)
+        setSuccess(`Brand "${newBrand.name}" created and set as active.`)
+        setName(''); setSlug(''); setTopics('')
+        setOpen(false)
+        window.location.reload()
+      } else {
+        setError(json.error?.message || 'Failed to create brand')
+      }
+    } catch {
+      setError('Network error')
+    }
+    setSaving(false)
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Building className="size-4 text-muted-foreground" />
+            Brands
+            <Badge variant="secondary" className="text-[10px] ml-1">{brands.length}</Badge>
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/brands"
+              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+            >
+              <ExternalLink className="size-3" /> Manage
+            </Link>
+            <Button
+              size="sm"
+              className="h-7 text-xs gap-1 bg-staging-bg hover:bg-staging-bg/90 text-white"
+              onClick={() => { setOpen(!open); setError(null) }}
+            >
+              <Plus className="size-3" /> Add brand
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      {open && (
+        <CardContent className="pt-0">
+          <div className="space-y-3 p-3 bg-secondary/40 rounded-md">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Name</Label>
+                <Input
+                  value={name}
+                  onChange={e => handleNameChange(e.target.value)}
+                  placeholder="Silvestri Pallets"
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Slug <span className="text-muted-foreground">(auto)</span></Label>
+                <Input
+                  value={slug}
+                  onChange={e => setSlug(e.target.value)}
+                  placeholder="silvestri-pallets"
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Topics <span className="text-muted-foreground">(comma separated)</span></Label>
+              <Input
+                value={topics}
+                onChange={e => setTopics(e.target.value)}
+                placeholder="logistics, sustainability, B2B"
+                className="h-8 text-sm"
+              />
+            </div>
+            {error && <p className="text-xs text-destructive">{error}</p>}
+            {success && <p className="text-xs text-green-600">{success}</p>}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 text-xs bg-staging-bg hover:bg-staging-bg/90 text-white"
+                disabled={saving || !name.trim() || !slug.trim()}
+                onClick={handleCreate}
+              >
+                {saving ? <Loader2 className="size-3 animate-spin" /> : null}
+                {saving ? 'Creating...' : 'Create'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  )
+}
+
 export default function SettingsPage() {
   return (
     <div className="space-y-4">
@@ -72,6 +206,34 @@ export default function SettingsPage() {
           Read-only (edit .env.local)
         </Badge>
       </div>
+
+      {/* Brands — actionable section at the top */}
+      <AddBrandCard />
+
+      {/* Brand Context — quick link to memory management */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Brain className="size-4 text-muted-foreground" />
+              Brand Context Memory
+            </CardTitle>
+            <Link
+              href="/settings/brand-context"
+              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+            >
+              <ExternalLink className="size-3" /> Manage
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <p className="text-xs text-muted-foreground">
+            Tone rules, principles, gold examples and discard examples stored in semantic memory
+            and automatically loaded by all AI agents.
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4">
         {CONFIG_SECTIONS.map(section => (

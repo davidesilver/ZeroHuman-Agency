@@ -474,6 +474,39 @@ class SendNewsletterRequest(BaseModel):
             raise ValueError(f"Invalid email addresses: {invalid[:5]}")
 
 
+@router.post("/newsletter/generate")
+async def api_generate_newsletter(request: Request):
+    brand_id = _get_brand_id(request)
+    from ..services.newsletter_generator import generate_newsletter
+    result = await generate_newsletter(brand_id)
+    if not result.get("ok"):
+        raise HTTPException(422, result.get("reason", "generation_failed"))
+    return {"success": True, "data": result}
+
+
+@router.post("/scheduler/weekly-newsletter", dependencies=[Depends(_require_scheduler_secret)])
+async def api_weekly_newsletter(request: Request):
+    """Generate newsletter drafts for all brands with sufficient content.
+    Called by pg_cron weekly (Monday 05:00 UTC) or manually.
+    """
+    from ..services.newsletter_generator import generate_newsletter
+
+    db = get_db()
+    # Get all distinct brand_ids from brand_members
+    brands_resp = db.table("brand_members").select("brand_id").execute()
+    brand_ids = list({row["brand_id"] for row in (brands_resp.data or [])})
+
+    results = []
+    for brand_id in brand_ids:
+        try:
+            r = await generate_newsletter(brand_id)
+            results.append({"brand_id": brand_id, **r})
+        except Exception as e:
+            results.append({"brand_id": brand_id, "ok": False, "error": str(e)})
+
+    return {"success": True, "data": {"brands_processed": len(results), "results": results}}
+
+
 @router.post("/newsletter/send")
 async def api_send_newsletter(req: SendNewsletterRequest, request: Request):
     brand_id = _get_brand_id(request)
@@ -708,6 +741,395 @@ async def api_get_fallback_log(
             "limit": limit,
             "emergency_only": emergency_only,
             "total": resp.count or 0,
+        },
+    }
+
+
+# ============================================================================
+# P2.5 — Memory endpoints
+# ============================================================================
+
+
+class MemoryConsolidateRequest(BaseModel):
+    brand_id: str | None = None   # required for scheduler calls; overrides JWT brand
+    session_id: str | None = None
+    # Optionally pass source texts directly (e.g. from P3 discover wizard)
+    source_texts: list[dict] | None = None
+
+
+@router.post("/memory/consolidate", dependencies=[Depends(_require_scheduler_secret)])
+async def api_memory_consolidate(
+    payload: MemoryConsolidateRequest,
+    request: Request,
+):
+    """Trigger a memory consolidation run for a brand.
+
+    - Scheduler-secret protected (X-Scheduler-Secret header required).
+    - If payload.brand_id is provided it is used (scheduler use-case).
+    - If omitted and the request has a JWT brand, that brand is used.
+    - source_texts: optional list of {"text", "source_kind", "source_id"} dicts.
+      If not provided, the worker fetches recent episodic events automatically.
+    """
+    from ..memory.consolidation.worker import run_consolidation
+
+    # Resolve brand_id: explicit > JWT middleware > error
+    brand_id = payload.brand_id or getattr(request.state, "brand_id", None)
+    if not brand_id:
+        raise HTTPException(400, "brand_id required (set in payload or authenticate via JWT)")
+
+    report = await run_consolidation(
+        brand_id=brand_id,
+        session_id=payload.session_id,
+        source_texts=payload.source_texts,
+    )
+
+    return {
+        "success": True,
+        "data": {
+            "brand_id": brand_id,
+            "session_id": payload.session_id,
+            "facts_added": len(report.facts_added),
+            "facts_rejected_verify": len(report.facts_rejected_verify),
+            "facts_rejected_dedup": len(report.facts_rejected_dedup),
+            "facts_superseded": len(report.facts_superseded),
+            "duration_s": report.duration_s,
+            "errors": report.errors,
+        },
+    }
+
+
+class MemoryRecallRequest(BaseModel):
+    query: str
+    kind: str | None = None
+    k: int = 5
+
+
+@router.post("/memory/recall")
+async def api_memory_recall(
+    payload: MemoryRecallRequest,
+    request: Request,
+):
+    """Retrieve top-k semantic memories for the authenticated brand.
+
+    Requires JWT authentication (uses X-Brand-ID / brand from JWT middleware).
+    Uses temporal-weighted composite score: 0.60·cosine + 0.25·decay + 0.15·importance.
+    """
+    brand_id = _get_brand_id(request)
+    from ..memory.retrieval import recall
+
+    facts = await recall(brand_id=brand_id, query=payload.query, kind=payload.kind, k=payload.k)
+    return {"success": True, "data": facts}
+
+
+@router.get("/memory/facts")
+async def api_memory_list_facts(
+    request: Request,
+    kind: str | None = Query(None),
+    tier: str | None = Query(None),
+    limit: int = Query(100, le=500),
+):
+    """List semantic memory facts for the authenticated brand (Memory Inspector)."""
+    brand_id = _get_brand_id(request)
+    from ..memory.stores.semantic import list_facts
+
+    facts = await list_facts(brand_id=brand_id, kind=kind, tier=tier, limit=limit)  # type: ignore[arg-type]
+    return {"success": True, "data": facts, "count": len(facts)}
+
+
+@router.get("/memory/episodic")
+async def api_memory_episodic(
+    request: Request,
+    limit: int = Query(100, le=500),
+):
+    """Return recent episodic events from vw_memory_episodic (Memory Inspector feed)."""
+    brand_id = _get_brand_id(request)
+    db = get_db()
+    resp = (
+        db.table("vw_memory_episodic")
+        .select("event_kind,subject_kind,subject_id,summary,payload,occurred_at")
+        .eq("brand_id", brand_id)
+        .order("occurred_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return {"success": True, "data": resp.data or []}
+
+
+@router.get("/memory/expiring")
+async def api_memory_expiring(
+    request: Request,
+    days: int = Query(7, le=30),
+):
+    """Return semantic facts expiring within `days` days (Memory Inspector warning widget)."""
+    brand_id = _get_brand_id(request)
+    from ..memory.decay import expiring_soon
+
+    facts = await expiring_soon(brand_id=brand_id, days=days)
+    return {"success": True, "data": facts}
+
+
+@router.patch("/memory/facts/{fact_id}")
+async def api_memory_patch_fact(
+    fact_id: str,
+    request: Request,
+):
+    """Partially update a semantic fact (statement, tier, importance) from the Inspector."""
+    brand_id = _get_brand_id(request)
+    body = await request.json()
+
+    # Only allow these fields to be patched
+    allowed = {"statement", "tier", "importance", "metadata"}
+    patch = {k: v for k, v in body.items() if k in allowed}
+    if not patch:
+        raise HTTPException(400, "No patchable fields provided")
+
+    from ..memory.stores.semantic import update_fact, list_facts
+
+    # Verify ownership: fact must belong to this brand
+    db = get_db()
+    check = (
+        db.table("memory_semantic")
+        .select("id")
+        .eq("id", fact_id)
+        .eq("brand_id", brand_id)
+        .maybe_single()
+        .execute()
+    )
+    if not check.data:
+        raise HTTPException(404, "Fact not found or not in your brand")
+
+    await update_fact(fact_id=fact_id, **patch)
+    return {"success": True}
+
+
+@router.delete("/memory/facts/{fact_id}")
+async def api_memory_delete_fact(fact_id: str, request: Request):
+    """Hard-delete a semantic fact (use sparingly — prefer supersede)."""
+    brand_id = _get_brand_id(request)
+    db = get_db()
+    check = (
+        db.table("memory_semantic")
+        .select("id")
+        .eq("id", fact_id)
+        .eq("brand_id", brand_id)
+        .maybe_single()
+        .execute()
+    )
+    if not check.data:
+        raise HTTPException(404, "Fact not found or not in your brand")
+
+    from ..memory.stores.semantic import delete_fact
+
+    await delete_fact(fact_id)
+    return {"success": True}
+
+
+@router.post("/memory/facts/{fact_id}/supersede")
+async def api_memory_supersede_fact(fact_id: str, request: Request):
+    """Supersede a fact with a new statement (temporal arbiter pattern)."""
+    brand_id = _get_brand_id(request)
+    body = await request.json()
+    new_statement = body.get("new_statement", "").strip()
+    reason = body.get("reason", "")
+    if not new_statement:
+        raise HTTPException(400, "new_statement is required")
+
+    db = get_db()
+    check = (
+        db.table("memory_semantic")
+        .select("id")
+        .eq("id", fact_id)
+        .eq("brand_id", brand_id)
+        .maybe_single()
+        .execute()
+    )
+    if not check.data:
+        raise HTTPException(404, "Fact not found or not in your brand")
+
+    from ..memory.arbiter import supersede
+
+    new_id = await supersede(
+        old_fact_id=fact_id,
+        new_statement=new_statement,
+        brand_id=brand_id,
+        reason=reason,
+    )
+    return {"success": True, "data": {"new_fact_id": new_id}}
+
+
+# ============================================================================
+# P3.2 — Memory discover (URL preview)
+# P3.3 — Memory upload-source (file upload preview)
+# ============================================================================
+
+
+class MemoryDiscoverRequest(BaseModel):
+    url: str
+    brand_id: str | None = None  # optional override (must be in member_brand_ids)
+
+
+@router.post("/memory/discover")
+async def api_memory_discover(payload: MemoryDiscoverRequest, request: Request):
+    """Fetch a URL, extract candidate memory facts, and return them for review.
+
+    This is a preview endpoint — nothing is written to memory_semantic.
+    The caller (UI) reviews candidates and calls /memory/consolidate to persist.
+
+    Auth: JWT required. brand_id override accepted only if it belongs to the caller.
+    """
+    import re as _re
+
+    import httpx
+
+    from ..memory.consolidation.extractor import extract_facts_from_text
+    from ..memory.consolidation.verifier import verify
+
+    # Resolve brand_id: JWT default, or body override validated against membership
+    jwt_brand_id = _get_brand_id(request)
+    if payload.brand_id and payload.brand_id != jwt_brand_id:
+        member_brand_ids = getattr(request.state, "member_brand_ids", [])
+        if payload.brand_id not in member_brand_ids:
+            raise HTTPException(403, "brand_id override not in your brand memberships")
+        brand_id = payload.brand_id
+    else:
+        brand_id = jwt_brand_id
+
+    url = payload.url.strip()
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(400, "url must start with http:// or https://")
+
+    # Fetch the URL
+    try:
+        async with httpx.AsyncClient(
+            timeout=15.0,
+            follow_redirects=True,
+            headers={"User-Agent": "Mozilla/5.0"},
+        ) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            raw_html = resp.text
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(502, f"URL fetch failed: HTTP {exc.response.status_code}")
+    except httpx.RequestError as exc:
+        raise HTTPException(502, f"URL fetch error: {exc}")
+
+    # Strip HTML tags, collapse whitespace, cap at 12 000 chars
+    text = _re.sub(r"<[^>]+>", " ", raw_html)
+    text = _re.sub(r"\s+", " ", text).strip()
+    text = text[:12000]
+
+    # Extract candidate facts
+    candidates = await extract_facts_from_text(
+        text=text,
+        brand_id=brand_id,
+        source_kind="url",
+        source_id=url,
+    )
+
+    # Run verifier (mark each fact, include all)
+    for fact in candidates:
+        result = verify(fact["statement"])
+        fact["verified"] = result.passed
+        fact["verification_failures"] = result.failures
+
+    return {
+        "success": True,
+        "data": {
+            "url": url,
+            "candidates": candidates,
+            "count": len(candidates),
+        },
+    }
+
+
+@router.post("/memory/upload-source")
+async def api_memory_upload_source(request: Request):
+    """Upload a document file and extract candidate memory facts for review.
+
+    Accepts: .txt, .md, .pdf, .docx  (multipart/form-data with `file` field).
+    Optional form field: `brand_id` (override, must be in member_brand_ids).
+
+    This is a preview endpoint — nothing is written to memory_semantic.
+    """
+    import io
+
+    from fastapi import UploadFile
+    from fastapi.datastructures import FormData
+
+    from ..memory.consolidation.extractor import extract_facts_from_text
+    from ..memory.consolidation.verifier import verify
+
+    # Parse multipart form
+    form: FormData = await request.form()
+    file_field = form.get("file")
+    if file_field is None or not isinstance(file_field, UploadFile):
+        raise HTTPException(400, "Missing `file` field in multipart form")
+
+    upload: UploadFile = file_field
+    filename: str = upload.filename or "unknown"
+
+    # Resolve brand_id
+    jwt_brand_id = _get_brand_id(request)
+    form_brand_id = form.get("brand_id")
+    if form_brand_id and form_brand_id != jwt_brand_id:
+        member_brand_ids = getattr(request.state, "member_brand_ids", [])
+        if form_brand_id not in member_brand_ids:
+            raise HTTPException(403, "brand_id override not in your brand memberships")
+        brand_id = form_brand_id
+    else:
+        brand_id = jwt_brand_id
+
+    # Determine file type by extension
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    raw_bytes = await upload.read()
+
+    if ext in ("txt", "md"):
+        text = raw_bytes.decode("utf-8", errors="replace")
+
+    elif ext == "pdf":
+        try:
+            from pypdf import PdfReader
+        except ImportError:
+            raise HTTPException(500, "pypdf is not installed — PDF uploads unavailable")
+        reader = PdfReader(io.BytesIO(raw_bytes))
+        pages_text = []
+        for page in reader.pages:
+            pages_text.append(page.extract_text() or "")
+        text = "\n".join(pages_text)
+
+    elif ext == "docx":
+        try:
+            from docx import Document
+        except ImportError:
+            raise HTTPException(500, "python-docx is not installed — DOCX uploads unavailable")
+        doc = Document(io.BytesIO(raw_bytes))
+        text = "\n".join(p.text for p in doc.paragraphs)
+
+    else:
+        raise HTTPException(
+            400,
+            f"Unsupported file type '.{ext}'. Supported: .txt, .md, .pdf, .docx",
+        )
+
+    # Extract and verify
+    candidates = await extract_facts_from_text(
+        text=text,
+        brand_id=brand_id,
+        source_kind="upload",
+        source_id=filename,
+    )
+
+    for fact in candidates:
+        result = verify(fact["statement"])
+        fact["verified"] = result.passed
+        fact["verification_failures"] = result.failures
+
+    return {
+        "success": True,
+        "data": {
+            "filename": filename,
+            "candidates": candidates,
+            "count": len(candidates),
         },
     }
 

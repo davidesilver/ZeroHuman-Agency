@@ -109,8 +109,25 @@ async def get_pipeline_health(brand_id: Optional[str] = None) -> dict:
             f"Anti-hype gate may need calibration. Check borderline items."
         )
 
-    # Get last scoring run timestamp (would need to track this)
-    last_scoring_run = None  # TODO: Track last run in DB
+    # P5.4: pull last scoring run timestamp from vw_memory_episodic
+    try:
+        last_run_resp = db.table("vw_memory_episodic").select("occurred_at,summary,payload").eq("event_kind", "llm_call")
+        if brand_id:
+            last_run_resp = last_run_resp.eq("brand_id", brand_id)
+        last_run_resp = last_run_resp.order("occurred_at", desc=True).limit(1).execute()
+        last_scoring_run = last_run_resp.data[0]["occurred_at"] if last_run_resp.data else None
+    except Exception:
+        last_scoring_run = None  # graceful fallback
+
+    # P5.4: recent LLM call history for run log
+    try:
+        history_resp = db.table("vw_memory_episodic").select("occurred_at,summary,payload").eq("event_kind", "llm_call")
+        if brand_id:
+            history_resp = history_resp.eq("brand_id", brand_id)
+        history_resp = history_resp.order("occurred_at", desc=True).limit(20).execute()
+        llm_call_history = history_resp.data or []
+    except Exception:
+        llm_call_history = []
 
     # Calculate trends (simplified - would need historical data)
     trends = {
@@ -138,6 +155,7 @@ async def get_pipeline_health(brand_id: Optional[str] = None) -> dict:
         },
         "alerts": alerts,
         "last_scoring_run": last_scoring_run,
+        "llm_call_history": llm_call_history,
         "trends": trends,
     }
 
@@ -239,6 +257,8 @@ Metrics:
   • Items/day (7d avg): {health['trends']['7_day_avg']['items_per_day']}
 
 """
+    if health.get("last_scoring_run"):
+        report += f"  • Last LLM call: {health['last_scoring_run']}\n"
 
     if health["alerts"]:
         report += f"\n🚨️ Alerts ({len(health['alerts'])}):\n"

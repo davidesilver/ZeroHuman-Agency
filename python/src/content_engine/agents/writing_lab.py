@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
+
 from ..config import settings
 from ..db import get_db
 from ..utils.cost_tracker import track_cost
 from ..utils.llm_client import call_llm
+
+logger = logging.getLogger(__name__)
 
 HOOK_TYPES = [
     "Attacco numerico",
@@ -233,6 +238,90 @@ async def create_session(brand_id: str, topic: str, content_type: str) -> dict:
     }
 
 
+async def _log_vote_memory(
+    brand_id: str,
+    session_id: str,
+    round_number: int,
+    winner: str,
+    feedback: str | None,
+    hook_type_champion: str | None,
+    hook_type_challenger: str | None,
+) -> None:
+    """P3.8 — Write vote to memory_events + update agent_skills counters.
+
+    Fires-and-forgets (called via asyncio.create_task).
+    Never raises — errors are logged but never surfaced to the caller.
+    """
+    db = get_db()
+
+    # ── 1. memory_events: episodic record of the vote ──────────────────────
+    try:
+        summary = (
+            f"Writing-lab round {round_number}: '{winner}' won"
+            + (f" ({hook_type_challenger} vs {hook_type_champion})" if hook_type_challenger else "")
+            + (f" — feedback: {feedback[:80]}" if feedback else "")
+        )
+        db.table("memory_events").insert({
+            "brand_id": brand_id,
+            "event_kind": "writing_lab_vote",
+            "subject_kind": "writing_lab_session",
+            "subject_id": session_id,
+            "summary": summary,
+            "payload": {
+                "round_number": round_number,
+                "winner": winner,
+                "hook_type_champion": hook_type_champion,
+                "hook_type_challenger": hook_type_challenger,
+                "feedback": feedback,
+            },
+        }).execute()
+    except Exception as e:
+        logger.warning("writing_lab._log_vote_memory: memory_events insert failed: %s", e)
+
+    # ── 2. agent_skills counters (success/failure per hook type) ──────────
+    # The challenger hook_type is the "skill" being evaluated:
+    # challenger wins → success; champion wins / draw → challenger skill failed this round.
+    if not hook_type_challenger:
+        return
+
+    try:
+        # Try to find an existing agent_skill row for this hook_type
+        row = (
+            db.table("agent_skills")
+            .select("id, success_count, failure_count")
+            .eq("brand_id", brand_id)
+            .eq("skill_name", hook_type_challenger)
+            .eq("target_agent", "writing_lab")
+            .maybe_single()
+            .execute()
+        )
+
+        if row.data:
+            # Update existing row
+            if winner == "challenger":
+                db.table("agent_skills").update({
+                    "success_count": (row.data.get("success_count") or 0) + 1,
+                }).eq("id", row.data["id"]).execute()
+            else:  # champion or draw
+                db.table("agent_skills").update({
+                    "failure_count": (row.data.get("failure_count") or 0) + 1,
+                }).eq("id", row.data["id"]).execute()
+        else:
+            # Create a new skill row for this hook type
+            db.table("agent_skills").insert({
+                "brand_id": brand_id,
+                "skill_name": hook_type_challenger,
+                "target_agent": "writing_lab",
+                "instructions": f"Hook type: {hook_type_challenger}",
+                "priority": 50,
+                "is_active": True,
+                "success_count": 1 if winner == "challenger" else 0,
+                "failure_count": 0 if winner == "challenger" else 1,
+            }).execute()
+    except Exception as e:
+        logger.warning("writing_lab._log_vote_memory: agent_skills update failed: %s", e)
+
+
 async def vote_round(brand_id: str, session_id: str, winner: str, feedback: str | None = None) -> dict:
     """Process a vote and generate the next round."""
     if winner not in ("champion", "challenger", "draw"):
@@ -262,6 +351,17 @@ async def vote_round(brand_id: str, session_id: str, winner: str, feedback: str 
         "winner": winner,
         "user_feedback": feedback,
     }).eq("id", current_round["id"]).execute()
+
+    # P3.8 — fire-and-forget: memory_events + agent_skills counters
+    asyncio.create_task(_log_vote_memory(
+        brand_id=brand_id,
+        session_id=session_id,
+        round_number=current_round["round_number"],
+        winner=winner,
+        feedback=feedback,
+        hook_type_champion=current_round.get("hook_type_champion"),
+        hook_type_challenger=current_round.get("hook_type_challenger"),
+    ))
 
     # Determine new champion
     if winner == "champion":

@@ -101,11 +101,15 @@ export type Database = {
           brand_id: string
           created_at: string | null
           description: string
+          failure_count: number
           id: string
           instructions: string
           is_active: boolean
+          last_optimized_at: string | null
+          optimization_history: Json
           priority: string
           skill_name: string
+          success_count: number
           tags: string[] | null
           target_agent: string
           updated_at: string | null
@@ -114,11 +118,15 @@ export type Database = {
           brand_id: string
           created_at?: string | null
           description?: string
+          failure_count?: number
           id?: string
           instructions?: string
           is_active?: boolean
+          last_optimized_at?: string | null
+          optimization_history?: Json
           priority?: string
           skill_name: string
+          success_count?: number
           tags?: string[] | null
           target_agent: string
           updated_at?: string | null
@@ -127,11 +135,15 @@ export type Database = {
           brand_id?: string
           created_at?: string | null
           description?: string
+          failure_count?: number
           id?: string
           instructions?: string
           is_active?: boolean
+          last_optimized_at?: string | null
+          optimization_history?: Json
           priority?: string
           skill_name?: string
+          success_count?: number
           tags?: string[] | null
           target_agent?: string
           updated_at?: string | null
@@ -237,6 +249,38 @@ export type Database = {
           },
         ]
       }
+      brand_members: {
+        Row: {
+          brand_id: string
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_members_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brands: {
         Row: {
           created_at: string | null
@@ -248,6 +292,7 @@ export type Database = {
           humanizer_model_override: string | null
           id: string
           name: string
+          research_sources: Json | null
           rss_sources: Json | null
           scoring_weights: Json | null
           slug: string
@@ -268,6 +313,7 @@ export type Database = {
           humanizer_model_override?: string | null
           id?: string
           name: string
+          research_sources?: Json | null
           rss_sources?: Json | null
           scoring_weights?: Json | null
           slug: string
@@ -288,6 +334,7 @@ export type Database = {
           humanizer_model_override?: string | null
           id?: string
           name?: string
+          research_sources?: Json | null
           rss_sources?: Json | null
           scoring_weights?: Json | null
           slug?: string
@@ -862,6 +909,217 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memory_archive: {
+        Row: {
+          archived_at: string
+          brand_id: string
+          id: string
+          origin_id: string
+          origin_table: string
+          payload: Json
+        }
+        Insert: {
+          archived_at?: string
+          brand_id: string
+          id?: string
+          origin_id: string
+          origin_table: string
+          payload: Json
+        }
+        Update: {
+          archived_at?: string
+          brand_id?: string
+          id?: string
+          origin_id?: string
+          origin_table?: string
+          payload?: Json
+        }
+        Relationships: []
+      }
+      memory_archive_202604: {
+        Row: {
+          archived_at: string
+          brand_id: string
+          id: string
+          origin_id: string
+          origin_table: string
+          payload: Json
+        }
+        Insert: {
+          archived_at?: string
+          brand_id: string
+          id?: string
+          origin_id: string
+          origin_table: string
+          payload: Json
+        }
+        Update: {
+          archived_at?: string
+          brand_id?: string
+          id?: string
+          origin_id?: string
+          origin_table?: string
+          payload?: Json
+        }
+        Relationships: []
+      }
+      memory_events: {
+        Row: {
+          brand_id: string
+          event_kind: string
+          expires_at: string | null
+          id: string
+          occurred_at: string
+          payload: Json
+          subject_id: string | null
+          subject_kind: string | null
+          summary: string
+        }
+        Insert: {
+          brand_id: string
+          event_kind: string
+          expires_at?: string | null
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          subject_id?: string | null
+          subject_kind?: string | null
+          summary: string
+        }
+        Update: {
+          brand_id?: string
+          event_kind?: string
+          expires_at?: string | null
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          subject_id?: string | null
+          subject_kind?: string | null
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memory_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memory_hot: {
+        Row: {
+          brand_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          key: string
+          session_id: string
+          value: Json
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          key: string
+          session_id: string
+          value?: Json
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          key?: string
+          session_id?: string
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memory_hot_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memory_semantic: {
+        Row: {
+          asserted_at: string
+          brand_id: string
+          created_at: string
+          embedding: string | null
+          expires_at: string | null
+          id: string
+          importance: number
+          kind: string
+          last_retrieved: string | null
+          metadata: Json
+          retrieval_hits: number
+          source_id: string | null
+          source_kind: string | null
+          statement: string
+          supersedes_id: string | null
+          tier: Database["public"]["Enums"]["memory_tier"]
+          updated_at: string
+        }
+        Insert: {
+          asserted_at?: string
+          brand_id: string
+          created_at?: string
+          embedding?: string | null
+          expires_at?: string | null
+          id?: string
+          importance?: number
+          kind: string
+          last_retrieved?: string | null
+          metadata?: Json
+          retrieval_hits?: number
+          source_id?: string | null
+          source_kind?: string | null
+          statement: string
+          supersedes_id?: string | null
+          tier?: Database["public"]["Enums"]["memory_tier"]
+          updated_at?: string
+        }
+        Update: {
+          asserted_at?: string
+          brand_id?: string
+          created_at?: string
+          embedding?: string | null
+          expires_at?: string | null
+          id?: string
+          importance?: number
+          kind?: string
+          last_retrieved?: string | null
+          metadata?: Json
+          retrieval_hits?: number
+          source_id?: string | null
+          source_kind?: string | null
+          statement?: string
+          supersedes_id?: string | null
+          tier?: Database["public"]["Enums"]["memory_tier"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memory_semantic_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memory_semantic_supersedes_id_fkey"
+            columns: ["supersedes_id"]
+            isOneToOne: false
+            referencedRelation: "memory_semantic"
             referencedColumns: ["id"]
           },
         ]
@@ -1694,6 +1952,18 @@ export type Database = {
           },
         ]
       }
+      vw_memory_episodic: {
+        Row: {
+          brand_id: string | null
+          event_kind: string | null
+          occurred_at: string | null
+          payload: Json | null
+          subject_id: string | null
+          subject_kind: string | null
+          summary: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       auth_user_brand_id: { Args: never; Returns: string }
@@ -1736,6 +2006,30 @@ export type Database = {
         Args: { p_brand_id: string; p_threshold?: number }
         Returns: number
       }
+      memory_search: {
+        Args: {
+          p_brand_id: string
+          p_embedding: string
+          p_kind?: string
+          p_limit?: number
+        }
+        Returns: {
+          age_days: number
+          id: string
+          importance: number
+          kind: string
+          score: number
+          similarity: number
+          statement: string
+          tier: Database["public"]["Enums"]["memory_tier"]
+        }[]
+      }
+      memory_touch: { Args: { p_id: string }; Returns: undefined }
+      memory_ttl: {
+        Args: { p_tier: Database["public"]["Enums"]["memory_tier"] }
+        Returns: string
+      }
+      user_has_brand: { Args: { p_brand_id: string }; Returns: boolean }
     }
     Enums: {
       campaign_status:
@@ -1775,6 +2069,7 @@ export type Database = {
       health_status: "healthy" | "degraded" | "down"
       item_status: "new" | "scored" | "approved" | "rejected" | "archived"
       lab_status: "active" | "completed" | "paused"
+      memory_tier: "core" | "persistent" | "standard" | "transient"
       newsletter_status:
         | "draft"
         | "in_review"
@@ -1970,6 +2265,7 @@ export const Constants = {
       health_status: ["healthy", "degraded", "down"],
       item_status: ["new", "scored", "approved", "rejected", "archived"],
       lab_status: ["active", "completed", "paused"],
+      memory_tier: ["core", "persistent", "standard", "transient"],
       newsletter_status: [
         "draft",
         "in_review",

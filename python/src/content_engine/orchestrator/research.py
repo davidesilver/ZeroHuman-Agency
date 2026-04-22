@@ -183,7 +183,9 @@ async def run_research(brand_id: str, request: TriggerRequest) -> ResearchRunRes
         "founder_principles": (brand_data.get("scoring_weights") or {}).get("founder_principles", []),
         "trusted_authors": [],
         "feeds": _build_feeds(brand_data),
-        "youtube_channels": [],
+        "youtube_channels": (brand_data.get("research_sources") or {}).get("youtube_channels") or [],
+        "gmail_label": (brand_data.get("research_sources") or {}).get("gmail_label") or "newsletters",
+        "x_accounts": (brand_data.get("research_sources") or {}).get("x_accounts") or [],
         "exclude_domains": ["reddit.com", "quora.com"],
         "language": "it",
         "max_items": request.max_items_per_retriever,
@@ -198,6 +200,14 @@ async def run_research(brand_id: str, request: TriggerRequest) -> ResearchRunRes
         for rt in retriever_types
         if rt in RETRIEVER_MAP
     ]
+    # P6.7: Gmail and X retrievers (string-keyed, not in RetrieverType enum yet)
+    from ..retrievers.gmail import GmailRetriever
+    from ..retrievers.x import XRetriever
+    extra_retrievers = [
+        GmailRetriever(brand_id, run_id),
+        XRetriever(brand_id, run_id),
+    ]
+    retrievers.extend(extra_retrievers)
     results = await asyncio.gather(
         *(r.execute(retriever_config) for r in retrievers),
         return_exceptions=True,
@@ -274,6 +284,28 @@ async def run_research(brand_id: str, request: TriggerRequest) -> ResearchRunRes
         },
     }).eq("id", run_id).execute()
 
+    # P6.7: Log research_harvested event to memory_events
+    try:
+        from ..memory import events as _memory_events
+        await _memory_events.log(
+            brand_id=brand_id,
+            kind="research_harvested",
+            summary=(
+                f"Research run {run_id}: {final_count} items harvested "
+                f"({semantic_archived} semantic dupes removed) in {elapsed:.1f}s"
+            ),
+            subject_kind="research_run",
+            subject_id=run_id,
+            payload={
+                "items_found": total_found,
+                "items_after_dedup": final_count,
+                "semantic_archived": semantic_archived,
+                "retriever_stats": retriever_stats,
+            },
+        )
+    except Exception as _e:
+        logger.warning("Failed to log research_harvested event: %s", _e)
+
     return ResearchRunResult(
         run_id=run_id,
         status=RunStatus.COMPLETED,
@@ -285,7 +317,17 @@ async def run_research(brand_id: str, request: TriggerRequest) -> ResearchRunRes
 
 
 def _build_feeds(brand_data: dict) -> list[dict]:
-    rss = brand_data.get("rss_sources") or []
-    if isinstance(rss, list):
-        return rss
-    return []
+    # Legacy: brands.rss_sources (flat list of URLs or dicts)
+    legacy = brand_data.get("rss_sources") or []
+    # New: brands.research_sources.rss_feeds (list of {url, name} dicts)
+    new_feeds = (brand_data.get("research_sources") or {}).get("rss_feeds") or []
+    result = []
+    seen = set()
+    for item in (legacy + new_feeds):
+        if isinstance(item, str):
+            item = {"url": item, "name": item}
+        url = item.get("url", "")
+        if url and url not in seen:
+            seen.add(url)
+            result.append(item)
+    return result

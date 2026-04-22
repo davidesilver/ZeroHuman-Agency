@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from ..db import get_db
+from ..memory.retrieval import recall as memory_recall
 from ..utils.cost_tracker import track_cost
 from ..utils.llm_client import call_llm
 from ..utils.security_utils import sanitize_for_prompt  # H-07: prompt injection guard
@@ -97,9 +98,19 @@ async def generate_draft(
     item = db.table("research_items").select("*").eq("id", research_item_id).single().execute()
     item_data = item.data
 
-    tone = brand_data.get("tone_of_voice") or {}
-    tone_rules = "\n".join(f"- {r}" for r in (tone.get("rules") or []))
-    principles = (brand_data.get("scoring_weights") or {}).get("founder_principles", [])
+    # P3.7: prefer memory-native facts over static JSON columns; fall back if empty
+    tone_facts = await memory_recall(brand_id, "tone of voice writing rules style", kind="tone_rule", k=5)
+    if tone_facts:
+        tone_rules = "\n".join(f"- {f['statement']}" for f in tone_facts)
+    else:
+        tone = brand_data.get("tone_of_voice") or {}
+        tone_rules = "\n".join(f"- {r}" for r in (tone.get("rules") or []))
+
+    principle_facts = await memory_recall(brand_id, "brand founding principles values mission", kind="principle", k=5)
+    if principle_facts:
+        principles = [f["statement"] for f in principle_facts]
+    else:
+        principles = (brand_data.get("scoring_weights") or {}).get("founder_principles", [])
 
     # Fase 1: Load agent identity from DB (or fallback hardcoded)
     identity = await get_agent_identity(brand_id, "writer")

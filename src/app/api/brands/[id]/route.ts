@@ -1,10 +1,10 @@
 /**
  * Brand update/delete endpoints.
  *
- * Scope (P0.3): only `name` and `topics` are editable. `tone_of_voice` and
- * `scoring_weights` are intentionally frozen because they will migrate to the
- * memory_semantic layer in P3 — exposing them here would create a parallel
- * write path that we'd have to unwind.
+ * Scope (P0.3+): `name`, `topics`, and `research_sources` are editable.
+ * `tone_of_voice` and `scoring_weights` are intentionally frozen because they
+ * will migrate to the memory_semantic layer in P3 — exposing them here would
+ * create a parallel write path that we'd have to unwind.
  *
  * Authorization model is transitional:
  *  - Today: caller must be the single user tied to this brand via users.brand_id.
@@ -16,6 +16,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { jsonResponse, errorResponse } from '@/lib/api-helpers'
 import { requireAuth } from '@/lib/supabase/auth-helpers'
+import type { Json } from '@/lib/types/database.types'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -32,18 +33,19 @@ export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params
   if (!isUuid(id)) return errorResponse('Invalid brand id', 400)
 
-  // P1 todo: replace with `brand_members` membership check.
-  if (id !== auth.brandId) return errorResponse('Forbidden', 403)
+  // P1: check membership instead of active-brand equality
+  if (!auth.memberBrandIds.includes(id)) return errorResponse('Forbidden', 403)
 
-  let body: { name?: string; topics?: string[] }
+  let body: { name?: string; topics?: string[]; research_sources?: Json }
   try {
     body = await request.json()
   } catch {
     return errorResponse('Invalid JSON body', 400)
   }
 
-  const patch: { name?: string; topics?: string[] } = {}
+  const patch: { name?: string; topics?: string[]; research_sources?: Json } = {}
   if (body.name !== undefined) {
+    if (typeof body.name !== 'string') return errorResponse('name must be a string', 400)
     const trimmed = body.name.trim()
     if (!trimmed) return errorResponse('name cannot be empty', 400)
     patch.name = trimmed
@@ -55,8 +57,18 @@ export async function PATCH(request: Request, context: RouteContext) {
       .map((t) => t.trim())
       .filter(Boolean)
   }
+  if (body.research_sources !== undefined) {
+    if (
+      typeof body.research_sources !== 'object' ||
+      Array.isArray(body.research_sources) ||
+      body.research_sources === null
+    ) {
+      return errorResponse('research_sources must be an object', 400)
+    }
+    patch.research_sources = body.research_sources
+  }
   if (Object.keys(patch).length === 0) {
-    return errorResponse('No editable fields provided (allowed: name, topics)', 400)
+    return errorResponse('No editable fields provided (allowed: name, topics, research_sources)', 400)
   }
 
   const supabase = await createClient()
@@ -64,7 +76,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     .from('brands')
     .update(patch)
     .eq('id', id)
-    .select('id, name, slug, topics, tone_of_voice, scoring_weights')
+    .select('id, name, slug, topics, tone_of_voice, scoring_weights, research_sources')
     .single()
 
   if (error) return errorResponse(error.message, 500)
@@ -80,8 +92,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
   const { id } = await context.params
   if (!isUuid(id)) return errorResponse('Invalid brand id', 400)
 
-  // P1 todo: replace with owner-role check in `brand_members`.
-  if (id !== auth.brandId) return errorResponse('Forbidden', 403)
+  // P1: check membership — only brand members can delete
+  if (!auth.memberBrandIds.includes(id)) return errorResponse('Forbidden', 403)
 
   const supabase = await createClient()
 

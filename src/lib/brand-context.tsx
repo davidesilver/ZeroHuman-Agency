@@ -27,6 +27,12 @@ export function BrandProvider({ children }: { children: ReactNode }) {
   const [activeBrand, setActiveBrandState] = useState<Brand | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  /** Write active_brand_id to cookie so server-side requireAuth() can read it. */
+  function syncCookie(brandId: string) {
+    if (typeof document === 'undefined') return
+    document.cookie = `active_brand_id=${brandId}; path=/; SameSite=Lax; max-age=31536000`
+  }
+
   useEffect(() => {
     async function loadBrands() {
       try {
@@ -34,10 +40,17 @@ export function BrandProvider({ children }: { children: ReactNode }) {
         const json = await resp.json()
         if (json.success && json.data.length > 0) {
           setBrands(json.data)
-          // Restore from localStorage or use first
-          const savedId = typeof window !== 'undefined' ? localStorage.getItem('activeBrandId') : null
+          // Restore from localStorage (persists across tabs) or cookie (synced with server),
+          // then fall back to the first brand.
+          const savedId =
+            typeof window !== 'undefined'
+              ? localStorage.getItem('activeBrandId')
+              : null
           const saved = json.data.find((b: Brand) => b.id === savedId)
-          setActiveBrandState(saved || json.data[0])
+          const initial: Brand = saved || json.data[0]
+          setActiveBrandState(initial)
+          // Ensure cookie is in sync with the resolved initial brand.
+          syncCookie(initial.id)
         }
       } catch {}
       setIsLoading(false)
@@ -50,6 +63,7 @@ export function BrandProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('activeBrandId', brand.id)
     }
+    syncCookie(brand.id)
   }, [])
 
   return (

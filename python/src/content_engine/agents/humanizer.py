@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Optional
 
 from ..db import get_db
+from ..memory.retrieval import recall as memory_recall
 from ..utils.llm_client import call_llm
 from ..utils.security_utils import sanitize_for_prompt
 from .agent_loader import get_agent_identity
@@ -125,21 +126,57 @@ Return ONLY a valid JSON object matching this schema. Do not include markdown co
 """
 
 
-def _load_voice_calibration(brand_id: str) -> str:
-    """Load voice calibration from brand's gold_examples (manual) + top performers (automatic).
+async def _load_voice_calibration(brand_id: str) -> str:
+    """Load voice calibration using semantic memory first, then static DB fallback.
 
     Priority:
-    1. Manual gold_examples in brands.tone_of_voice.gold_examples (highest priority)
-    2. Automatic: top-3 performing content from content_performance (fallback)
-    3. Default natural voice if neither available
+    1. Semantic memory: tone_rule facts + gold_example facts via memory.recall()
+    2. Manual gold_examples in brands.tone_of_voice.gold_examples (highest-priority static)
+    3. Automatic: top-3 performing content from content_performance (fallback)
+    4. Default natural voice if nothing is available
 
     Returns:
         Formatted text with voice calibration samples
     """
+    # 1. Try semantic memory first (highest priority)
+    try:
+        tone_facts = await memory_recall(
+            brand_id,
+            "brand voice tone rules writing style",
+            kind="tone_rule",
+            k=3,
+        )
+        gold_facts = await memory_recall(
+            brand_id,
+            "gold example best content sample",
+            kind="gold_example",
+            k=3,
+        )
+
+        if tone_facts or gold_facts:
+            parts = []
+            if tone_facts:
+                parts.append("# Voice Rules (from Brand Memory)")
+                for i, f in enumerate(tone_facts, 1):
+                    parts.append(f"## Rule {i}\n{f['statement']}")
+            if gold_facts:
+                parts.append("# Gold Examples (from Brand Memory)")
+                for i, f in enumerate(gold_facts, 1):
+                    parts.append(f"## Example {i}\n{f['statement']}")
+            logger.info(
+                "Using memory calibration for brand %s: %d tone rules, %d gold examples",
+                brand_id, len(tone_facts), len(gold_facts),
+            )
+            return "\n\n".join(parts)
+
+    except Exception as e:
+        logger.warning("Memory recall failed for brand %s, falling back to DB: %s", brand_id, e)
+
+    # 2–4. Static DB fallback (original logic preserved exactly)
     try:
         db = get_db()
 
-        # 1. Try manual gold_examples from brand config (highest priority)
+        # 2. Try manual gold_examples from brand config (highest priority)
         brand = db.table("brands").select("tone_of_voice").eq("id", brand_id).single().execute()
 
         if brand.data and brand.data.get("tone_of_voice"):
@@ -158,7 +195,7 @@ def _load_voice_calibration(brand_id: str) -> str:
                 logger.info("Using %d manual gold_examples for brand %s", len(gold_examples), brand_id)
                 return f"# Voice Calibration (Manual Gold Examples)\n" + "\n\n".join(samples)
 
-        # 2. Fallback: automatic top performers from engagement data
+        # 3. Fallback: automatic top performers from engagement data
         logger.debug("No manual gold_examples for brand %s, using top performers", brand_id)
 
         gold = db.table("content_performance") \
@@ -181,7 +218,7 @@ Engagement Score: {g.get('engagement_score', 0)}
             logger.info("Using %d top performers as voice calibration for brand %s", len(gold.data), brand_id)
             return f"# Voice Calibration (Top Performers)\n" + "\n\n".join(samples)
 
-        # 3. Fallback: default natural voice
+        # 4. Fallback: default natural voice
         logger.warning("No voice calibration data for brand %s, using default", brand_id)
         return "# Voice Calibration\nNo samples available — using default natural voice: varied rhythm, opinions, first-person perspective where appropriate."
 
@@ -225,8 +262,8 @@ async def humanize_draft(
     platform = draft_data.get("platform", "")
     content_type = draft_data.get("content_type", "post")
 
-    # Load voice calibration
-    voice_calibration = _load_voice_calibration(brand_id)
+    # Load voice calibration (async: tries semantic memory first, then DB fallback)
+    voice_calibration = await _load_voice_calibration(brand_id)
 
     # === PASS 1: Initial humanization ===
     try:

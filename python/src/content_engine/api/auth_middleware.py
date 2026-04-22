@@ -95,36 +95,73 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
                 if not user:
                     raise ValueError("Null user from JWT")
 
-                # Resolve brand_id from users table
-                brand_resp = (
-                    get_user_db(jwt)
-                    .table("users")
+                # P1: Resolve brand memberships from brand_members (N:M).
+                # Falls back to users.brand_id if brand_members is not yet
+                # populated (pre-017 databases).
+                db = get_user_db(jwt)
+                member_resp = (
+                    db.table("brand_members")
                     .select("brand_id")
-                    .eq("id", user.id)
-                    .single()
+                    .eq("user_id", user.id)
+                    .order("created_at")
                     .execute()
                 )
-                brand_id = brand_resp.data.get("brand_id") if brand_resp.data else None
-                if not brand_id:
+                member_brand_ids: list[str] = [
+                    row["brand_id"] for row in (member_resp.data or [])
+                ]
+
+                if not member_brand_ids:
+                    # Fallback: pre-017 single-brand model
+                    legacy_resp = (
+                        db.table("users")
+                        .select("brand_id")
+                        .eq("id", user.id)
+                        .single()
+                        .execute()
+                    )
+                    legacy_brand_id = (
+                        legacy_resp.data.get("brand_id") if legacy_resp.data else None
+                    )
+                    if legacy_brand_id:
+                        member_brand_ids = [legacy_brand_id]
+
+                if not member_brand_ids:
                     return JSONResponse(
                         status_code=403,
                         content={"success": False, "error": {"message": "User has no associated brand"}},
                     )
-                
-                user_id = user.id
-                _AUTH_CACHE[jwt] = {"user_id": user_id, "brand_id": brand_id, "ts": now}
 
-            # Enforce multi-brand header if present (prevent cross-brand contamination APIs)
+                # Default brand = oldest membership (same as requireAuth() server-side)
+                brand_id = member_brand_ids[0]
+                user_id = user.id
+                _AUTH_CACHE[jwt] = {
+                    "user_id": user_id,
+                    "brand_id": brand_id,
+                    "member_brand_ids": member_brand_ids,
+                    "ts": now,
+                }
+
+            # P1: X-Brand-ID membership check (replaces strict equality guard).
+            # Callers may pass any brand they are a member of; the active brand
+            # for this request is the header value if membership is confirmed.
             req_brand_id = request.headers.get("X-Brand-ID")
-            if req_brand_id and req_brand_id != brand_id:
-                return JSONResponse(
-                    status_code=403,
-                    content={"success": False, "error": {"message": "Brand mismatch between token and request"}},
-                )
+            member_brand_ids_cached = _AUTH_CACHE[jwt].get("member_brand_ids", [brand_id])
+            if req_brand_id:
+                if req_brand_id not in member_brand_ids_cached:
+                    return JSONResponse(
+                        status_code=403,
+                        content={
+                            "success": False,
+                            "error": {"message": "X-Brand-ID is not in user brand membership"},
+                        },
+                    )
+                # Override the default brand with the explicitly requested one
+                brand_id = req_brand_id
 
             # Attach to request state — available in every route handler
             request.state.user_id = user_id
             request.state.brand_id = brand_id
+            request.state.member_brand_ids = _AUTH_CACHE[jwt].get("member_brand_ids", [brand_id])
             request.state.jwt = jwt
 
         except ValueError as e:
