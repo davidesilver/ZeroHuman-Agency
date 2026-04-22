@@ -53,8 +53,7 @@ Deno.serve(async (req: Request) => {
 async function pullDailyMetrics(supabaseClient: any) {
   const { data: brands } = await supabaseClient
     .from('brands')
-    .select('id, name')
-    .eq('active', true);
+    .select('id, name');
 
   let totalProcessed = 0;
   let totalFetched = 0;
@@ -101,8 +100,7 @@ async function pullDailyMetrics(supabaseClient: any) {
 async function updateFeedbackBonus(supabaseClient: any) {
   const { data: brands } = await supabaseClient
     .from('brands')
-    .select('id, name, feedback_bonus')
-    .eq('active', true);
+    .select('id, name, feedback_bonus');
 
   const results = [];
   const errors: string[] = [];
@@ -114,18 +112,20 @@ async function updateFeedbackBonus(supabaseClient: any) {
 
       // Get metrics from last 30 days
       const cutoffDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const { data: metrics } = await supabaseClient
-        .from('social_metrics')
-        .select('*')
-        .gte('recorded_at', cutoffDate)
-        .in(
-          'draft_id',
-          supabaseClient
-            .from('content_drafts')
-            .select('id')
-            .eq('brand_id', brandId)
-            .eq('status', 'published')
-        );
+      const { data: publishedDrafts } = await supabaseClient
+        .from('content_drafts')
+        .select('id')
+        .eq('brand_id', brandId)
+        .eq('status', 'published');
+      const draftIds = (publishedDrafts || []).map((draft: any) => draft.id);
+
+      const { data: metrics } = draftIds.length === 0
+        ? { data: [] }
+        : await supabaseClient
+            .from('social_metrics')
+            .select('*')
+            .gte('recorded_at', cutoffDate)
+            .in('draft_id', draftIds);
 
       const newScore = computeEngagementScoreOptimized(metrics);
 
@@ -194,7 +194,7 @@ async function fetchPostAnalytics(postizId: string) {
 }
 
 async function recordSocialMetrics(supabaseClient: any, draftId: string, metrics: any) {
-  await supabaseClient.from('social_metrics').insert({
+  await supabaseClient.from('social_metrics').upsert({
     draft_id: draftId,
     platform: metrics.platform,
     impressions: metrics.impressions,
@@ -203,7 +203,7 @@ async function recordSocialMetrics(supabaseClient: any, draftId: string, metrics
     comments: metrics.comments,
     saves: metrics.saves || 0,
     recorded_at: new Date().toISOString(),
-  });
+  }, { onConflict: 'draft_id,platform' });
 }
 
 function computeEngagementScoreOptimized(metrics: any[]) {

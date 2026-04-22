@@ -13,7 +13,7 @@ from .base import BaseRetriever
 
 
 class RSSRetriever(BaseRetriever):
-    retriever_type = RetrieverType.TRUSTED_SOURCE
+    retriever_type = RetrieverType.RSS
 
     async def fetch(self, config: dict) -> list[ResearchItemCreate]:
         feeds: list[dict] = config.get("feeds", [])
@@ -57,7 +57,7 @@ class RSSRetriever(BaseRetriever):
                             brand_id=self.brand_id,
                             run_id=self.run_id,
                             retriever=self.retriever_type,
-                            source_type=SourceType.ARTICLE,
+                            source_type=SourceType.RSS,
                             title=title.strip(),
                             url=link.strip(),
                             source_name=source_name,

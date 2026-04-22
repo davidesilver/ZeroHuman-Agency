@@ -12,6 +12,11 @@ class RetrieverType(StrEnum):
     TRUSTED_SOURCE = "trusted_source"
     KEYWORD = "keyword"
     TREND = "trend"
+    MANUAL = "manual"
+    RSS = "rss"
+    YOUTUBE = "youtube"
+    GMAIL = "gmail"
+    X = "x"
 
 
 class ItemStatus(StrEnum):
@@ -30,18 +35,17 @@ class RunStatus(StrEnum):
 
 
 class SourceType(StrEnum):
-    ARTICLE = "article"
-    VIDEO = "video"
-    PODCAST = "podcast"
-    SOCIAL = "social"
-    PAPER = "paper"
+    RSS = "rss"
+    SEARCH = "search"
+    YOUTUBE = "youtube"
+    SCRAPE = "scrape"
 
 
 class ResearchItemCreate(BaseModel):
     brand_id: str
     run_id: str
     retriever: RetrieverType
-    source_type: SourceType = SourceType.ARTICLE
+    source_type: SourceType = SourceType.SEARCH
     title: str
     url: str
     source_name: str = ""

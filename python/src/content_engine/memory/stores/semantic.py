@@ -181,7 +181,7 @@ async def recall(
         "memory_search",
         {
             "p_brand_id": brand_id,
-            "p_query_embedding": embedding,
+            "p_embedding": embedding,   # matches migration 018 function signature
             "p_kind": kind,
             "p_limit": k,
         },

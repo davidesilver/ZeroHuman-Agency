@@ -1684,7 +1684,7 @@ export type Database = {
       users: {
         Row: {
           avatar_url: string | null
-          brand_id: string
+          brand_id: string | null
           created_at: string | null
           email: string
           full_name: string | null
@@ -1693,7 +1693,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
-          brand_id: string
+          brand_id?: string | null
           created_at?: string | null
           email: string
           full_name?: string | null
@@ -1702,7 +1702,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
-          brand_id?: string
+          brand_id?: string | null
           created_at?: string | null
           email?: string
           full_name?: string | null
@@ -2092,6 +2092,10 @@ export type Database = {
         | "keyword"
         | "trend"
         | "manual"
+        | "rss"
+        | "youtube"
+        | "gmail"
+        | "x"
       round_winner: "champion" | "challenger" | "draw"
       run_status: "running" | "completed" | "failed"
       slot_type: "sistema" | "strumento_lampo" | "mossa"
@@ -2290,6 +2294,10 @@ export const Constants = {
         "keyword",
         "trend",
         "manual",
+        "rss",
+        "youtube",
+        "gmail",
+        "x",
       ],
       round_winner: ["champion", "challenger", "draw"],
       run_status: ["running", "completed", "failed"],

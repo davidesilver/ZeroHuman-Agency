@@ -148,7 +148,7 @@ class TestDeduplicate:
             brand_id="test-brand",
             run_id="test-run",
             retriever=self._RetrieverType.SEMANTIC,
-            source_type=self._SourceType.ARTICLE,
+            source_type=self._SourceType.SEARCH,
             title=title,
             url=url,
         )
@@ -189,6 +189,27 @@ class TestDeduplicate:
 
     def test_empty_list(self):
         assert self._dedup([]) == []
+
+
+class TestRetrieverEnums:
+    """Validate transitional enum support for runtime-unblock."""
+
+    def setup_method(self):
+        from content_engine.models import RetrieverType, SourceType
+        self._RetrieverType = RetrieverType
+        self._SourceType = SourceType
+
+    def test_retriever_type_accepts_new_runtime_values(self):
+        assert self._RetrieverType.RSS == "rss"
+        assert self._RetrieverType.YOUTUBE == "youtube"
+        assert self._RetrieverType.GMAIL == "gmail"
+        assert self._RetrieverType.X == "x"
+
+    def test_source_type_matches_db_contract(self):
+        assert self._SourceType.RSS == "rss"
+        assert self._SourceType.SEARCH == "search"
+        assert self._SourceType.YOUTUBE == "youtube"
+        assert self._SourceType.SCRAPE == "scrape"
 
 
 # ── GOD System: _parse_json ──────────────────────────────────────────────────

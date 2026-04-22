@@ -29,7 +29,10 @@ async def record_social_metrics(
         "saves": saves,
     }
 
-    result = db.table("social_metrics").insert(data).execute()
+    result = db.table("social_metrics").upsert(
+        data,
+        on_conflict="draft_id,platform",
+    ).execute()
     return result.data[0] if result.data else data
 
 

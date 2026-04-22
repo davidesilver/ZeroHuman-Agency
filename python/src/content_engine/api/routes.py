@@ -61,8 +61,8 @@ def _get_brand_id(request: Request) -> str:
     return brand_id
 
 
-# System-level brand for cron/scheduler calls (no user JWT).
-# Deployers set this in their .env — it is intentionally blank in the template.
+# System-level brand override for cron/scheduler calls (no user JWT).
+# If unset, scheduler routes operate on all known brands.
 _SCHEDULER_BRAND_ID = os.environ.get("SCHEDULER_BRAND_ID", "")
 
 
@@ -79,6 +79,29 @@ def _get_scheduler_brand_id() -> str:
             detail="SCHEDULER_BRAND_ID is not configured. Set it in your .env before enabling scheduled jobs.",
         )
     return _SCHEDULER_BRAND_ID
+
+
+def _get_scheduler_brand_ids() -> list[str]:
+    """Resolve the target brand set for cron-driven routes.
+
+    Priority:
+    1. SCHEDULER_BRAND_ID env var when explicitly configured (legacy/dev override)
+    2. All distinct brand_ids present in brand_members (multi-brand production path)
+    """
+    if _SCHEDULER_BRAND_ID:
+        return [_SCHEDULER_BRAND_ID]
+
+    db = get_db()
+    memberships = db.table("brand_members").select("brand_id").execute().data or []
+    brand_ids = sorted({row["brand_id"] for row in memberships if row.get("brand_id")})
+
+    if not brand_ids:
+        raise HTTPException(
+            status_code=503,
+            detail="No brands found for scheduler execution. Create a brand or set SCHEDULER_BRAND_ID.",
+        )
+
+    return brand_ids
 
 
 def _get_client_db(request: Request):
@@ -642,13 +665,17 @@ async def api_pull_metrics():
 
 @router.post("/scheduler/daily-pipeline", dependencies=[Depends(_require_scheduler_secret)])
 async def api_daily_pipeline():
-    """Trigger full daily research + scoring pipeline. Requires X-Scheduler-Secret header.
-    Operates on brand defined by SCHEDULER_BRAND_ID env var.
-    """
-    brand_id = _get_scheduler_brand_id()
+    """Trigger full daily research + scoring pipeline across eligible brands."""
+    brand_ids = _get_scheduler_brand_ids()
     try:
-        result = await daily_research_pipeline(brand_id)
-        return {"success": True, "data": result}
+        results = []
+        for brand_id in brand_ids:
+            try:
+                result = await daily_research_pipeline(brand_id)
+                results.append({"brand_id": brand_id, **result})
+            except Exception as brand_error:
+                results.append({"brand_id": brand_id, "ok": False, "error": str(brand_error)})
+        return {"success": True, "data": {"brands_processed": len(results), "results": results}}
     except HTTPException:
         raise
     except Exception as e:
@@ -658,11 +685,17 @@ async def api_daily_pipeline():
 
 @router.post("/scheduler/publish-scheduled", dependencies=[Depends(_require_scheduler_secret)])
 async def api_publish_scheduled():
-    """Publish all posts past their scheduled_at. Requires X-Scheduler-Secret header."""
-    brand_id = _get_scheduler_brand_id()
+    """Publish all posts past their scheduled_at across eligible brands."""
+    brand_ids = _get_scheduler_brand_ids()
     try:
-        result = await publish_scheduled_posts(brand_id)
-        return {"success": True, "data": result}
+        results = []
+        for brand_id in brand_ids:
+            try:
+                result = await publish_scheduled_posts(brand_id)
+                results.append({"brand_id": brand_id, **result})
+            except Exception as brand_error:
+                results.append({"brand_id": brand_id, "ok": False, "error": str(brand_error)})
+        return {"success": True, "data": {"brands_processed": len(results), "results": results}}
     except HTTPException:
         raise
     except Exception as e:
@@ -1153,4 +1186,3 @@ async def api_reset_fallback_monitor():
     )
 
     return {"success": True, "data": {"previous_stats": old_stats}}
-

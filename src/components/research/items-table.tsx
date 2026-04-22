@@ -60,8 +60,12 @@ function retrieverLabel(retriever_type: string): string {
     semantic: 'SEMANTIC',
     practitioner: 'PRACTITIONER',
     trusted_source: 'RSS',
+    rss: 'RSS',
     keyword: 'KEYWORD',
     trend: 'TREND',
+    youtube: 'YOUTUBE',
+    gmail: 'GMAIL',
+    x: 'X',
     manual: 'MANUAL',
   }
   return map[retriever_type] || retriever_type.toUpperCase()

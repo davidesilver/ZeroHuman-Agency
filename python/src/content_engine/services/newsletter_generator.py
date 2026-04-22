@@ -236,8 +236,8 @@ async def generate_newsletter(brand_id: str) -> dict:
             {
                 "newsletter_id": newsletter_id,
                 "research_item_id": item_id,
-                "slot_type": "editorial",
-                "is_selected": True,
+                "slot_type": "editorial",   # requires migration 020 enum extension
+                "selected": True,           # column is `selected` (not `is_selected`)
             }
             for item_id in selected_item_ids
         ]

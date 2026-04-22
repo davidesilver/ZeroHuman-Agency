@@ -10,7 +10,9 @@
  */
 
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
+import { ACTIVE_BRAND_COOKIE } from '@/lib/supabase/auth-helpers'
 
 const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_URL || 'http://localhost:8000'
 
@@ -34,12 +36,15 @@ export async function proxyToBackend(
 
   // H-02: Retrieve the current session token from Supabase
   let authHeader: string | undefined
+  let activeBrandId: string | undefined
   try {
     const supabase = await createClient()
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.access_token) {
       authHeader = `Bearer ${session.access_token}`
     }
+    const cookieStore = await cookies()
+    activeBrandId = cookieStore.get(ACTIVE_BRAND_COOKIE)?.value
   } catch {
     // Non-fatal — backend will reject with 401 if token is missing
   }
@@ -50,6 +55,11 @@ export async function proxyToBackend(
   }
   if (authHeader) {
     headers['Authorization'] = authHeader
+  }
+  if (activeBrandId) {
+    // P1 runtime fix: propagate the explicitly selected tenant to Python.
+    // The backend still validates membership before honoring the header.
+    headers['X-Brand-ID'] = activeBrandId
   }
 
   const resp = await fetch(`${PYTHON_BACKEND_URL}${path}`, {

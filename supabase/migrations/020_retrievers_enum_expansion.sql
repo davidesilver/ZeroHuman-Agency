@@ -47,7 +47,19 @@ ALTER TABLE brands ADD COLUMN IF NOT EXISTS research_sources jsonb DEFAULT '{}';
 COMMENT ON COLUMN brands.research_sources IS 'Per-brand retriever config: rss_feeds, youtube_channels, gmail_label, x_accounts';
 
 -- ============================================================
--- 3. Drop users.brand_id (multi-brand now uses brand_members
+-- 3. Add 'editorial' to slot_type enum (newsletter_candidates)
+--    Required by newsletter_generator.py which inserts editorial
+--    candidates that don't map to the original 3-slot structure.
+-- ============================================================
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'editorial' AND enumtypid = 'slot_type'::regtype) THEN
+    ALTER TYPE slot_type ADD VALUE 'editorial';
+  END IF;
+END $$;
+
+-- ============================================================
+-- 4. Drop users.brand_id (multi-brand now uses brand_members
 --    table introduced in migration 017) — idempotent
 -- ============================================================
 

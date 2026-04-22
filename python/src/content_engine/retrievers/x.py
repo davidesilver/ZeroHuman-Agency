@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
-from ..models import ResearchItemCreate, SourceType
+from ..models import ResearchItemCreate, RetrieverType, SourceType
 from .base import BaseRetriever
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ _X_SEARCH_URL = "https://api.twitter.com/2/tweets/search/recent"
 
 
 class XRetriever(BaseRetriever):
-    retriever_type = "x"  # type: ignore[assignment]  # string sentinel — orchestrator maps by key
+    retriever_type = RetrieverType.X
 
     async def fetch(self, config: dict) -> list[ResearchItemCreate]:
         bearer_token = os.environ.get("X_BEARER_TOKEN", "").strip()
@@ -102,8 +102,8 @@ class XRetriever(BaseRetriever):
                     ResearchItemCreate(
                         brand_id=self.brand_id,
                         run_id=self.run_id,
-                        retriever=self.retriever_type,  # type: ignore[arg-type]
-                        source_type=SourceType.ARTICLE,
+                        retriever=self.retriever_type,
+                        source_type=SourceType.SCRAPE,
                         title=title,
                         url=tweet_url,
                         source_name=source_name,

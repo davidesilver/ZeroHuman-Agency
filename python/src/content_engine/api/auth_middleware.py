@@ -95,9 +95,8 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
                 if not user:
                     raise ValueError("Null user from JWT")
 
-                # P1: Resolve brand memberships from brand_members (N:M).
-                # Falls back to users.brand_id if brand_members is not yet
-                # populated (pre-017 databases).
+                # P1/P2: Resolve brand memberships from brand_members (N:M).
+                # This is the only runtime source of truth for tenant membership.
                 db = get_user_db(jwt)
                 member_resp = (
                     db.table("brand_members")
@@ -109,21 +108,6 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
                 member_brand_ids: list[str] = [
                     row["brand_id"] for row in (member_resp.data or [])
                 ]
-
-                if not member_brand_ids:
-                    # Fallback: pre-017 single-brand model
-                    legacy_resp = (
-                        db.table("users")
-                        .select("brand_id")
-                        .eq("id", user.id)
-                        .single()
-                        .execute()
-                    )
-                    legacy_brand_id = (
-                        legacy_resp.data.get("brand_id") if legacy_resp.data else None
-                    )
-                    if legacy_brand_id:
-                        member_brand_ids = [legacy_brand_id]
 
                 if not member_brand_ids:
                     return JSONResponse(

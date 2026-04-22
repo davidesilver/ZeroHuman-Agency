@@ -94,3 +94,27 @@ class TestBrandIsolation:
         with pytest.raises(HTTPException) as exc_info:
             _get_scheduler_brand_id()
         assert exc_info.value.status_code == 503
+
+    def test_scheduler_brand_ids_uses_override_when_present(self):
+        """Explicit env override should still scope cron to a single brand."""
+        from content_engine.api.routes import _get_scheduler_brand_ids
+        import content_engine.api.routes as routes_module
+
+        routes_module._SCHEDULER_BRAND_ID = "cron-brand-456"
+        assert _get_scheduler_brand_ids() == ["cron-brand-456"]
+
+    def test_scheduler_brand_ids_reads_memberships_when_override_missing(self):
+        """Multi-brand scheduler should fan out over brand_members when no override exists."""
+        from content_engine.api.routes import _get_scheduler_brand_ids
+        import content_engine.api.routes as routes_module
+
+        routes_module._SCHEDULER_BRAND_ID = ""
+        mock_db = MagicMock()
+        mock_db.table.return_value.select.return_value.execute.return_value.data = [
+            {"brand_id": "brand-b"},
+            {"brand_id": "brand-a"},
+            {"brand_id": "brand-a"},
+        ]
+        routes_module.get_db = MagicMock(return_value=mock_db)
+
+        assert _get_scheduler_brand_ids() == ["brand-a", "brand-b"]

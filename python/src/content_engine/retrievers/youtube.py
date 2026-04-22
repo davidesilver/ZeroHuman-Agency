@@ -14,7 +14,7 @@ YT_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 
 
 class YouTubeRetriever(BaseRetriever):
-    retriever_type = RetrieverType.TREND
+    retriever_type = RetrieverType.YOUTUBE
 
     async def fetch(self, config: dict) -> list[ResearchItemCreate]:
         if not settings.youtube_api_key:
@@ -61,7 +61,7 @@ class YouTubeRetriever(BaseRetriever):
                             brand_id=self.brand_id,
                             run_id=self.run_id,
                             retriever=self.retriever_type,
-                            source_type=SourceType.VIDEO,
+                            source_type=SourceType.YOUTUBE,
                             title=snippet.get("title", ""),
                             url=url,
                             source_name=snippet.get("channelTitle", "YouTube"),
@@ -105,7 +105,7 @@ class YouTubeRetriever(BaseRetriever):
                             brand_id=self.brand_id,
                             run_id=self.run_id,
                             retriever=self.retriever_type,
-                            source_type=SourceType.VIDEO,
+                            source_type=SourceType.YOUTUBE,
                             title=snippet.get("title", ""),
                             url=url,
                             source_name=snippet.get("channelTitle", "YouTube"),

@@ -132,7 +132,7 @@ async def record_social_metrics(
     """
     db = get_db()
 
-    db.table("social_metrics").insert({
+    db.table("social_metrics").upsert({
         "draft_id": draft_id,
         "platform": platform,
         "impressions": impressions,
@@ -141,7 +141,7 @@ async def record_social_metrics(
         "comments": comments,
         "saves": saves,
         "recorded_at": datetime.utcnow().isoformat(),
-    }).execute()
+    }, on_conflict="draft_id,platform").execute()
 
 
 def compute_engagement_score_optimized(metrics: list[dict]) -> float:
@@ -235,17 +235,23 @@ async def update_feedback_bonus(brand_id: str) -> dict:
 
     # Get metrics from last 30 days
     cutoff = datetime.utcnow() - timedelta(days=30)
-    metrics_resp = db.table("social_metrics")\
-        .select("*")\
-        .gte("recorded_at", cutoff.isoformat())\
-        .in_(
-            "draft_id",
-            db.table("content_drafts")\
-                .select("id")\
-                .eq("brand_id", brand_id)\
-                .eq("status", "published")
-        )\
+    draft_ids_resp = db.table("content_drafts")\
+        .select("id")\
+        .eq("brand_id", brand_id)\
+        .eq("status", "published")\
         .execute()
+    draft_ids = [row["id"] for row in (draft_ids_resp.data or [])]
+
+    if draft_ids:
+        metrics_resp = db.table("social_metrics")\
+            .select("*")\
+            .gte("recorded_at", cutoff.isoformat())\
+            .in_("draft_id", draft_ids)\
+            .execute()
+    else:
+        class _EmptyResp:
+            data: list[dict] = []
+        metrics_resp = _EmptyResp()
 
     # Compute new score
     new_score = compute_engagement_score_optimized(metrics_resp.data or [])

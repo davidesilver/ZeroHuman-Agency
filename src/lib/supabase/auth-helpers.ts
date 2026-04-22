@@ -75,8 +75,7 @@ export async function requireAuth(): Promise<
   }
 
   // 2. Load ALL brand memberships for this user (N:M via brand_members).
-  //    Falls back gracefully if brand_members doesn't exist yet (pre-017
-  //    databases) by catching the error and trying the legacy users.brand_id.
+  //    brand_members is now the single runtime source of truth.
   let memberBrandIds: string[] = []
 
   const { data: memberships, error: memberError } = await supabase
@@ -87,17 +86,6 @@ export async function requireAuth(): Promise<
 
   if (!memberError && memberships && memberships.length > 0) {
     memberBrandIds = memberships.map((m) => m.brand_id)
-  } else {
-    // Pre-017 fallback: read from users.brand_id (1:1 old model)
-    const { data: userRecord } = await supabase
-      .from('users')
-      .select('brand_id')
-      .eq('id', user.id)
-      .single()
-
-    if (userRecord?.brand_id) {
-      memberBrandIds = [userRecord.brand_id]
-    }
   }
 
   if (memberBrandIds.length === 0) {

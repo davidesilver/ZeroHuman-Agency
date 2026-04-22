@@ -6,11 +6,11 @@
  * will migrate to the memory_semantic layer in P3 — exposing them here would
  * create a parallel write path that we'd have to unwind.
  *
- * Authorization model is transitional:
- *  - Today: caller must be the single user tied to this brand via users.brand_id.
- *  - After P1: swap to `brand_members` membership check with role='owner'|'admin'.
- * The guard below is deliberately explicit so the P1 refactor is a targeted
- * find-and-replace, not a behavior change that sneaks in data leaks.
+ * Authorization is membership-based:
+ *  - runtime membership comes from `brand_members`
+ *  - destructive writes should eventually tighten to owner/admin only
+ * The current guard enforces membership and keeps the route aligned with the
+ * multi-brand runtime while the finer role model is stabilized separately.
  */
 
 import { createClient } from '@/lib/supabase/server'
