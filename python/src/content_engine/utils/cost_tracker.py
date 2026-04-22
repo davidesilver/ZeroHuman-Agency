@@ -76,22 +76,48 @@ async def track_cost(
 
 
 async def check_daily_cost_cap(brand_id: str) -> None:
-    """Check whether the brand has exceeded the daily cost cap.
+    """Check whether the brand has exceeded its daily cost cap.
 
-    Queries api_costs for the current UTC day, compares against the
-    DAILY_COST_CAP_USD env var (default $5.00), sends a Telegram alert
-    and raises RuntimeError if the cap is exceeded.
+    Cap resolution order (lowest wins):
+      1. brands.daily_budget_usd (per-brand DB value, NULL = unlimited)
+      2. DAILY_COST_CAP_USD env var (global system ceiling, default $5.00)
+
+    If the brand has daily_budget_usd = NULL AND no env var is set the
+    default of $5 still applies as a safety net.
+
+    Sends a Telegram alert and raises RuntimeError if the cap is exceeded.
+    The pipeline catches CostCapExceeded, stops processing, and resumes
+    naturally the next UTC day when the aggregate resets.
     """
     import os
     from datetime import datetime, timezone
 
-    cap = float(os.environ.get("DAILY_COST_CAP_USD", "5.0"))
+    global_cap = float(os.environ.get("DAILY_COST_CAP_USD", "5.0"))
+
+    # Fetch per-brand budget from DB (service role bypasses RLS)
+    db = get_db()
+    brand_resp = (
+        db.table("brands")
+        .select("daily_budget_usd")
+        .eq("id", brand_id)
+        .single()
+        .execute()
+    )
+    brand_row = brand_resp.data or {}
+    brand_budget = brand_row.get("daily_budget_usd")
+
+    # Resolve effective cap:
+    #  - If per-brand budget is set (not None/null), use the LOWER of the two.
+    #  - If per-brand budget is None (unlimited), use the global cap as safety net.
+    if brand_budget is not None:
+        cap = min(float(brand_budget), global_cap)
+    else:
+        cap = global_cap
 
     # Start of today in UTC (midnight)
     now_utc = datetime.now(timezone.utc)
     today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
 
-    db = get_db()
     resp = (
         db.table("api_costs")
         .select("cost_usd")
@@ -105,15 +131,24 @@ async def check_daily_cost_cap(brand_id: str) -> None:
     if total >= cap:
         # Lazy import to avoid circular import at module load time
         from ..monitoring.pipeline_health import send_alerts
+        source = "per-brand DB" if brand_budget is not None else "global env var"
         await send_alerts(
             [
-                f"🚨 Daily cost cap ${cap:.2f} exceeded for brand {brand_id}"
-                f" — pipeline aborted. Actual spend: ${total:.4f}"
+                f"🚨 Daily cost cap ${cap:.2f} ({source}) exceeded for brand {brand_id}"
+                f" — pipeline aborted. Spend today: ${total:.4f}."
+                f" Will resume automatically tomorrow UTC."
             ]
         )
-        raise RuntimeError(
-            f"Daily cost cap ${cap:.2f} exceeded (actual ${total:.4f}) for brand {brand_id}"
+        raise CostCapExceeded(
+            f"Daily cost cap ${cap:.2f} ({source}) exceeded "
+            f"(actual ${total:.4f}) for brand {brand_id}"
         )
 
 
-CostCapExceeded = RuntimeError  # sentinel for callers
+class CostCapExceeded(RuntimeError):
+    """Raised when a brand exceeds its daily cost cap.
+
+    The pipeline scheduler catches this, logs it, and skips the brand for
+    the rest of the UTC day.  The next daily run (after midnight UTC) will
+    proceed normally because the api_costs aggregate for the new day is 0.
+    """

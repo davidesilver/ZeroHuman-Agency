@@ -831,6 +831,43 @@ async def api_memory_consolidate(
     }
 
 
+@router.post("/memory/consolidate-user")
+async def api_memory_consolidate_user(
+    payload: MemoryConsolidateRequest,
+    request: Request,
+):
+    """User-triggered memory consolidation — JWT auth only (no scheduler secret).
+
+    Identical logic to /memory/consolidate but callable from the dashboard UI.
+    The scheduler-protected endpoint remains for cron use.
+    """
+    from ..memory.consolidation.worker import run_consolidation
+
+    brand_id = payload.brand_id or getattr(request.state, "brand_id", None)
+    if not brand_id:
+        raise HTTPException(400, "brand_id required (set in payload or authenticate via JWT)")
+
+    report = await run_consolidation(
+        brand_id=brand_id,
+        session_id=payload.session_id,
+        source_texts=payload.source_texts,
+    )
+
+    return {
+        "success": True,
+        "data": {
+            "brand_id": brand_id,
+            "session_id": payload.session_id,
+            "facts_added": len(report.facts_added),
+            "facts_rejected_verify": len(report.facts_rejected_verify),
+            "facts_rejected_dedup": len(report.facts_rejected_dedup),
+            "facts_superseded": len(report.facts_superseded),
+            "duration_s": report.duration_s,
+            "errors": report.errors,
+        },
+    }
+
+
 class MemoryRecallRequest(BaseModel):
     query: str
     kind: str | None = None

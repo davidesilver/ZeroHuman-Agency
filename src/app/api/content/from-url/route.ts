@@ -23,13 +23,22 @@ export async function POST(request: Request) {
 
     const { data: existing } = await supabase
       .from('research_items')
-      .select('id, title')
+      .select('id, title, status')
       .eq('url', url)
       .eq('brand_id', auth.brandId)
       .limit(1)
 
     if (existing && existing.length > 0) {
-      return errorResponse(`URL already exists: "${existing[0].title}"`, 409)
+      // Surface the existing item so the UI can deep-link instead of
+      // dead-ending with a raw error string.
+      return errorResponse(
+        `URL already exists: "${existing[0].title}"`,
+        409,
+        {
+          existing_item_id: existing[0].id,
+          existing_item_status: existing[0].status,
+        },
+      )
     }
 
     const urlObj = new URL(url)

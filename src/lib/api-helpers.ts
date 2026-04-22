@@ -62,11 +62,27 @@ export async function proxyToBackend(
     headers['X-Brand-ID'] = activeBrandId
   }
 
-  const resp = await fetch(`${PYTHON_BACKEND_URL}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  })
+  let resp: Response
+  try {
+    resp = await fetch(`${PYTHON_BACKEND_URL}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    })
+  } catch (err) {
+    // Backend is offline or unreachable (ECONNREFUSED, network error, etc.)
+    const msg = err instanceof Error ? err.message : 'Backend unreachable'
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          message: `Python backend offline — start the server and retry. (${msg})`,
+          details: { backend_url: PYTHON_BACKEND_URL, path },
+        },
+      },
+      { status: 503 },
+    )
+  }
 
   const data = await resp.json()
   const response = NextResponse.json(data, { status: resp.status })
@@ -84,6 +100,13 @@ export function jsonResponse(data: unknown, status = 200) {
   return NextResponse.json({ success: true, data }, { status })
 }
 
-export function errorResponse(message: string, status = 400) {
-  return NextResponse.json({ success: false, error: { message } }, { status })
+export function errorResponse(
+  message: string,
+  status = 400,
+  details?: Record<string, unknown>,
+) {
+  return NextResponse.json(
+    { success: false, error: { message, ...(details ? { details } : {}) } },
+    { status },
+  )
 }

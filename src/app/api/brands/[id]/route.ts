@@ -36,14 +36,14 @@ export async function PATCH(request: Request, context: RouteContext) {
   // P1: check membership instead of active-brand equality
   if (!auth.memberBrandIds.includes(id)) return errorResponse('Forbidden', 403)
 
-  let body: { name?: string; topics?: string[]; research_sources?: Json }
+  let body: { name?: string; topics?: string[]; research_sources?: Json; daily_budget_usd?: number | null }
   try {
     body = await request.json()
   } catch {
     return errorResponse('Invalid JSON body', 400)
   }
 
-  const patch: { name?: string; topics?: string[]; research_sources?: Json } = {}
+  const patch: { name?: string; topics?: string[]; research_sources?: Json; daily_budget_usd?: number | null } = {}
   if (body.name !== undefined) {
     if (typeof body.name !== 'string') return errorResponse('name must be a string', 400)
     const trimmed = body.name.trim()
@@ -67,8 +67,18 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
     patch.research_sources = body.research_sources
   }
+  if ('daily_budget_usd' in body) {
+    // null = unlimited; positive number = daily cap in USD
+    if (body.daily_budget_usd !== null) {
+      const v = Number(body.daily_budget_usd)
+      if (isNaN(v) || v < 0) return errorResponse('daily_budget_usd must be a positive number or null', 400)
+      patch.daily_budget_usd = v
+    } else {
+      patch.daily_budget_usd = null
+    }
+  }
   if (Object.keys(patch).length === 0) {
-    return errorResponse('No editable fields provided (allowed: name, topics, research_sources)', 400)
+    return errorResponse('No editable fields provided (allowed: name, topics, research_sources, daily_budget_usd)', 400)
   }
 
   const supabase = await createClient()
@@ -76,7 +86,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     .from('brands')
     .update(patch)
     .eq('id', id)
-    .select('id, name, slug, topics, tone_of_voice, scoring_weights, research_sources')
+    .select('id, name, slug, topics, tone_of_voice, scoring_weights, research_sources, daily_budget_usd')
     .single()
 
   if (error) return errorResponse(error.message, 500)

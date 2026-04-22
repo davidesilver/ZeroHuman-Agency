@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { Building, Plus, Loader2, Pencil, Trash2 } from 'lucide-react'
+import { Building, Plus, Loader2, Pencil, Trash2, DollarSign } from 'lucide-react'
 
 interface Brand {
   id: string
@@ -22,6 +22,7 @@ interface Brand {
   tone_of_voice: { rules?: unknown[] } | null
   scoring_weights: { founder_principles?: unknown[] } | null
   topics: string[] | null
+  daily_budget_usd: number | null
 }
 
 export default function BrandsPage() {
@@ -37,6 +38,7 @@ export default function BrandsPage() {
   // Edit dialog state — reuses the same form fields as create, but only
   // name/topics are sent (slug is immutable server-side in P0.3).
   const [editId, setEditId] = useState<string | null>(null)
+  const [formBudget, setFormBudget] = useState('')   // '' = unlimited, else USD string
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const fetchBrands = async () => {
@@ -64,6 +66,7 @@ export default function BrandsPage() {
     setFormName(brand.name)
     setFormSlug(brand.slug)
     setFormTopics((brand.topics || []).join(', '))
+    setFormBudget(brand.daily_budget_usd != null ? String(brand.daily_budget_usd) : '')
     setSaveError(null)
     setDialogOpen(true)
   }
@@ -79,12 +82,17 @@ export default function BrandsPage() {
     setSaveError(null)
     const topicsArr = formTopics ? formTopics.split(',').map(t => t.trim()).filter(Boolean) : []
     try {
+      // Parse budget: empty string → null (unlimited); number string → USD value
+      const budgetVal = formBudget.trim() === ''
+        ? null
+        : parseFloat(formBudget.trim())
+
       const resp = editId
         ? await fetch(`/api/brands/${editId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            // slug is immutable in P0.3 — only name/topics are sent.
-            body: JSON.stringify({ name: formName.trim(), topics: topicsArr }),
+            // slug is immutable in P0.3 — only name/topics/budget are sent.
+            body: JSON.stringify({ name: formName.trim(), topics: topicsArr, daily_budget_usd: budgetVal }),
           })
         : await fetch('/api/brands', {
             method: 'POST',
@@ -175,6 +183,30 @@ export default function BrandsPage() {
                 placeholder="AI, marketing, SaaS"
               />
             </div>
+            {editId && (
+              <div className="space-y-1.5">
+                <Label htmlFor="brand-budget">
+                  Daily budget (USD)
+                  <span className="text-muted-foreground text-xs"> — leave blank for unlimited</span>
+                </Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                  <Input
+                    id="brand-budget"
+                    type="number"
+                    min="0"
+                    step="0.50"
+                    value={formBudget}
+                    onChange={e => setFormBudget(e.target.value)}
+                    placeholder="5.00"
+                    className="pl-8"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Pipeline stops if daily spend reaches this limit and resumes automatically next UTC day.
+                </p>
+              </div>
+            )}
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
           </div>
           <DialogFooter>
@@ -267,6 +299,14 @@ export default function BrandsPage() {
                       {brand.scoring_weights?.founder_principles?.length
                         ? `${brand.scoring_weights.founder_principles.length} principles`
                         : 'Using defaults'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-muted-foreground">Daily Budget</span>
+                    <p className="text-xs mt-1">
+                      {brand.daily_budget_usd != null
+                        ? `$${Number(brand.daily_budget_usd).toFixed(2)} / day`
+                        : <span className="text-muted-foreground">Unlimited</span>}
                     </p>
                   </div>
                 </div>

@@ -11,7 +11,10 @@ export async function POST() {
   const { auth, response } = await requireAuth()
   if (!auth) return response
 
-  return proxyToBackend('/api/memory/consolidate', {
+  // Use the JWT-authenticated endpoint (not the scheduler-secret-protected one).
+  // The scheduler cron calls /api/memory/consolidate with X-Scheduler-Secret.
+  // The dashboard UI calls /api/memory/consolidate-user with the user's JWT.
+  return proxyToBackend('/api/memory/consolidate-user', {
     method: 'POST',
     body: { brand_id: auth.activeBrandId },
   })

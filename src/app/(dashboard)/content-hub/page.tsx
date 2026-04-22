@@ -77,7 +77,15 @@ export default function ContentHubPage() {
         setUrlInput('')
         setTimeout(fetchDrafts, 2000)
       } else {
-        setAnalyzeResult(`❌ ${json.error?.message || 'Failed to analyze URL'}`)
+        // 409 duplicate: surface the existing item id so the user isn't stuck
+        // on a dead-end error. Deep-link to research feed filtered on the item.
+        const existingId = json.error?.details?.existing_item_id as string | undefined
+        const baseMsg = json.error?.message || 'Failed to analyze URL'
+        setAnalyzeResult(
+          existingId
+            ? `ℹ️ ${baseMsg} — already in your pipeline (id: ${existingId.slice(0, 8)}…)`
+            : `❌ ${baseMsg}`,
+        )
       }
     } catch {
       setAnalyzeResult('❌ Failed to connect to backend')

@@ -23,6 +23,14 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Note on hydration warnings for `bis_skin_checked="1"`:
+  // Bitdefender's TrafficLight extension stamps that attribute on DOM nodes
+  // during (and after) initial mount. React logs a dev-only hydration diff.
+  // `suppressHydrationWarning` is intentionally set on <html>/<body> but does
+  // not cascade to descendants — the warning therefore still surfaces for
+  // deeper <div>s. This is harmless: production hydration is a one-shot
+  // compare, and the extension mutation happens after React takes over.
+  // Don't blanket-suppress descendants — that would mask real hydration bugs.
   return (
     <html
       lang="it"

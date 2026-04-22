@@ -4,6 +4,50 @@ import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/types/database.types'
 
 type DraftStatus = Database['public']['Enums']['draft_status']
+type ContentType = Database['public']['Enums']['content_type']
+type Platform = Database['public']['Enums']['platform']
+
+/**
+ * POST /api/content/drafts
+ * Creates a new content draft directly in Supabase (no Python backend needed).
+ * Used by the Blog Manager "New Post" dialog.
+ */
+export async function POST(request: Request) {
+  const { auth, response } = await requireAuth()
+  if (!auth) return response
+
+  let body: {
+    title?: string
+    content_type?: string
+    platform?: string
+    status?: string
+    body?: string
+  }
+  try {
+    body = await request.json()
+  } catch {
+    return errorResponse('Invalid JSON body', 400)
+  }
+
+  if (!body.title?.trim()) return errorResponse('title is required', 400)
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('content_drafts')
+    .insert({
+      brand_id: auth.brandId,
+      title: body.title.trim(),
+      content_type: (body.content_type || 'blog') as ContentType,
+      platform: (body.platform || 'blog') as Platform,
+      status: (body.status || 'draft') as DraftStatus,
+      body: body.body || null,
+    })
+    .select()
+    .single()
+
+  if (error) return errorResponse(error.message, 500)
+  return jsonResponse(data, 201)
+}
 
 export async function GET(request: Request) {
   // C-07: resolve brand_id from authenticated session

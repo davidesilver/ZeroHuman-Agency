@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,64 +10,71 @@ import { Settings as SettingsIcon, Key, Bot, Mail, Share2, Database, Clock, Buil
 import { useBrand } from '@/lib/brand-context'
 import Link from 'next/link'
 
-const CONFIG_SECTIONS = [
-  {
-    title: 'API Keys',
-    icon: Key,
-    items: [
-      { key: 'ANTHROPIC_API_KEY', label: 'Claude API', status: 'check' },
-      { key: 'OPENROUTER_API_KEY', label: 'OpenRouter', status: 'check' },
-      { key: 'SERPER_API_KEY', label: 'Serper (search)', status: 'check' },
-      { key: 'YOUTUBE_API_KEY', label: 'YouTube Data', status: 'check' },
-      { key: 'RESEND_API_KEY', label: 'Resend (email)', status: 'check' },
-    ],
-  },
-  {
-    title: 'LLM Configuration',
-    icon: Bot,
-    items: [
-      { key: 'scoring_model', label: 'Scoring Model', value: 'claude-sonnet-4-20250514' },
-      { key: 'auto_approve', label: 'Auto-approve threshold', value: '≥ 8.0' },
-      { key: 'auto_reject', label: 'Auto-reject threshold', value: '≤ 3.0' },
-    ],
-  },
-  {
-    title: 'Email / Newsletter',
-    icon: Mail,
-    items: [
-      { key: 'from_email', label: 'From email', value: 'newsletter@yourdomain.com' },
-      { key: 'from_name', label: 'From name', value: 'Content Engine' },
-    ],
-  },
-  {
-    title: 'Social Platforms',
-    icon: Share2,
-    items: [
-      { key: 'linkedin', label: 'LinkedIn', status: 'not_configured' },
-      { key: 'twitter', label: 'Twitter/X', status: 'not_configured' },
-      { key: 'instagram', label: 'Instagram', status: 'not_configured' },
-      { key: 'tiktok', label: 'TikTok', status: 'not_configured' },
-    ],
-  },
-  {
-    title: 'Research Pipeline',
-    icon: Database,
-    items: [
-      { key: 'dedup_threshold', label: 'Dedup similarity threshold', value: '0.85' },
-      { key: 'max_items', label: 'Max items per retriever', value: '100' },
-    ],
-  },
-  {
-    title: 'Scheduler',
-    icon: Clock,
-    items: [
-      { key: 'daily_pipeline', label: 'Daily research pipeline', value: '07:00 CET' },
-      { key: 'feedback_loop', label: 'Feedback loop update', value: '02:00 CET' },
-      { key: 'publish_scheduled', label: 'Publish scheduled posts', value: 'every 10min' },
-    ],
-  },
-]
+// Shape returned by GET /api/system/config
+interface SystemConfig {
+  api_keys: {
+    anthropic: boolean
+    openrouter: boolean
+    serper: boolean
+    youtube: boolean
+    resend: boolean
+  }
+  llm: {
+    scoring_model: string
+    auto_approve_score: number
+    auto_reject_score: number
+  }
+  email: {
+    from_email: string
+    from_name: string
+  }
+  research: {
+    dedup_threshold: number
+    max_items_retriever: number
+  }
+  scheduler: {
+    daily_pipeline: string
+    feedback_loop: string
+    publish_scheduled: string
+  }
+  budget: {
+    daily_cap_usd: number
+  }
+  social: {
+    linkedin: boolean
+    twitter: boolean
+    instagram: boolean
+    tiktok: boolean
+  }
+}
 
+function StatusBadge({ configured, label }: { configured: boolean | null; label?: string }) {
+  if (configured === null) {
+    return <Badge variant="outline" className="text-[10px] text-muted-foreground">Loading…</Badge>
+  }
+  if (configured) {
+    return <Badge className="text-[10px] bg-green-600">{label || 'Configured'}</Badge>
+  }
+  return <Badge variant="outline" className="text-[10px] text-amber-600">Check .env.local</Badge>
+}
+
+function Row({ label, envKey, children }: { label: string; envKey?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
+      <div className="flex items-center gap-2">
+        <span className="text-sm">{label}</span>
+        {envKey && (
+          <code className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+            {envKey}
+          </code>
+        )}
+      </div>
+      <div>{children}</div>
+    </div>
+  )
+}
+
+// ── Add Brand card (unchanged logic, reads from useBrand) ────────────────────
 function AddBrandCard() {
   const { brands, setActiveBrand } = useBrand()
   const [open, setOpen] = useState(false)
@@ -76,7 +83,6 @@ function AddBrandCard() {
   const [topics, setTopics] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   const handleNameChange = (v: string) => {
     setName(v)
@@ -101,7 +107,6 @@ function AddBrandCard() {
       if (json.success) {
         const newBrand = { id: json.data.id, name: json.data.name, slug: json.data.slug }
         setActiveBrand(newBrand)
-        setSuccess(`Brand "${newBrand.name}" created and set as active.`)
         setName(''); setSlug(''); setTopics('')
         setOpen(false)
         window.location.reload()
@@ -147,38 +152,20 @@ function AddBrandCard() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Name</Label>
-                <Input
-                  value={name}
-                  onChange={e => handleNameChange(e.target.value)}
-                  placeholder="Silvestri Pallets"
-                  className="h-8 text-sm"
-                />
+                <Input value={name} onChange={e => handleNameChange(e.target.value)} placeholder="Silvestri Pallets" className="h-8 text-sm" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Slug <span className="text-muted-foreground">(auto)</span></Label>
-                <Input
-                  value={slug}
-                  onChange={e => setSlug(e.target.value)}
-                  placeholder="silvestri-pallets"
-                  className="h-8 text-sm"
-                />
+                <Input value={slug} onChange={e => setSlug(e.target.value)} placeholder="silvestri-pallets" className="h-8 text-sm" />
               </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Topics <span className="text-muted-foreground">(comma separated)</span></Label>
-              <Input
-                value={topics}
-                onChange={e => setTopics(e.target.value)}
-                placeholder="logistics, sustainability, B2B"
-                className="h-8 text-sm"
-              />
+              <Input value={topics} onChange={e => setTopics(e.target.value)} placeholder="logistics, sustainability, B2B" className="h-8 text-sm" />
             </div>
             {error && <p className="text-xs text-destructive">{error}</p>}
-            {success && <p className="text-xs text-green-600">{success}</p>}
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setOpen(false)}>Cancel</Button>
               <Button
                 size="sm"
                 className="h-7 text-xs bg-staging-bg hover:bg-staging-bg/90 text-white"
@@ -186,7 +173,7 @@ function AddBrandCard() {
                 onClick={handleCreate}
               >
                 {saving ? <Loader2 className="size-3 animate-spin" /> : null}
-                {saving ? 'Creating...' : 'Create'}
+                {saving ? 'Creating…' : 'Create'}
               </Button>
             </div>
           </div>
@@ -196,7 +183,24 @@ function AddBrandCard() {
   )
 }
 
+// ── Main page ────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
+  const [cfg, setCfg] = useState<SystemConfig | null>(null)
+
+  useEffect(() => {
+    fetch('/api/system/config')
+      .then(r => r.json())
+      .then(j => { if (j.success) setCfg(j.data) })
+      .catch(() => {/* show loading state indefinitely on error */})
+  }, [])
+
+  const k = cfg?.api_keys
+  const llm = cfg?.llm
+  const soc = cfg?.social
+  const sch = cfg?.scheduler
+  const res = cfg?.research
+  const bud = cfg?.budget
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -207,10 +211,10 @@ export default function SettingsPage() {
         </Badge>
       </div>
 
-      {/* Brands — actionable section at the top */}
+      {/* Brands */}
       <AddBrandCard />
 
-      {/* Brand Context — quick link to memory management */}
+      {/* Brand Context Memory */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -235,44 +239,194 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4">
-        {CONFIG_SECTIONS.map(section => (
-          <Card key={section.title}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <section.icon className="size-4 text-muted-foreground" />
-                {section.title}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {section.items.map(item => (
-                  <div key={item.key} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{item.label}</span>
-                      <code className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">{item.key}</code>
-                    </div>
-                    <div>
-                      {'status' in item && item.status === 'check' && (
-                        <Badge variant="outline" className="text-[10px] text-amber-600">Check .env.local</Badge>
-                      )}
-                      {'status' in item && item.status === 'configured' && (
-                        <Badge className="text-[10px] bg-green-600">Configured</Badge>
-                      )}
-                      {'status' in item && item.status === 'not_configured' && (
-                        <Badge variant="outline" className="text-[10px] text-muted-foreground">Not configured</Badge>
-                      )}
-                      {'value' in item && (
-                        <span className="text-sm font-mono text-muted-foreground">{item.value}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* API Keys */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Key className="size-4 text-muted-foreground" />
+            API Keys
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-0">
+            <Row label="Claude API" envKey="ANTHROPIC_API_KEY">
+              <StatusBadge configured={k?.anthropic ?? null} />
+            </Row>
+            <Row label="OpenRouter" envKey="OPENROUTER_API_KEY">
+              <StatusBadge configured={k?.openrouter ?? null} />
+            </Row>
+            <Row label="Serper (search)" envKey="SERPER_API_KEY">
+              <StatusBadge configured={k?.serper ?? null} />
+            </Row>
+            <Row label="YouTube Data" envKey="YOUTUBE_API_KEY">
+              <StatusBadge configured={k?.youtube ?? null} />
+            </Row>
+            <Row label="Resend (email)" envKey="RESEND_API_KEY">
+              <StatusBadge configured={k?.resend ?? null} />
+            </Row>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* LLM Configuration */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Bot className="size-4 text-muted-foreground" />
+            LLM Configuration
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-0">
+            <Row label="Scoring Model" envKey="SCORING_MODEL">
+              <span className="text-sm font-mono text-muted-foreground">
+                {llm?.scoring_model ?? <span className="animate-pulse">…</span>}
+              </span>
+            </Row>
+            <Row label="Auto-approve threshold" envKey="AUTO_APPROVE_SCORE">
+              <span className="text-sm font-mono text-muted-foreground">
+                {llm ? `≥ ${llm.auto_approve_score}` : <span className="animate-pulse">…</span>}
+              </span>
+            </Row>
+            <Row label="Auto-reject threshold" envKey="AUTO_REJECT_SCORE">
+              <span className="text-sm font-mono text-muted-foreground">
+                {llm ? `≤ ${llm.auto_reject_score}` : <span className="animate-pulse">…</span>}
+              </span>
+            </Row>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Budget */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <span className="size-4 text-muted-foreground text-base leading-none">$</span>
+            Cost Budget
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-0">
+            <Row label="Global daily cap (all brands)" envKey="DAILY_COST_CAP_USD">
+              <span className="text-sm font-mono text-muted-foreground">
+                {bud ? `$${bud.daily_cap_usd.toFixed(2)} / day` : <span className="animate-pulse">…</span>}
+              </span>
+            </Row>
+            <Row label="Per-brand budget" envKey="">
+              <Link
+                href="/brands"
+                className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                           hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+              >
+                <ExternalLink className="size-3" /> Set per brand
+              </Link>
+            </Row>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Email / Newsletter */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Mail className="size-4 text-muted-foreground" />
+            Email / Newsletter
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-0">
+            <Row label="From email" envKey="FROM_EMAIL">
+              <span className="text-sm font-mono text-muted-foreground">
+                {cfg ? (cfg.email.from_email || <em className="not-italic text-amber-600">not set</em>) : <span className="animate-pulse">…</span>}
+              </span>
+            </Row>
+            <Row label="From name" envKey="FROM_NAME">
+              <span className="text-sm font-mono text-muted-foreground">
+                {cfg ? cfg.email.from_name : <span className="animate-pulse">…</span>}
+              </span>
+            </Row>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Social Platforms */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Share2 className="size-4 text-muted-foreground" />
+            Social Platforms
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-0">
+            <Row label="LinkedIn" envKey="LINKEDIN_TOKEN">
+              <StatusBadge configured={soc?.linkedin ?? null} label="Connected" />
+            </Row>
+            <Row label="Twitter/X" envKey="TWITTER_BEARER_TOKEN">
+              <StatusBadge configured={soc?.twitter ?? null} label="Connected" />
+            </Row>
+            <Row label="Instagram" envKey="INSTAGRAM_TOKEN">
+              <StatusBadge configured={soc?.instagram ?? null} label="Connected" />
+            </Row>
+            <Row label="TikTok" envKey="TIKTOK_TOKEN">
+              <StatusBadge configured={soc?.tiktok ?? null} label="Connected" />
+            </Row>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Research Pipeline */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Database className="size-4 text-muted-foreground" />
+            Research Pipeline
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-0">
+            <Row label="Dedup similarity threshold" envKey="DEDUP_THRESHOLD">
+              <span className="text-sm font-mono text-muted-foreground">
+                {res ? res.dedup_threshold : <span className="animate-pulse">…</span>}
+              </span>
+            </Row>
+            <Row label="Max items per retriever" envKey="MAX_ITEMS_PER_RETRIEVER">
+              <span className="text-sm font-mono text-muted-foreground">
+                {res ? res.max_items_retriever : <span className="animate-pulse">…</span>}
+              </span>
+            </Row>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Scheduler */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Clock className="size-4 text-muted-foreground" />
+            Scheduler
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-0">
+            <Row label="Daily research pipeline" envKey="CRON_DAILY_PIPELINE">
+              <span className="text-sm font-mono text-muted-foreground">
+                {sch ? sch.daily_pipeline : <span className="animate-pulse">…</span>}
+              </span>
+            </Row>
+            <Row label="Feedback loop update" envKey="CRON_FEEDBACK_LOOP">
+              <span className="text-sm font-mono text-muted-foreground">
+                {sch ? sch.feedback_loop : <span className="animate-pulse">…</span>}
+              </span>
+            </Row>
+            <Row label="Publish scheduled posts" envKey="CRON_PUBLISH_SCHEDULED">
+              <span className="text-sm font-mono text-muted-foreground">
+                {sch ? sch.publish_scheduled : <span className="animate-pulse">…</span>}
+              </span>
+            </Row>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

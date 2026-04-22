@@ -28,8 +28,9 @@ export default function CostiAPIPage() {
     spend_week: number
     spend_month: number
     daily_budget: number
+    brand_budget: number | null   // per-brand DB value; null = unlimited
     by_agent: AgentCost[]
-  }>({ spend_today: 0, spend_week: 0, spend_month: 0, daily_budget: 15, by_agent: [] })
+  }>({ spend_today: 0, spend_week: 0, spend_month: 0, daily_budget: 5, brand_budget: null, by_agent: [] })
 
   const fetchCosts = useCallback(async () => {
     try {
@@ -41,7 +42,13 @@ export default function CostiAPIPage() {
 
   useEffect(() => { fetchCosts() }, [fetchCosts])
 
-  const pct = Math.min((data.spend_today / data.daily_budget) * 100, 100)
+  // Effective cap: per-brand budget (if set) wins vs. global cap
+  const effectiveBudget = data.brand_budget != null
+    ? Math.min(data.brand_budget, data.daily_budget)
+    : data.daily_budget
+  const pct = effectiveBudget > 0
+    ? Math.min((data.spend_today / effectiveBudget) * 100, 100)
+    : 0
 
   return (
     <div className="space-y-4">
@@ -56,9 +63,16 @@ export default function CostiAPIPage() {
       <Card>
         <CardContent className="pt-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Daily budget</span>
+            <div>
+              <span className="text-sm font-medium">Daily budget</span>
+              {data.brand_budget != null && (
+                <span className="text-xs text-muted-foreground ml-2">
+                  (per-brand ${data.brand_budget.toFixed(2)} · global cap ${data.daily_budget.toFixed(2)})
+                </span>
+              )}
+            </div>
             <span className="text-sm text-muted-foreground">
-              ${data.spend_today.toFixed(2)} / ${data.daily_budget.toFixed(2)}
+              ${data.spend_today.toFixed(2)} / {effectiveBudget > 0 ? `$${effectiveBudget.toFixed(2)}` : '∞'}
             </span>
           </div>
           <Progress value={pct} className="h-3" />

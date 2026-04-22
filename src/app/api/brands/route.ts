@@ -48,7 +48,28 @@ export async function POST(request: Request) {
   })
 
   if (error) {
-    if (error.message === 'slug_taken') return errorResponse('A brand with that slug already exists', 409)
+    if (error.message === 'slug_taken') {
+      // Disambiguate the 409: if the slug belongs to a brand the caller is
+      // already a member of, tell them so (they can switch to it); otherwise
+      // slugs are globally unique across tenants, so suggest a variation.
+      const { data: mineWithSlug } = await supabase
+        .from('brands')
+        .select('id, name, slug')
+        .eq('slug', slug)
+        .maybeSingle()
+
+      if (mineWithSlug) {
+        return errorResponse(
+          `You already have a brand with slug "${slug}". Switch to it in the brand selector.`,
+          409,
+          { existing_brand_id: mineWithSlug.id, existing_brand_name: mineWithSlug.name },
+        )
+      }
+      return errorResponse(
+        `Slug "${slug}" is taken globally. Try a variation (e.g. "${slug}-io", "${slug}-co").`,
+        409,
+      )
+    }
     if (error.message === 'user_already_has_brand') return errorResponse('You already have a brand configured', 409)
     return errorResponse(error.message, 500)
   }

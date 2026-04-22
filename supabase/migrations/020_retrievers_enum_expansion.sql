@@ -59,8 +59,13 @@ DO $$ BEGIN
 END $$;
 
 -- ============================================================
--- 4. Drop users.brand_id (multi-brand now uses brand_members
---    table introduced in migration 017) — idempotent
+-- 4. Drop users.brand_id — SKIPPED in this migration.
+--
+--    The RLS policies on `users` (created in migration 017) reference
+--    users.brand_id in their USING clause (user_has_brand(brand_id)).
+--    Postgres therefore refuses the DROP with "other objects depend on it".
+--    Migration 021 re-adds users.brand_id as a compatibility column anyway,
+--    so the DROP + re-add would be a no-op.  Dropping it here is omitted;
+--    if it needs to be removed in the future, the dependent policies must be
+--    rewritten first.
 -- ============================================================
-
-ALTER TABLE users DROP COLUMN IF EXISTS brand_id;

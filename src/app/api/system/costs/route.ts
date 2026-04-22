@@ -80,6 +80,19 @@ export async function GET(request: NextRequest) {
     const sumCosts = (rows: { cost_usd: number }[] | null) =>
       (rows || []).reduce((sum, r) => sum + Number(r.cost_usd), 0)
 
+    // Global cap — same env var the Python backend uses.
+    const dailyBudget = parseFloat(process.env.DAILY_COST_CAP_USD || '5')
+
+    // Per-brand budget from DB (null = unlimited)
+    const { data: brandRow } = await supabase
+      .from('brands')
+      .select('daily_budget_usd')
+      .eq('id', auth.brandId)
+      .single()
+    const brandBudget: number | null = brandRow?.daily_budget_usd != null
+      ? Number(brandRow.daily_budget_usd)
+      : null
+
     return jsonResponse({
       period,
       total_cost: totalCost,
@@ -87,7 +100,8 @@ export async function GET(request: NextRequest) {
       spend_week: sumCosts(weekRes.data),
       spend_month: sumCosts(monthRes.data),
       by_agent: Object.values(byAgent),
-      daily_budget: 15.0,
+      daily_budget: dailyBudget,       // global env cap
+      brand_budget: brandBudget,       // per-brand DB cap (null = unlimited)
     })
   } catch {
     return errorResponse('Failed to fetch costs', 500)
