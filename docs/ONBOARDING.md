@@ -1,124 +1,186 @@
 # Tenant Onboarding
 
-This guide explains how to activate a new tenant without changing application code.
+A **tenant** in this platform is a **brand** — an isolated workspace with its own content sources, voice, agents, social accounts, and data. This guide explains how to create a new brand and make it fully operational without touching application code.
 
-## Goal
+---
 
-A tenant is operational only when all of these exist:
+## What a working tenant needs
 
-- one row in `public.brands`
-- one or more Supabase auth users
-- one row in `public.users` for each auth user
-- optional agent customizations, RSS sources, social accounts, and newsletter settings
+| Record | Table | Required |
+|---|---|---|
+| Brand configuration | `public.brands` | Yes |
+| Auth user | `auth.users` (Supabase) | Yes |
+| User-to-brand mapping | `public.brand_members` | Yes |
+| Agent customizations | `public.agent_configs`, `agent_skills` | No (defaults apply) |
+| Social integrations | `public.brand_social_integrations` | Only for social publishing |
+| Brand visual assets | `public.brand_assets` | Only for image generation |
 
-## 1. Create The Tenant Record
+---
 
-Minimum SQL:
+## Option A — Dashboard UI (recommended)
+
+1. Sign in and go to **Settings → Brands → Add brand**
+2. Fill in name, slug, and topics
+3. The `create_brand_with_owner()` SQL function creates both the `brands` row and the `brand_members` entry atomically
+4. Configure sources, voice, and scoring in **Settings → Brand Context**
+
+This is the safest path — the function enforces constraints and handles the atomic insert.
+
+---
+
+## Option B — SQL (for automation or migration scripts)
+
+### 1. Create the brand
 
 ```sql
-insert into public.brands (
+INSERT INTO public.brands (
   name,
   slug,
   topics,
   tone_of_voice,
   scoring_weights,
-  rss_sources,
-  social_accounts
-) values (
-  'Example Workspace',
-  'example-workspace',
-  array['topic-a', 'topic-b'],
-  '{"style":"clear","format":"operator-friendly"}'::jsonb,
-  '{"applicability":1,"credibility":1,"alignment":1,"trend_prediction":1,"italy_relevance":1}'::jsonb,
-  '[]'::jsonb,
-  '{}'::jsonb
+  rss_sources
+) VALUES (
+  'Acme Corp',
+  'acme-corp',
+  ARRAY['supply chain', 'logistics', 'automation'],
+  '{"style": "direct", "audience": "operators", "avoid": ["jargon", "fluff"]}'::jsonb,
+  '{"applicability": 2, "credibility": 1, "alignment": 1, "trend_prediction": 1}'::jsonb,
+  '[{"url": "https://example.com/feed.xml", "label": "Example Blog"}]'::jsonb
 );
 ```
 
-Recommended fields to review after creation:
+### 2. Create the user-to-brand mapping
 
-- `topics`
-- `tone_of_voice`
-- `scoring_weights`
-- `rss_sources`
-- `social_accounts`
-- `use_humanizer`
-- `humanizer_channels`
-
-## 2. Create The User Mapping
-
-After creating the auth user in Supabase, add the application-level user row:
+After the user signs up through the Supabase Auth UI, link them to the brand:
 
 ```sql
-insert into public.users (
-  id,
-  brand_id,
-  email,
-  role
-) values (
-  '<auth-user-uuid>',
-  '<brand-uuid>',
-  'editor@example.com',
-  'editor'
+INSERT INTO public.brand_members (user_id, brand_id, role)
+VALUES (
+  '<supabase-auth-user-uuid>',
+  '<brand-uuid-from-step-1>',
+  'owner'
 );
 ```
 
-Supported roles:
+Supported roles: `owner`, `editor`, `viewer`.
 
-- `owner`
-- `editor`
-- `viewer`
+> **Note:** `public.users` still exists for legacy single-brand reads. `public.brand_members` is the current multi-tenant membership table (since migration 017). Both are maintained.
 
-## 3. Verify Agent Defaults
+### 3. Verify
 
-The agent migration creates tenant-scoped defaults in:
+```sql
+-- Confirm the brand exists
+SELECT id, name, slug FROM public.brands WHERE slug = 'acme-corp';
 
-- `agent_configs`
-- `agent_skills`
+-- Confirm the membership
+SELECT bm.role, b.name
+FROM public.brand_members bm
+JOIN public.brands b ON b.id = bm.brand_id
+WHERE bm.user_id = '<user-uuid>';
+```
 
-Review these tables if the tenant needs:
+---
 
-- a different writing identity
-- custom editorial rules
-- per-agent skills or priorities
+## Configure the brand
 
-See [`docs/AGENTS.md`](/Users/claw/Progetti/ai-automation/docs/AGENTS.md).
+After creation, configure these fields in **Settings → Brand Context** or directly in SQL:
 
-## 4. Configure Sources
+| Field | Purpose |
+|---|---|
+| `topics` | Keywords used by all research retrievers |
+| `tone_of_voice` | JSON describing voice, style, and constraints |
+| `scoring_weights` | Per-dimension weights for the scoring engine |
+| `rss_sources` | Array of `{url, label}` objects for RSS retrieval |
+| `research_sources` | Extended sources: YouTube channels, X accounts, Gmail labels |
+| `founder_principles` | Non-negotiable content rules injected into agent prompts |
+| `gold_examples` | High-quality example posts used for voice calibration |
+| `discard_examples` | Examples of content to avoid |
+| `use_humanizer` | Enable the humanizer pass |
+| `humanizer_channels` | Platforms where humanizer runs (`linkedin`, `x`, etc.) |
+| `daily_budget_usd` | Per-brand daily LLM spending cap |
+| `from_email` / `from_name` | Newsletter sender identity |
+| `image_backend` / `image_model` | Image generation configuration |
 
-Content discovery depends on tenant data, not hardcoded code changes.
+---
 
-Typical fields:
+## Connect social accounts
 
-- `brands.rss_sources` for feeds
-- `brands.topics` for topical context
-- `brands.scoring_weights` for scoring emphasis
+1. Open the Postiz UI (self-hosted: `http://localhost:4200`, or your cloud instance)
+2. Go to **Integrations → Add** and connect each platform via OAuth
+3. Copy the integration ID for each platform
+4. Paste into **Settings → Social Connections** in the Content Engine dashboard
 
-If social publishing is required, store account metadata in `brands.social_accounts`.
+The platform stores only the opaque integration ID — no OAuth tokens are held in the Content Engine database.
 
-## 5. Validate Access
+---
 
-Checklist:
+## Set up agent configuration (optional)
 
-1. user can sign in from the login page
-2. dashboard loads successfully
-3. `GET /api/brands` returns only the tenant row
-4. research trigger works
-5. content generation creates a draft under the correct `brand_id`
+By default, all agents use the hardcoded fallback prompts. To customize:
 
-## 6. Recommended Acceptance Test
+1. Go to **Settings → Agents** in the dashboard
+2. Select an agent key (e.g., `writer`, `editor`)
+3. Write an identity prompt tailored to the brand
+4. Optionally add skills for modular behavior injection
 
-1. add at least one source
-2. run a research cycle
-3. score discovered items
-4. generate one draft
-5. run GOD mode on that draft
-6. if enabled, run humanizer
-7. preview or send one newsletter
+See [`docs/AGENTS.md`](AGENTS.md) for the full agent system reference.
 
-## 7. Common Mistakes
+---
 
-- Creating the auth user but forgetting the `public.users` row
-- Setting up `brands` without usable `rss_sources` or topics
-- Expecting scheduler jobs to work without `SCHEDULER_BRAND_ID`
-- Storing frontend-only credentials instead of service credentials in environment variables
+## Upload brand assets (optional)
+
+Brand assets (logos, palette files, design system PDFs, example newsletters) are stored in the `brand-assets` Supabase Storage bucket and referenced in `brand_assets`.
+
+1. Go to **Settings → Brand Visual Assets**
+2. Upload assets — they are stored under `<brand_id>/<uuid>.<ext>`
+3. The image generator and text agents can reference these assets when generating content
+
+---
+
+## Validation checklist
+
+Before handing a brand to a user, verify:
+
+- [ ] User can sign in
+- [ ] Brand selector shows the correct brand
+- [ ] `GET /api/brands` returns only this brand's data (RLS check)
+- [ ] Research trigger completes without errors
+- [ ] At least one draft can be generated
+- [ ] GOD mode runs on a draft (if enabled)
+- [ ] Newsletter preview works (if Resend is configured)
+- [ ] Social publish works (if Postiz is configured)
+
+---
+
+## Acceptance test sequence
+
+```bash
+# 1. Trigger research
+curl -X POST http://localhost:3000/api/research/trigger \
+  -H "Cookie: <session>" \
+  -H "Content-Type: application/json" \
+  -d '{"retrievers": ["rss", "semantic"]}'
+
+# 2. Score items
+curl -X POST http://localhost:3000/api/scoring/run \
+  -H "Cookie: <session>"
+
+# 3. Generate a draft
+curl -X POST http://localhost:3000/api/content/generate \
+  -H "Cookie: <session>" \
+  -H "Content-Type: application/json" \
+  -d '{"research_item_id": "<id>", "platform": "linkedin", "run_god": true}'
+```
+
+---
+
+## Common mistakes
+
+| Mistake | Symptom | Fix |
+|---|---|---|
+| Creating auth user but forgetting `brand_members` | 403 "User has no associated brand" | Insert the membership row |
+| Topics left empty | Research returns nothing relevant | Set at least 3–5 specific topics |
+| No RSS sources or search key | Research runs but finds nothing | Add `rss_sources` or configure `SERPER_API_KEY` |
+| `SCHEDULER_BRAND_ID` not set | Scheduler jobs fail for multi-brand | Set the env variable or leave empty for fan-out to all brands |
+| Social accounts not connected in Postiz | Publish fails with "no active integration" | Complete OAuth in Postiz UI first |

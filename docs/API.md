@@ -1,207 +1,306 @@
 # API Guide
 
-This project exposes two API layers:
+The platform exposes two API surfaces:
 
-- `Next.js route handlers` under [`src/app/api`](/Users/claw/Progetti/ai-automation/src/app/api), used by the browser and by simple integrations
-- `FastAPI routes` under [`python/src/content_engine/api`](/Users/claw/Progetti/ai-automation/python/src/content_engine/api), used for orchestration and protected service logic
+- **Next.js route handlers** (`src/app/api/`) — used by the browser and simple integrations; mix of direct Supabase reads and FastAPI proxies
+- **FastAPI routes** (`python/src/content_engine/api/`) — orchestration-heavy logic; always requires auth
 
-## Authentication Model
-
-Browser and first-party consumers:
-
-- authenticate with Supabase
-- call the Next.js routes on the frontend host
-- the frontend forwards the Supabase JWT to FastAPI when needed
-
-Direct backend consumers:
-
-- must send `Authorization: Bearer <supabase-access-token>`
-- optional `X-Brand-ID` is validated against the token if present
-
-Scheduler consumers:
-
-- call protected endpoints with `X-Scheduler-Secret`
-- do not use a user JWT
-- require `SCHEDULER_BRAND_ID` on the backend side
-
-## Response Shape
-
-Most routes return one of these shapes:
+All responses use a consistent envelope:
 
 ```json
-{ "success": true, "data": { "...": "..." } }
-```
-
-```json
+{ "success": true, "data": { ... } }
 { "success": false, "error": { "message": "..." } }
 ```
 
-## Frontend Route Inventory
+---
 
-These routes are available on the Next.js application host.
+## Authentication
 
-### Health And System
+### Browser / first-party clients
 
-| Route | Method | Notes |
-| --- | --- | --- |
-| `/api/health` | `GET` | basic frontend liveness |
-| `/api/system/health` | `GET` | reads `pipeline_health` and fallback logs |
-| `/api/system/activity` | `GET` | aggregates research, drafts, newsletters |
-| `/api/system/costs` | `GET` | reads cost data from Supabase |
+Authenticate via Supabase, then call Next.js routes. The frontend forwards the Supabase JWT to FastAPI automatically via `proxyToBackend()`.
 
-### Tenant, Research, Drafts
+### Direct FastAPI access
 
-| Route | Method | Notes |
-| --- | --- | --- |
-| `/api/brands` | `GET` | direct Supabase read |
-| `/api/research/trigger` | `POST` | proxies to FastAPI |
-| `/api/research/runs` | `GET` | proxies to FastAPI |
-| `/api/research/items` | `GET` | direct Supabase read with auth |
-| `/api/research/items/:id/status` | `PATCH` | proxies to FastAPI |
-| `/api/research/stats` | `GET` | direct Supabase read |
-| `/api/content/from-url` | `POST` | inserts a manual research item directly in Supabase |
-| `/api/content/drafts` | `GET` | direct Supabase read |
-| `/api/content/drafts/:id` | `GET`, `PATCH` | direct Supabase read/update |
-| `/api/content/generate` | `POST` | proxies to FastAPI |
-| `/api/content/drafts/:id/god-mode` | `POST` | proxies to FastAPI |
+```http
+Authorization: Bearer <supabase-access-token>
+Content-Type: application/json
+X-Brand-ID: <brand-uuid>   # optional; validated against token if present
+```
+
+### Scheduler / cron callers
+
+Protected endpoints only — no user JWT required:
+
+```http
+X-Scheduler-Secret: <your-scheduler-secret>
+```
+
+---
+
+## Next.js route inventory
+
+### System and health
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/system/health` | GET | Supabase |
+| `/api/system/activity` | GET | Supabase |
+| `/api/system/costs` | GET | Supabase |
+| `/api/system/config` | GET | Env (no secrets exposed) |
+
+### Brands and assets
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/brands` | GET | Supabase |
+| `/api/brands/:id` | GET, PATCH | Supabase |
+| `/api/brands/:id/assets` | GET, POST | Supabase |
+| `/api/brands/:id/assets/:assetId` | GET, PATCH, DELETE | Supabase |
+| `/api/brands/:id/assets/:assetId/preview` | GET | Supabase Storage |
+| `/api/brands/:id/assets/upload-url` | GET | Supabase (signed URL) |
+
+### Research
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/research/trigger` | POST | → FastAPI |
+| `/api/research/runs` | GET | → FastAPI |
+| `/api/research/items` | GET | Supabase |
+| `/api/research/items/:id/status` | PATCH | → FastAPI |
+| `/api/research/stats` | GET | Supabase |
+| `/api/content/from-url` | POST | Supabase (manual URL insert) |
+
+### Content and drafts
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/content/drafts` | GET | Supabase |
+| `/api/content/drafts/:id` | GET, PATCH | Supabase |
+| `/api/content/generate` | POST | → FastAPI |
+| `/api/content/drafts/:id/god-mode` | POST | → FastAPI |
+
+### Writing Lab
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/writing-lab/sessions` | GET, POST | GET: Supabase · POST: → FastAPI |
+| `/api/writing-lab/sessions/:id` | GET | Supabase |
+| `/api/writing-lab/sessions/:id/vote` | POST | → FastAPI |
+
+### Newsletter
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/newsletter` | GET | Supabase |
+| `/api/newsletter/:id` | GET, PATCH | Supabase |
+| `/api/newsletter/:id/preview` | GET | → FastAPI |
+| `/api/newsletter/send` | POST | → FastAPI |
+
+### Social publishing
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/social/publish` | POST | → FastAPI |
+| `/api/social/publish/linkedin` | POST | → FastAPI |
+| `/api/social/publish/twitter` | POST | → FastAPI |
+| `/api/social/schedule` | POST | → FastAPI |
+| `/api/social/health` | GET | → FastAPI |
+| `/api/social/integrations` | GET | → FastAPI |
+| `/api/social/integrations/mine` | GET | → FastAPI |
+| `/api/social/integrations/mine/:platform` | GET | → FastAPI |
+| `/api/social/analytics` | GET | → FastAPI |
+
+### Image generation
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/images/generate` | POST | → FastAPI |
+| `/api/images/carousel` | POST | → FastAPI |
+| `/api/images/jobs/:id` | GET | → FastAPI |
+| `/api/images/stats` | GET | → FastAPI |
+
+### Memory
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/memory/facts` | GET, POST | Supabase (`memory_semantic`) |
+| `/api/memory/facts/:id` | GET, PATCH, DELETE | Supabase |
+| `/api/memory/episodic` | GET | Supabase (view) |
+| `/api/memory/consolidate` | POST | → FastAPI |
+| `/api/memory/discover` | POST | → FastAPI |
+| `/api/memory/upload` | POST | → FastAPI |
 
 ### Agents
 
-| Route | Method | Notes |
-| --- | --- | --- |
-| `/api/v1/agent-configs` | `GET`, `POST` | mixed frontend auth + FastAPI proxy |
-| `/api/v1/agent-configs/:id` | `PUT`, `DELETE` | proxies to FastAPI |
-| `/api/v1/agent-skills` | `GET`, `POST` | mixed frontend auth + FastAPI proxy |
-| `/api/v1/agent-skills/:id` | `PUT`, `DELETE` | proxies to FastAPI |
+| Route | Method | Source |
+|---|---|---|
+| `/api/v1/agent-configs` | GET, POST | GET: Supabase · POST: → FastAPI |
+| `/api/v1/agent-configs/:id` | GET, PUT, DELETE | → FastAPI |
+| `/api/v1/agent-skills` | GET, POST | GET: Supabase · POST: → FastAPI |
+| `/api/v1/agent-skills/:id` | GET, PUT, DELETE | → FastAPI |
 
-### Writing Lab, Newsletter, Social
+### Scheduler and analytics
 
-| Route | Method | Notes |
-| --- | --- | --- |
-| `/api/writing-lab/sessions` | `GET`, `POST` | `GET` reads Supabase directly, `POST` proxies |
-| `/api/writing-lab/sessions/:id` | `GET` | direct/read proxy hybrid depending route |
-| `/api/writing-lab/sessions/:id/vote` | `POST` | proxies to FastAPI |
-| `/api/newsletter` | `GET` | direct Supabase read |
-| `/api/newsletter/:id` | `GET`, `PATCH` | direct Supabase read/update |
-| `/api/newsletter/:id/preview` | `GET` | proxies to FastAPI |
-| `/api/newsletter/send` | `POST` | proxies to FastAPI |
-| `/api/social/publish/linkedin` | `POST` | proxies to FastAPI |
-| `/api/social/publish/twitter` | `POST` | proxies to FastAPI |
-| `/api/social/schedule` | `POST` | proxies to FastAPI |
+| Route | Method | Source |
+|---|---|---|
+| `/api/scheduler/daily-pipeline` | POST | → FastAPI |
+| `/api/scheduler/publish-scheduled` | POST | → FastAPI |
+| `/api/analytics/metrics` | POST | → FastAPI |
+| `/api/analytics/feedback-loop` | POST | → FastAPI |
+| `/api/scoring/run` | POST | → FastAPI |
 
-### Scheduler And Analytics
+---
 
-| Route | Method | Notes |
-| --- | --- | --- |
-| `/api/analytics/metrics` | `POST` | proxies to FastAPI |
-| `/api/analytics/feedback-loop` | `POST` | proxies to FastAPI |
-| `/api/scheduler/daily-pipeline` | `POST` | proxies to FastAPI |
-| `/api/scheduler/publish-scheduled` | `POST` | proxies to FastAPI |
+## FastAPI route inventory
 
-## FastAPI Route Inventory
+Base URL: `PYTHON_BACKEND_URL` (default: `http://localhost:8000`)
 
-The backend lives at `PYTHON_BACKEND_URL`.
+### Public (no auth)
 
-### Public
+| Route | Method |
+|---|---|
+| `/health` | GET |
+| `/health/db` | GET |
+
+### Research and scoring
 
 | Route | Method | Auth |
-| --- | --- | --- |
-| `/health` | `GET` | none |
-| `/health/db` | `GET` | none |
+|---|---|---|
+| `/api/research/trigger` | POST | JWT |
+| `/api/research/runs` | GET | JWT |
+| `/api/research/items` | GET | JWT |
+| `/api/research/items/{item_id}/status` | PATCH | JWT |
+| `/api/research/stats` | GET | JWT |
+| `/api/scoring/run` | POST | JWT |
 
-### Research And Scoring
-
-| Route | Method | Auth |
-| --- | --- | --- |
-| `/api/research/trigger` | `POST` | JWT |
-| `/api/research/runs` | `GET` | JWT |
-| `/api/research/items` | `GET` | JWT |
-| `/api/research/items/{item_id}/status` | `PATCH` | JWT |
-| `/api/research/stats` | `GET` | JWT |
-| `/api/scoring/run` | `POST` | JWT |
-
-### Draft Pipeline
+### Content generation
 
 | Route | Method | Auth |
-| --- | --- | --- |
-| `/api/content/generate` | `POST` | JWT |
-| `/api/content/drafts` | `GET` | JWT |
-| `/api/content/drafts/{draft_id}` | `PATCH` | JWT |
-| `/api/content/drafts/{draft_id}/god-mode` | `POST` | JWT |
-| `/api/content/drafts/{draft_id}/adapt` | `POST` | JWT |
-| `/api/content/drafts/{draft_id}/humanize` | `POST` | JWT |
+|---|---|---|
+| `/api/content/generate` | POST | JWT |
+| `/api/content/drafts` | GET | JWT |
+| `/api/content/drafts/{id}` | PATCH | JWT |
+| `/api/content/drafts/{id}/god-mode` | POST | JWT |
+| `/api/content/drafts/{id}/adapt` | POST | JWT |
+| `/api/content/drafts/{id}/humanize` | POST | JWT |
 
-### Writing Lab, Newsletter, Social
-
-| Route | Method | Auth |
-| --- | --- | --- |
-| `/api/writing-lab/sessions` | `GET`, `POST` | JWT |
-| `/api/writing-lab/sessions/{session_id}` | `GET` | JWT |
-| `/api/writing-lab/sessions/{session_id}/vote` | `POST` | JWT |
-| `/api/newsletter/send` | `POST` | JWT |
-| `/api/newsletter/{newsletter_id}/preview` | `GET` | JWT |
-| `/api/social/publish` | `POST` | JWT |
-| `/api/social/publish/linkedin` | `POST` | JWT |
-| `/api/social/publish/twitter` | `POST` | JWT |
-| `/api/social/schedule` | `POST` | JWT |
-
-### Analytics, Scheduler, Ops
+### Writing Lab and Newsletter
 
 | Route | Method | Auth |
-| --- | --- | --- |
-| `/api/analytics/metrics` | `POST` | none in route handler |
-| `/api/analytics/feedback-loop` | `POST` | JWT |
-| `/api/analytics/pull-metrics` | `POST` | scheduler secret |
-| `/api/scheduler/daily-pipeline` | `POST` | scheduler secret |
-| `/api/scheduler/publish-scheduled` | `POST` | scheduler secret |
-| `/api/auth/cache-invalidate` | `POST` | scheduler secret |
-| `/api/llm/fallback-stats` | `GET` | no explicit JWT enforcement in route handler, but middleware applies |
-| `/api/llm/fallback-log` | `GET` | JWT |
-| `/api/llm/fallback-monitor/reset` | `POST` | scheduler secret |
+|---|---|---|
+| `/api/writing-lab/sessions` | GET, POST | JWT |
+| `/api/writing-lab/sessions/{id}` | GET | JWT |
+| `/api/writing-lab/sessions/{id}/vote` | POST | JWT |
+| `/api/newsletter/send` | POST | JWT |
+| `/api/newsletter/{id}/preview` | GET | JWT |
+
+### Social publishing
+
+| Route | Method | Auth |
+|---|---|---|
+| `/api/social/publish` | POST | JWT |
+| `/api/social/publish/linkedin` | POST | JWT |
+| `/api/social/publish/twitter` | POST | JWT |
+| `/api/social/schedule` | POST | JWT |
+| `/api/social/health` | GET | JWT |
+| `/api/social/integrations` | GET | JWT |
+| `/api/social/integrations/mine` | GET | JWT |
+| `/api/social/analytics` | GET | JWT |
+
+### Image generation
+
+| Route | Method | Auth |
+|---|---|---|
+| `/images/generate` | POST | JWT |
+| `/images/carousel` | POST | JWT |
+| `/images/jobs/{id}` | GET | JWT |
+| `/images/stats` | GET | JWT |
 
 ### Agent CRUD
 
 | Route | Method | Auth |
-| --- | --- | --- |
-| `/api/v1/agent-configs` | `GET`, `POST` | JWT |
-| `/api/v1/agent-configs/{config_id}` | `GET`, `PUT`, `DELETE` | JWT |
-| `/api/v1/agent-skills` | `GET`, `POST` | JWT |
-| `/api/v1/agent-skills/{skill_id}` | `GET`, `PUT`, `DELETE` | JWT |
+|---|---|---|
+| `/api/v1/agent-configs` | GET, POST | JWT |
+| `/api/v1/agent-configs/{id}` | GET, PUT, DELETE | JWT |
+| `/api/v1/agent-skills` | GET, POST | JWT |
+| `/api/v1/agent-skills/{id}` | GET, PUT, DELETE | JWT |
 
-## Example Requests
+### Analytics and feedback loop
 
-Trigger research from an authenticated client:
+| Route | Method | Auth |
+|---|---|---|
+| `/api/analytics/metrics` | POST | JWT |
+| `/api/analytics/feedback-loop` | POST | JWT |
+| `/api/analytics/pull-metrics` | POST | Scheduler secret |
+| `/api/llm/fallback-stats` | GET | JWT |
+| `/api/llm/fallback-log` | GET | JWT |
+| `/api/llm/fallback-monitor/reset` | POST | Scheduler secret |
+
+### Scheduler (protected endpoints)
+
+| Route | Method | Auth |
+|---|---|---|
+| `/api/scheduler/daily-pipeline` | POST | Scheduler secret |
+| `/api/scheduler/publish-scheduled` | POST | Scheduler secret |
+| `/api/auth/cache-invalidate` | POST | Scheduler secret |
+
+---
+
+## Example requests
+
+**Trigger a research run:**
 
 ```bash
 curl -X POST http://localhost:8000/api/research/trigger \
-  -H "Authorization: Bearer <supabase-access-token>" \
+  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
-  -d '{"retrievers":["semantic","trend"],"max_items_per_retriever":25}'
+  -d '{"retrievers": ["semantic", "rss", "trend"], "max_items_per_retriever": 25}'
 ```
 
-Generate a draft with GOD mode enabled:
+**Generate a draft with GOD mode:**
 
 ```bash
 curl -X POST http://localhost:8000/api/content/generate \
-  -H "Authorization: Bearer <supabase-access-token>" \
+  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "research_item_id":"<research-item-uuid>",
-    "platform":"linkedin",
-    "content_type":"post",
-    "run_god":true,
-    "run_humanizer":false
+    "research_item_id": "<uuid>",
+    "platform": "linkedin",
+    "content_type": "post",
+    "run_god": true,
+    "run_humanizer": false
   }'
 ```
 
-Run the protected scheduler endpoint:
+**Publish to a social platform:**
+
+```bash
+curl -X POST http://localhost:8000/api/social/publish \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "draft_id": "<uuid>",
+    "platforms": ["linkedin", "twitter"]
+  }'
+```
+
+**Generate an image for a draft:**
+
+```bash
+curl -X POST http://localhost:8000/images/generate \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "draft_id": "<uuid>",
+    "width": 1024,
+    "height": 1024
+  }'
+```
+
+**Call a scheduler endpoint:**
 
 ```bash
 curl -X POST http://localhost:8000/api/scheduler/daily-pipeline \
   -H "X-Scheduler-Secret: <scheduler-secret>"
 ```
-
-## Known Gaps
-
-- The frontend exposes `POST /api/newsletter/generate`, but there is no matching FastAPI endpoint in [`python/src/content_engine/api/routes.py`](/Users/claw/Progetti/ai-automation/python/src/content_engine/api/routes.py). Treat it as incomplete.
-- The API surface is intentionally hybrid: some Next.js routes query Supabase directly while others proxy to FastAPI. Integrators should not assume all `/api/*` routes behave the same way internally.
