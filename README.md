@@ -1,79 +1,438 @@
-# Autonomous Content Operations Platform
+# Content Engine
 
-This repository contains a multi-tenant content operations platform with:
+**An autonomous, multi-tenant content operations platform.** Give it your topics, sources, and brand voice — it researches the web, scores what matters, drafts content for every channel, reviews it with multiple AI agents, and publishes or schedules it. All from a single dashboard.
 
-- a `Next.js 16` application for authentication, dashboard pages, and first-party API routes
-- a `FastAPI` backend for research, scoring, content generation, review, scheduling, and agent orchestration
-- a `Supabase` database used for auth, storage, Row Level Security, and operational data
+```
+Topics + Sources → Research → Scoring → Draft → Review → Publish
+                                                 ↑
+                                       Metrics feedback loop
+```
 
-The codebase already supports research ingestion, scoring, draft generation, multi-agent review, humanization, writing-lab experiments, newsletter delivery, social scheduling, feedback collection, and health/cost monitoring. The documentation in this repository is now organized around what is actually implemented, not around aspirational architecture.
+---
 
-## Scope
+## What it does
 
-Use this project if you need a white-label content workflow where each tenant has:
+| Capability | Description |
+|---|---|
+| **Research** | Pulls from RSS feeds, search APIs, and video platforms in parallel; deduplicates by URL and semantic similarity |
+| **Scoring** | Rates each item across configurable dimensions (relevance, credibility, trend signal, alignment with your voice) |
+| **Content generation** | Produces platform-native drafts (LinkedIn, X, Instagram, newsletter, blog) with a Writer → Editor pipeline |
+| **Multi-agent review** | Optional four-agent GOD mode: critic, fact-checker, creative enhancer, synthesis verdict |
+| **Humanizer** | Strips AI-isms and re-applies your brand voice using your own gold examples and top performers |
+| **Writing Lab** | Challenger/champion rounds for experimental content iteration |
+| **Newsletter** | Compose from approved drafts, preview, and send via transactional email |
+| **Social publishing** | Publish now or schedule via a self-hosted or cloud social publishing satellite |
+| **Image generation** | Generate images per draft using any compatible image backend |
+| **Feedback loop** | Social metrics flow back into scoring weights — high-performing content influences future research |
+| **Observability** | Cost tracking, agent heartbeats, LLM fallback logs, pipeline health dashboard |
 
-- isolated data scoped by `brand_id`
-- configurable sources, tone, scoring weights, and social accounts
-- authenticated dashboard access
-- a research-to-draft pipeline
-- optional review layers such as GOD mode and humanizer
-- scheduling, analytics, and operational visibility
+Everything is **multi-tenant**: each brand has isolated data, its own sources, tone of voice, scoring weights, and agent configuration.
+
+---
+
+## How it works
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                     Browser / API Client                │
+└────────────────────────┬────────────────────────────────┘
+                         │ HTTPS
+┌────────────────────────▼────────────────────────────────┐
+│                    Next.js Frontend                     │
+│   Dashboard · Auth · Direct DB reads · Proxy to API     │
+└──────────┬────────────────────────────────┬─────────────┘
+           │ Supabase SDK                   │ HTTP proxy
+┌──────────▼───────────┐     ┌─────────────▼─────────────┐
+│   Supabase / Postgres │     │    FastAPI Backend         │
+│   Auth · RLS · Storage│     │  Research · Scoring       │
+│   Migrations 001-029  │     │  Generation · Agents      │
+│   pgvector · pg_cron  │     │  Scheduler · Analytics    │
+└──────────────────────┘     └─────────────┬─────────────┘
+                                            │ HTTP (optional)
+                              ┌─────────────▼─────────────┐
+                              │   Postiz Satellite         │
+                              │  Social publishing & OAuth │
+                              │  (self-hosted via Docker)  │
+                              └───────────────────────────┘
+```
+
+The frontend handles authentication, the dashboard UI, and direct database reads. Heavy orchestration (research, scoring, generation, scheduling) runs in the FastAPI backend. The database enforces tenant isolation at the row level — no tenant can read another tenant's data even if the application layer has a bug.
+
+---
+
+## Usage modes
+
+### Minimal — content drafting only
+You can run the platform without any social publishing or image generation. Connect one LLM provider, set up Supabase, and use it purely as a research-to-draft pipeline. The social and image sections of the dashboard will be inactive.
+
+### Standard — full content pipeline
+Add a search API key for web research, configure sources per brand, enable the feedback loop. Drafts flow through Writer → Editor → GOD mode → Humanizer → approval.
+
+### Full — publish and schedule
+Connect a social publishing satellite (self-hosted Docker or cloud). The platform handles OAuth delegation and scheduling. Metrics flow back to influence scoring.
+
+### Multi-tenant / agency
+Create multiple brands, each with its own sources, tone, agents, scoring weights, and social accounts. A single deployment serves all tenants with strict data isolation.
+
+---
 
 ## Stack
 
-| Layer | Technology | Notes |
-| --- | --- | --- |
-| Frontend | `Next.js 16`, `React 19`, `TypeScript`, `Tailwind CSS 4` | App Router app in [`src`](/Users/claw/Progetti/ai-automation/src) |
-| Backend | `FastAPI`, `Python`, `uvicorn` | Service code in [`python/src/content_engine`](/Users/claw/Progetti/ai-automation/python/src/content_engine) |
-| Database/Auth | `Supabase` / PostgreSQL | Schema, RLS, views, and functions in [`supabase/migrations`](/Users/claw/Progetti/ai-automation/supabase/migrations) |
-| Scheduling | CI/cron caller + protected backend endpoints | See [`docs/DEPLOYMENT.md`](/Users/claw/Progetti/ai-automation/docs/DEPLOYMENT.md) |
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4 |
+| Backend | Python, FastAPI, uvicorn |
+| Database | PostgreSQL via Supabase (auth, RLS, storage, vector search) |
+| Social publishing | Postiz (self-hosted Docker or cloud — optional) |
+| Package management | npm (frontend), uv (Python backend) |
 
-## What Is Implemented
+---
 
-- Tenant-aware auth via Supabase session + backend JWT validation
-- Research runs and research items
-- Manual URL ingestion into the research pipeline
-- Score computation and approval/rejection workflow
-- Draft generation, adaptation, GOD mode review, and humanization
-- Writing-lab sessions with round voting
-- Newsletter preview and send
-- Social publish and social schedule endpoints
-- Feedback loop, metrics ingestion, fallback monitoring, and agent health dashboards
-- Agent configuration and agent skills CRUD
+## Quick start
 
-## Documentation Map
+### Prerequisites
 
-- [Setup Guide](/Users/claw/Progetti/ai-automation/docs/SETUP.md): local setup, environment variables, database bootstrap, smoke tests
-- [Architecture](/Users/claw/Progetti/ai-automation/docs/ARCHITECTURE.md): service boundaries, request flow, auth, scheduling, and directory map
-- [API Guide](/Users/claw/Progetti/ai-automation/docs/API.md): route inventory, auth model, request examples, known gaps
-- [Tenant Onboarding](/Users/claw/Progetti/ai-automation/docs/ONBOARDING.md): how to create a new tenant safely
-- [Database Schema](/Users/claw/Progetti/ai-automation/docs/database/SCHEMA.md): tables, enums, views, and migration strategy
-- [Deployment](/Users/claw/Progetti/ai-automation/docs/DEPLOYMENT.md): production topology and required environment variables
-- [Agents](/Users/claw/Progetti/ai-automation/docs/AGENTS.md): dynamic agent configuration model
+- Node.js 20+
+- Python 3.11+
+- [uv](https://docs.astral.sh/uv/) (`pip install uv` or `brew install uv`)
+- A Supabase project (free tier works)
+- At least one LLM provider API key
 
-## Quick Start
+### 1 — Database
 
-1. Create a Supabase project and apply the migrations in [`supabase/migrations`](/Users/claw/Progetti/ai-automation/supabase/migrations).
-2. Copy [`.env.example`](/Users/claw/Progetti/ai-automation/.env.example) to `.env.local` and fill every required value.
-3. Install frontend dependencies and start the Next.js app:
+Create a Supabase project, then apply the migrations:
+
+```bash
+# Install Supabase CLI if you don't have it
+brew install supabase/tap/supabase   # or: npm i -g supabase
+
+# Link to your project (get the ref from your Supabase dashboard)
+supabase link --project-ref YOUR_PROJECT_REF
+
+# Apply all 29 migrations
+supabase db push
+```
+
+### 2 — Environment
+
+```bash
+cp .env.example .env.local
+```
+
+Open `.env.local` and fill in the required values (marked `# required`). See the [full variable reference](#environment-variables) below.
+
+### 3 — Frontend
 
 ```bash
 npm install
 npm run dev
+# → http://localhost:3000
 ```
 
-4. Install backend dependencies from [`python/pyproject.toml`](/Users/claw/Progetti/ai-automation/python/pyproject.toml) and start FastAPI:
+### 4 — Backend
 
 ```bash
 cd python
 uv sync
 uv run uvicorn src.content_engine.main:app --reload --port 8000
+# → http://localhost:8000
 ```
 
-5. Follow the tenant bootstrap steps in [`docs/ONBOARDING.md`](/Users/claw/Progetti/ai-automation/docs/ONBOARDING.md).
+### 5 — First brand
 
-## Repository Notes
+1. Open [http://localhost:3000](http://localhost:3000) and sign up with your email.
+2. Go to **Settings → Brands → Add brand** and fill in your name, topics, and RSS sources.
+3. Go to **Research** and click **Run research** to pull your first batch of items.
+4. Score items, approve the ones you like, then generate your first draft.
 
-- The public documentation intentionally ignores repository areas that are only useful for local tooling or meta-development.
-- The authoritative contract for data is the migration set plus [`src/lib/types/database.types.ts`](/Users/claw/Progetti/ai-automation/src/lib/types/database.types.ts).
-- The authoritative contract for backend behavior is [`python/src/content_engine/api/routes.py`](/Users/claw/Progetti/ai-automation/python/src/content_engine/api/routes.py) and [`python/src/content_engine/api/routes_agents.py`](/Users/claw/Progetti/ai-automation/python/src/content_engine/api/routes_agents.py).
+That's it. You're in the pipeline.
+
+---
+
+## Environment variables
+
+### Required
+
+```bash
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Backend location (frontend proxies heavy ops here)
+PYTHON_BACKEND_URL=http://localhost:8000
+
+# At least one LLM provider
+ANTHROPIC_API_KEY=
+OPENROUTER_API_KEY=          # used as fallback or primary (many free models available)
+
+# Scheduler security (generate with: openssl rand -hex 32)
+SCHEDULER_SECRET=
+```
+
+### Research (add what you need)
+
+```bash
+SERPER_API_KEY=              # web search
+YOUTUBE_API_KEY=             # YouTube trends
+FIRECRAWL_API_KEY=           # premium content extraction (optional; falls back to trafilatura)
+```
+
+### Publishing and delivery
+
+```bash
+RESEND_API_KEY=              # newsletter send
+POSTIZ_MODE=disabled         # disabled | self_hosted | cloud
+POSTIZ_API_URL=              # required if POSTIZ_MODE != disabled
+POSTIZ_API_KEY=              # required if POSTIZ_MODE != disabled
+```
+
+### Image generation (pick one or leave as mock)
+
+```bash
+DEFAULT_IMAGE_BACKEND=mock   # mock | replicate | openai | openrouter | anthropic | pillo
+DEFAULT_IMAGE_MODEL=         # backend-specific model identifier
+REPLICATE_API_TOKEN=
+```
+
+### Operations
+
+```bash
+ALLOWED_ORIGINS=http://localhost:3000   # comma-separated, no trailing slash
+NEWSLETTER_FROM_EMAIL=hello@yourdomain.com
+NEWSLETTER_FROM_NAME=Your Newsletter
+TELEGRAM_BOT_TOKEN=          # optional: alert channel
+TELEGRAM_CHAT_ID=
+```
+
+Full reference with descriptions: [`.env.example`](.env.example)
+
+---
+
+## Architecture overview
+
+### Research pipeline
+
+Each research run fans out across all configured retrievers in parallel. Items are deduplicated first by normalized URL, then by semantic similarity using vector embeddings. Only novel items reach the scoring phase.
+
+```
+Brand config (topics, sources)
+        ↓
+┌───────────────────────────┐
+│  Retrievers (parallel)    │
+│  RSS · Search · YouTube   │
+│  Manual URL ingestion     │
+└───────────────────────────┘
+        ↓ deduplicate (URL + vectors)
+research_items (status: new)
+        ↓
+Scoring agent → scores table
+        ↓
+content_drafts (status: draft)
+```
+
+### Content generation
+
+The Writer agent produces an initial draft using brand tone, principles, and gold examples. The Editor agent refines it. Each step reads agent identity and skills from the database — you can customize prompts per brand without touching code.
+
+```
+research_item → Writer → Editor → draft
+                                    ↓
+                     ┌──────────────┴──────────────┐
+                     │        (optional)            │
+                  GOD mode                     Humanizer
+                  4-agent review               voice calibration
+                  critic · factcheck           remove AI patterns
+                  creative · synthesis         double-pass refinement
+                     └──────────────┬──────────────┘
+                                    ↓
+                              approved draft
+                                    ↓
+                    Publish now · Schedule · Newsletter
+```
+
+### Agent configuration
+
+Every agent in the system (writer, editor, GOD mode advocates, humanizer) loads its identity and skills from the database at runtime. This means you can:
+
+- Give each brand a different writer persona
+- Attach specialized skills (e.g., "always end with a question", "use data-driven openings")
+- Update behavior without redeploys
+
+The system falls back to hardcoded defaults if no database configuration exists, so it works out of the box.
+
+### Multi-tenancy
+
+Every table that holds operational data has a `brand_id` foreign key. Row Level Security policies are enforced at the database layer — the application cannot accidentally serve one tenant's data to another. The backend JWT middleware extracts `brand_id` from the session token and attaches it to every request.
+
+---
+
+## Project structure
+
+```
+/
+├── src/                          # Next.js frontend (App Router)
+│   ├── app/
+│   │   ├── (auth)/               # Login page
+│   │   ├── (dashboard)/          # All dashboard pages
+│   │   │   ├── page.tsx          # Home / overview
+│   │   │   ├── content-hub/      # Draft listing and editor
+│   │   │   ├── ricerca/          # Research runs and item management
+│   │   │   ├── newsletter/       # Newsletter composition
+│   │   │   ├── social/           # Social publishing
+│   │   │   ├── writing-lab/      # Experimental writing sessions
+│   │   │   ├── metriche/         # Analytics
+│   │   │   ├── settings/         # Brand settings, agents, social connections
+│   │   │   └── ...
+│   │   └── api/                  # Next.js route handlers
+│   │       ├── brands/           # Brand CRUD + assets
+│   │       ├── content/          # Drafts, generation (proxy)
+│   │       ├── research/         # Research trigger + items
+│   │       ├── social/           # Publish + schedule (proxy)
+│   │       ├── images/           # Image generation (proxy)
+│   │       ├── newsletter/       # Send + preview (proxy)
+│   │       └── system/           # Health, costs, config
+│   ├── components/               # Shared UI components
+│   └── lib/                      # Supabase clients, types, helpers
+│
+├── python/src/content_engine/    # FastAPI backend
+│   ├── api/
+│   │   ├── routes.py             # Core routes (research, scoring, generation)
+│   │   ├── routes_agents.py      # Agent config/skills CRUD
+│   │   ├── routes_images.py      # Image generation
+│   │   └── routes_postiz.py      # Social publishing bridge
+│   ├── agents/                   # Writer, Editor, GOD mode, Humanizer, Adapter
+│   ├── orchestrator/             # Research and content pipeline orchestration
+│   ├── retrievers/               # RSS, Search, YouTube retrievers
+│   ├── scoring/                  # Scoring engine
+│   ├── services/                 # Newsletter, Postiz, image backends, scheduler
+│   ├── monitoring/               # Pipeline health and fallback monitoring
+│   ├── utils/                    # LLM client, cost tracker, rate limiter, SSRF guard
+│   └── config/settings.py        # Pydantic settings (all from env)
+│
+├── supabase/
+│   ├── migrations/               # 001–029: canonical schema source of truth
+│   └── functions/                # Edge functions (analytics sync)
+│
+├── docker-compose.postiz.yaml    # Optional social publishing satellite
+└── docs/                         # Extended documentation
+```
+
+---
+
+## Social publishing (Postiz satellite)
+
+By default `POSTIZ_MODE=disabled` and social features are hidden. To enable:
+
+**Self-hosted (recommended for full control)**
+
+```bash
+# Start the Postiz stack
+docker compose -f docker-compose.postiz.yaml up -d
+
+# Set in .env.local
+POSTIZ_MODE=self_hosted
+POSTIZ_API_URL=http://localhost:3001
+POSTIZ_API_KEY=your-postiz-api-key
+```
+
+Connect your social accounts in the Postiz UI at `http://localhost:4200`, then paste the integration IDs into **Settings → Social Connections** in the Content Engine dashboard.
+
+**Cloud**
+
+Set `POSTIZ_MODE=cloud` and point `POSTIZ_API_URL` at your Postiz cloud instance. Everything else is the same.
+
+Postiz handles all platform OAuth, rate limiting, and post retry logic. Content Engine stores only opaque integration IDs — no social platform tokens are held in the Content Engine database.
+
+---
+
+## Image generation
+
+Configure per brand in **Settings → Image Generation**. Available backends:
+
+| Backend | What you need |
+|---|---|
+| `mock` | Nothing — returns a placeholder. Good for development. |
+| `replicate` | `REPLICATE_API_TOKEN` |
+| `openai` | `OPENAI_API_KEY` |
+| `openrouter` | `OPENROUTER_API_KEY` |
+| `anthropic` | `ANTHROPIC_API_KEY` |
+| `pillo` | `PILLO_API_KEY` (carousel specialist) |
+
+Set `DEFAULT_IMAGE_BACKEND=mock` to disable image costs during development.
+
+---
+
+## Deployment
+
+The platform runs as three services: the Next.js frontend, the FastAPI backend, and Supabase (managed). In production:
+
+- Deploy the frontend to any Node.js host (Vercel, Fly.io, Railway, etc.)
+- Deploy the backend to any container host; expose port 8000 only to the frontend's network
+- Set `SCHEDULER_SECRET` and configure your cron system to call `/api/scheduler/daily-research` and `/api/scheduler/publish-scheduled` on a schedule
+
+Detailed production checklist: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+
+---
+
+## Extending the system
+
+### Add a retriever
+
+Create a class in `python/src/content_engine/retrievers/` that implements the `BaseRetriever` interface, then register it in the orchestrator. The base class handles deduplication and DB insertion.
+
+### Add an agent
+
+Add an entry to `agent_configs` in the database with a new `agent_key`. The agent loader will pick it up. Attach skills via `agent_skills` without touching code.
+
+### Add an image backend
+
+Implement the backend class in `python/src/content_engine/services/image_backends/` following the existing pattern, then register it in the image generator's backend registry.
+
+### Add a platform
+
+Add the platform to the `platform` enum in a new migration, add platform-specific formatting rules to the adapter agent, and add the platform's UI entry in the social settings page.
+
+---
+
+## Documentation
+
+| Document | What's inside |
+|---|---|
+| [`docs/SETUP.md`](docs/SETUP.md) | Prerequisites, local setup, environment variables, smoke tests |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Service boundaries, request flow, auth, security controls |
+| [`docs/AGENTS.md`](docs/AGENTS.md) | Agent configuration model, skills system, resolution logic |
+| [`docs/API.md`](docs/API.md) | Route inventory, auth model, request/response shapes |
+| [`docs/ONBOARDING.md`](docs/ONBOARDING.md) | How to create and configure a new tenant |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Production topology, environment variables, scheduling |
+| [`docs/POSTIZ_SATELLITE.md`](docs/POSTIZ_SATELLITE.md) | Social publishing setup, self-hosted vs cloud |
+| [`docs/database/SCHEMA.md`](docs/database/SCHEMA.md) | Full schema reference, migrations, RLS policies |
+
+---
+
+## Security notes
+
+- All backend routes require a valid JWT from the Supabase session (except public health probes)
+- Scheduler endpoints are protected by a separate secret (`SCHEDULER_SECRET`)
+- Row Level Security is enabled on every tenant-scoped table — isolation is enforced at the database layer
+- Media URLs passed to external services are validated against an SSRF blocklist (no private IPs, no non-HTTPS schemes)
+- CORS is configured with an explicit allowlist (`ALLOWED_ORIGINS`) — no wildcards
+- API keys and secrets are masked in all log output
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feat/my-feature`
+3. Apply migrations locally: `supabase db push`
+4. Make your changes, add tests where applicable
+5. Ensure the build passes: `npm run lint && npm run build`
+6. Ensure backend tests pass: `cd python && uv run pytest`
+7. Open a pull request with a clear description of what changed and why
+
+---
+
+## License
+
+See [LICENSE](LICENSE).

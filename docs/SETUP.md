@@ -1,182 +1,223 @@
 # Setup Guide
 
-This guide is written for two goals:
+This guide gets you from zero to a running local stack. Every section is marked **required** or **optional** so you can start minimal and add capabilities as needed.
 
-- a developer must be able to recreate the project from zero
-- a non-specialist integrator must understand which pieces are mandatory and which are optional
+---
 
-## 1. Prerequisites
+## Prerequisites
 
-Required on the local machine:
+**Local tools**
 
-- `Node.js 20+`
-- `npm`
-- `Python 3.14+` because [`python/pyproject.toml`](/Users/claw/Progetti/ai-automation/python/pyproject.toml) declares `requires-python = ">=3.14"`
-- `uv` for Python dependency management
-- `Supabase CLI`
+| Tool | Version | Install |
+|---|---|---|
+| Node.js | 20+ | [nodejs.org](https://nodejs.org) |
+| Python | 3.14+ | [python.org](https://python.org) |
+| uv | any | `pip install uv` or `brew install uv` |
+| Supabase CLI | any | `brew install supabase/tap/supabase` |
 
-External services used by the codebase:
+**External services — required**
 
-- Supabase project
-- at least one LLM provider key
-- optional research, email, social, and enrichment providers
+- A [Supabase](https://supabase.com) project (free tier works)
+- At least one LLM provider API key (Anthropic or OpenRouter)
 
-## 2. Clone And Install
+**External services — optional**
 
-Frontend:
+| Service | Purpose |
+|---|---|
+| Search API (e.g. Serper) | Web research retriever |
+| YouTube Data API | YouTube trend retriever |
+| Resend | Newsletter email delivery |
+| Replicate / OpenAI / OpenRouter / Anthropic | Image generation backends |
+| Postiz (self-hosted or cloud) | Social publishing and scheduling |
+| Firecrawl | Premium content extraction (falls back to trafilatura without it) |
+| Telegram bot | Alert channel for pipeline events |
+
+---
+
+## 1. Clone and install
 
 ```bash
+git clone <repo-url>
+cd ai-automation
+
+# Frontend
 npm install
+
+# Backend
+cd python && uv sync && cd ..
 ```
 
-Backend:
+---
 
-```bash
-cd python
-uv sync
-```
-
-## 3. Environment Variables
-
-Copy [`.env.example`](/Users/claw/Progetti/ai-automation/.env.example) to `.env.local` in the repository root:
+## 2. Environment variables
 
 ```bash
 cp .env.example .env.local
 ```
 
-Minimum variables needed for a working local stack:
-
-| Variable | Required | Used by |
-| --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | frontend + backend |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | frontend auth + backend JWT validation |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | backend privileged access |
-| `PYTHON_BACKEND_URL` | Yes | Next.js proxy routes |
-| `ALLOWED_ORIGINS` | Yes | backend CORS |
-| `SCHEDULER_SECRET` | Recommended locally, required in production | protected scheduler endpoints |
-
-Feature-specific variables:
-
-| Variable | Purpose |
-| --- | --- |
-| `ANTHROPIC_API_KEY` | primary LLM provider |
-| `OPENROUTER_API_KEY` | alternative/fallback LLM provider |
-| `SERPER_API_KEY` | search retriever |
-| `YOUTUBE_API_KEY` | YouTube retriever |
-| `RESEND_API_KEY` | newsletter delivery |
-| `FIRECRAWL_API_KEY` | optional premium content extraction |
-| `SCHEDULER_BRAND_ID` | required for scheduler endpoints that run without a user JWT |
-
-Additional backend settings are defined in [`python/src/content_engine/config.py`](/Users/claw/Progetti/ai-automation/python/src/content_engine/config.py).
-
-## 4. Provision The Database
-
-Apply all migrations from [`supabase/migrations`](/Users/claw/Progetti/ai-automation/supabase/migrations):
+Edit `.env.local`. At minimum you need these to start:
 
 ```bash
-supabase link --project-ref <your-project-ref>
+# --- Supabase (get from your project dashboard) ---
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# --- Backend location ---
+PYTHON_BACKEND_URL=http://localhost:8000
+
+# --- LLM (at least one) ---
+ANTHROPIC_API_KEY=
+OPENROUTER_API_KEY=
+
+# --- Security ---
+SCHEDULER_SECRET=    # generate with: openssl rand -hex 32
+ALLOWED_ORIGINS=http://localhost:3000
+```
+
+Everything else is optional and can be added later. See [`.env.example`](../.env.example) for the full reference with descriptions.
+
+---
+
+## 3. Database
+
+Link the Supabase CLI to your project, then push all migrations:
+
+```bash
+supabase link --project-ref YOUR_PROJECT_REF
 supabase db push
 ```
 
-This creates:
+This applies all 29 migrations in [`supabase/migrations/`](../supabase/migrations/), which creates:
 
-- core tables such as `brands`, `users`, `research_items`, `content_drafts`, `newsletters`
-- agent tables such as `agent_configs` and `agent_skills`
-- observability tables such as `api_costs`, `pipeline_health`, `llm_fallback_log`
-- RLS policies, views, enum types, and helper SQL functions
+- Tenant tables: `brands`, `users`, `brand_members`
+- Content pipeline: `research_items`, `scores`, `content_drafts`, `newsletters`
+- Agent system: `agent_configs`, `agent_skills`
+- Observability: `api_costs`, `pipeline_health`, `llm_fallback_log`
+- Enums, SQL helper functions, RLS policies, and views
 
-## 5. Bootstrap The First Tenant
+If you see an error like `relation does not exist`, make sure you are pushing from a clean database. Run `supabase migration list` to verify all migrations are applied.
 
-Create one tenant record in `brands`:
+---
+
+## 4. Create your first brand
+
+After applying migrations, create a brand (tenant) record. You can do this in the Supabase SQL editor or via the dashboard after setup.
+
+**Option A — SQL editor:**
 
 ```sql
-insert into public.brands (
-  name,
-  slug,
-  topics,
-  tone_of_voice,
-  scoring_weights,
-  rss_sources
-) values (
-  'Example Workspace',
-  'example-workspace',
-  array['topic-a', 'topic-b'],
-  '{"style":"clear","audience":"operators"}'::jsonb,
-  '{"applicability":1,"credibility":1,"alignment":1,"trend_prediction":1,"italy_relevance":1}'::jsonb,
-  '[]'::jsonb
+-- Create the brand
+INSERT INTO public.brands (name, slug, topics, tone_of_voice, scoring_weights)
+VALUES (
+  'My Brand',
+  'my-brand',
+  ARRAY['topic one', 'topic two'],
+  '{"style": "clear", "audience": "professionals"}'::jsonb,
+  '{"applicability": 1, "credibility": 1, "alignment": 1, "trend_prediction": 1}'::jsonb
 );
-```
 
-Create a Supabase auth user, then add the matching application user row:
-
-```sql
-insert into public.users (id, brand_id, email, role)
-values (
-  '<auth-user-uuid>',
-  '<brand-uuid>',
-  'owner@example.com',
+-- Link your auth user to the brand (replace both UUIDs)
+INSERT INTO public.users (id, brand_id, email, role)
+VALUES (
+  '<your-supabase-auth-user-id>',
+  '<brand-id-from-above>',
+  'you@example.com',
   'owner'
 );
 ```
 
-The backend resolves `brand_id` from the authenticated user record. Without this row, the user can log in but cannot use the application.
+**Option B — Dashboard UI:** Sign in first, then use **Settings → Brands → Add brand**. The function `create_brand_with_owner()` handles both inserts atomically.
 
-## 6. Start The Services
+---
 
-Backend:
+## 5. Start the services
+
+Open two terminals:
 
 ```bash
+# Terminal 1 — Backend
 cd python
 uv run uvicorn src.content_engine.main:app --reload --port 8000
-```
 
-Frontend:
-
-```bash
+# Terminal 2 — Frontend
 npm run dev
 ```
 
-Default local URLs:
+| Service | URL |
+|---|---|
+| Dashboard | http://localhost:3000 |
+| Backend API | http://localhost:8000 |
+| Backend docs | http://localhost:8000/docs |
 
-- frontend: `http://localhost:3000`
-- backend: `http://localhost:8000`
+---
 
-## 7. Smoke Tests
-
-Check liveness:
+## 6. Smoke tests
 
 ```bash
+# Backend liveness
 curl http://localhost:8000/health
-curl http://localhost:3000/api/health
+
+# Backend + database readiness
+curl http://localhost:8000/health/db
+
+# Frontend API (requires running Next.js)
+curl http://localhost:3000/api/system/health
 ```
 
-Check database readiness:
+All should return `{"success": true, ...}`.
+
+Then in the dashboard:
+
+1. Sign in
+2. Confirm the brand selector shows your brand
+3. Go to **Research** and trigger a research run (or add a manual URL)
+
+---
+
+## 7. Optional: Social publishing (Postiz)
+
+Skip this section if you don't need social publishing.
 
 ```bash
-curl http://localhost:8000/health/db
+# Start the Postiz stack
+docker compose -f docker-compose.postiz.yaml up -d
 ```
 
-Then:
+Add to `.env.local`:
 
-1. open the login page
-2. sign in with the tenant user you created
-3. load the dashboard
-4. trigger one research run or add one manual URL
+```bash
+POSTIZ_MODE=self_hosted
+POSTIZ_API_URL=http://localhost:3001
+POSTIZ_API_KEY=your-postiz-api-key
+```
 
-## 8. Recommended First End-To-End Test
+Open the Postiz UI at `http://localhost:4200`, connect your social accounts, then paste the integration IDs into **Settings → Social Connections** in the Content Engine dashboard.
 
-1. Add a research source in the `brands.rss_sources` field.
-2. Trigger `POST /api/research/trigger`.
-3. Run `POST /api/scoring/run`.
-4. Generate content with `POST /api/content/generate`.
-5. Optionally run GOD mode or humanizer on the produced draft.
+---
 
-## 9. Common Failure Modes
+## 8. Optional: Image generation
 
-| Symptom | Likely Cause | Fix |
-| --- | --- | --- |
-| `401 Unauthorized` from backend | missing forwarded Supabase session | sign in again and verify frontend env values |
-| `403 User has no associated brand` | missing row in `public.users` | insert the user-brand mapping |
-| scheduler endpoints fail with `503` | `SCHEDULER_BRAND_ID` missing | set it in `.env.local` |
-| CORS errors | `ALLOWED_ORIGINS` wrong | include the frontend origin |
-| backend cannot connect to Supabase | missing URL or keys | re-check `.env.local` |
+Set in `.env.local`:
+
+```bash
+DEFAULT_IMAGE_BACKEND=mock  # no cost, returns placeholder
+# or: replicate | openai | openrouter | anthropic | pillo
+DEFAULT_IMAGE_MODEL=        # backend-specific model string
+```
+
+Use `mock` during development to avoid image API costs.
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `401 Unauthorized` from backend | Missing or expired session token | Sign out and sign back in; verify `NEXT_PUBLIC_SUPABASE_*` values |
+| `403 User has no associated brand` | Missing row in `public.users` | Insert the user-to-brand mapping (see step 4) |
+| `Could not find function ... in schema cache` | Migrations not applied | Run `supabase db push` and hard-reload the dashboard |
+| Scheduler endpoints return `503` | `PYTHON_BACKEND_URL` wrong or backend not running | Check both services are running |
+| CORS errors in browser | `ALLOWED_ORIGINS` missing the frontend URL | Add `http://localhost:3000` to `ALLOWED_ORIGINS` |
+| `type "vector" does not exist` | pgvector not in search_path | This is fixed in migration 001; ensure you are on the latest code before pushing |
+| Backend cannot connect to Supabase | Missing URL or keys in Python env | The Python backend reads from `../.env.local` relative to `python/`; verify the path |
