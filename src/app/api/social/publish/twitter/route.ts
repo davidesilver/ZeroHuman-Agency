@@ -14,5 +14,5 @@ export async function POST(request: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { access_token: _removed, ...safeBody } = body
 
-  return proxyToBackend('/api/social/publish/twitter', { method: 'POST', body: safeBody })
+  return proxyToBackend('/social/publish/twitter', { method: 'POST', body: safeBody })
 }

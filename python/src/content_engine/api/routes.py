@@ -34,7 +34,7 @@ from ..agents.adapter import adapt_content
 from ..agents.writing_lab import create_session, vote_round
 from ..scoring.engine import run_scoring
 from ..services.newsletter_delivery import send_newsletter, preview_newsletter
-from ..services.social_publisher import publish_to_postiz, schedule_post
+from ..services.social_publisher import publish_now as publish_to_postiz, schedule_post
 from ..services.feedback_loop import record_social_metrics, update_feedback_bonus
 from ..services.postiz_analytics import pull_daily_metrics, run_daily_analytics_cycle
 from ..services.scheduler import daily_research_pipeline, publish_scheduled_posts
@@ -369,7 +369,7 @@ async def list_drafts(
 @router.patch("/content/drafts/{draft_id}")
 async def update_draft(draft_id: str, body: dict, request: Request):
     brand_id = _get_brand_id(request)
-    allowed = {"status", "title", "body", "scheduled_at"}
+    allowed = {"status", "title", "body", "scheduled_at", "media_urls"}
     updates = {k: v for k, v in body.items() if k in allowed}
     if not updates:
         raise HTTPException(400, "No valid fields to update")
@@ -574,6 +574,7 @@ def _validate_scheduled_at(value: str) -> str:
 class ScheduleRequest(BaseModel):
     draft_id: str
     scheduled_at: str
+    platforms: list[str] | None = None
 
     model_config = {"json_schema_extra": {"example": {"draft_id": "uuid", "scheduled_at": "2026-04-20T10:00:00+02:00"}}}
 
@@ -609,7 +610,7 @@ async def api_publish_twitter(req: PublishRequest, request: Request):
 @router.post("/social/schedule")
 async def api_schedule_post(req: ScheduleRequest, request: Request):
     brand_id = _get_brand_id(request)
-    result = await schedule_post(brand_id, req.draft_id, req.scheduled_at)
+    result = await schedule_post(brand_id, req.draft_id, req.scheduled_at, req.platforms)
     return {"success": True, "data": result}
 
 

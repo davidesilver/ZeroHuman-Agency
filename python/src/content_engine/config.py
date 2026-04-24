@@ -14,7 +14,15 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     firecrawl_api_key: str = ""
     postiz_api_key: str = ""
-    postiz_base_url: str = ""
+    postiz_api_url: str = ""   # was postiz_base_url — renamed to match POSTIZ_API_URL env var
+    postiz_mode: str = "disabled"   # "self_hosted" | "cloud" | "disabled"
+
+    # Image generation (reuse agent API keys for openrouter / anthropic)
+    replicate_api_token: str = ""
+    pillo_api_key: str = ""
+    default_image_backend: str = "mock"      # mock | replicate | openai | pillo | openrouter | anthropic
+    default_image_model: str = "mock-v1"     # per-backend model identifier
+
     context7_mcp_url: str = "https://mcp.context7.com/mcp"
     newsletter_from_email: str = "newsletter@yourdomain.com"
     newsletter_from_name: str = "Content Engine"

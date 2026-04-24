@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes import router
 from .api.routes_agents import router as agents_router
+from .api.routes_images import router as images_router
 from .api.auth_middleware import JWTAuthMiddleware
 from .utils.rate_limiter_persistent import PersistentRateLimitMiddleware
 from .utils.logging_config import setup_logging
@@ -42,6 +43,11 @@ app.add_middleware(JWTAuthMiddleware)
 
 app.include_router(router)
 app.include_router(agents_router)
+app.include_router(images_router)
+
+# P9: Postiz social publishing bridge (health, integrations CRUD, analytics)
+from .api.routes_postiz import router as postiz_router
+app.include_router(postiz_router)  # prefix="/social" already declared in routes_postiz.py
 
 
 @app.get("/health")
