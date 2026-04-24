@@ -35,6 +35,7 @@ interface Draft {
   version: number | null
   god_mode_result: unknown
   created_at: string | null
+  media_urls: string[] | null
 }
 
 export default function ContentHubPage() {
@@ -182,7 +183,12 @@ export default function ContentHubPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {drafts.map((draft) => (
-            <DraftCard key={draft.id} draft={draft} onAction={handleAction} />
+            <DraftCard
+              key={draft.id}
+              draft={draft}
+              onAction={handleAction}
+              onMediaChange={fetchDrafts}
+            />
           ))}
         </div>
       )}

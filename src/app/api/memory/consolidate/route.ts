@@ -5,7 +5,7 @@
  * but Next.js adds an extra auth layer to prevent anonymous triggering).
  */
 import { requireAuth } from '@/lib/supabase/auth-helpers'
-import { proxyToBackend, errorResponse } from '@/lib/api-helpers'
+import { proxyToBackend } from '@/lib/api-helpers'
 
 export async function POST() {
   const { auth, response } = await requireAuth()

@@ -203,7 +203,9 @@ async def send_alerts(alerts: list[str], channel: str = "telegram") -> bool:
             return False
 
     elif channel == "slack":
-        # TODO: Implement Slack webhook integration
+        # Slack webhook integration not implemented — telegram is the
+        # currently supported channel. Alerts route only via the first
+        # configured channel; Slack requests fall back to no-op.
         return False
 
     return False

@@ -271,7 +271,7 @@ class RobustJSONParser:
                 # Try to parse the value as JSON
                 parsed_value = json.loads(value)
                 result[key] = parsed_value
-            except:
+            except (json.JSONDecodeError, ValueError):
                 # Keep as string if parsing fails (remove surrounding quotes)
                 result[key] = value.strip('"')
 

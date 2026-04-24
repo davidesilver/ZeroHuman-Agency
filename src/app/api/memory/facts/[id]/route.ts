@@ -6,7 +6,7 @@
  * and ownership verification.
  */
 import { requireAuth } from '@/lib/supabase/auth-helpers'
-import { proxyToBackend, errorResponse } from '@/lib/api-helpers'
+import { proxyToBackend } from '@/lib/api-helpers'
 import { NextRequest } from 'next/server'
 
 export async function PATCH(

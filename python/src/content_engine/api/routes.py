@@ -34,7 +34,7 @@ from ..agents.adapter import adapt_content
 from ..agents.writing_lab import create_session, vote_round
 from ..scoring.engine import run_scoring
 from ..services.newsletter_delivery import send_newsletter, preview_newsletter
-from ..services.social_publisher import publish_now as publish_to_postiz, schedule_post
+from ..services.postiz_publisher import publish_now as publish_to_postiz, schedule_post
 from ..services.feedback_loop import record_social_metrics, update_feedback_bonus
 from ..services.postiz_analytics import pull_daily_metrics, run_daily_analytics_cycle
 from ..services.scheduler import daily_research_pipeline, publish_scheduled_posts

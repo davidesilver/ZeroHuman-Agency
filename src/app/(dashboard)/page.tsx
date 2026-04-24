@@ -17,7 +17,7 @@ import {
 export default function DashboardPage() {
   const [stats, setStats] = useState({ new: 0, scored: 0, approved: 0, published: 0 })
   const [activities, setActivities] = useState<{ type: string; message: string; timestamp: string }[]>([])
-  const [costs, setCosts] = useState({ spend_today: 0, daily_budget: 15 })
+  const [costs, setCosts] = useState({ spend_today: 0, daily_budget: null as number | null })
   const [health, setHealth] = useState<{
     agents: {
       agent_name: string
@@ -59,7 +59,7 @@ export default function DashboardPage() {
       })
     }
     if (activityRes?.success) setActivities(activityRes.data.activities || [])
-    if (costsRes?.success) setCosts({ spend_today: costsRes.data.spend_today || 0, daily_budget: costsRes.data.daily_budget || 15 })
+    if (costsRes?.success) setCosts({ spend_today: costsRes.data.spend_today || 0, daily_budget: costsRes.data.daily_budget ?? null })
     if (healthRes?.success) setHealth(healthRes.data)
   }, [])
 

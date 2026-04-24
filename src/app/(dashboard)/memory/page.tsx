@@ -347,7 +347,7 @@ export default function MemoryInspectorPage() {
 
   // Edit / Delete
   const [editFact, setEditFact] = useState<MemoryFact | null>(null)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [, setDeletingId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)

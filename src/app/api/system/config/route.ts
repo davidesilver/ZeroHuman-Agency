@@ -26,6 +26,13 @@ function envNum(key: string, fallback: number): number {
   return isNaN(v) ? fallback : v
 }
 
+function envNumNullable(key: string): number | null {
+  const v = process.env[key]
+  if (!v || v.trim() === '') return null
+  const n = parseFloat(v)
+  return isNaN(n) ? null : n
+}
+
 export async function GET() {
   const { auth, response } = await requireAuth()
   if (!auth) return response
@@ -57,7 +64,7 @@ export async function GET() {
       publish_scheduled: envStr('CRON_PUBLISH_SCHEDULED', 'every 10min'),
     },
     budget: {
-      daily_cap_usd: envNum('DAILY_COST_CAP_USD', 5),
+      daily_cap_usd: envNumNullable('DAILY_COST_CAP_USD'),
     },
     social: {
       linkedin:  isSet('LINKEDIN_TOKEN'),

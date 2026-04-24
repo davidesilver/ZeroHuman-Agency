@@ -32,7 +32,7 @@ interface PipelineData {
   drafts: { total: number; draft: number; in_review: number; approved: number; published: number; scheduled: number }
   newsletters: { total: number; sent: number; draft: number }
   memory: { total: number; by_kind: { kind: string; count: number }[] }
-  costs: { spend_today: number; daily_budget: number }
+  costs: { spend_today: number; daily_budget: number | null }
 }
 
 function PipelineTab() {
@@ -100,7 +100,7 @@ function PipelineTab() {
         },
         costs: {
           spend_today: costsResp.data?.spend_today ?? 0,
-          daily_budget: costsResp.data?.brand_budget ?? costsResp.data?.daily_budget ?? 5,
+          daily_budget: costsResp.data?.brand_budget ?? costsResp.data?.daily_budget ?? null,
         },
       })
     } catch {
@@ -114,7 +114,7 @@ function PipelineTab() {
   if (loading) return <div className="text-center py-12 text-muted-foreground">Loading pipeline data…</div>
   if (!data) return <div className="text-center py-12 text-destructive text-sm">Failed to load — is the Python backend running?</div>
 
-  const budgetPct = data.costs.daily_budget > 0
+  const budgetPct = data.costs.daily_budget != null && data.costs.daily_budget > 0
     ? Math.min((data.costs.spend_today / data.costs.daily_budget) * 100, 100)
     : 0
 
@@ -173,7 +173,9 @@ function PipelineTab() {
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium">API Spend Today</h3>
             <span className="text-sm text-muted-foreground">
-              ${data.costs.spend_today.toFixed(4)} / ${data.costs.daily_budget.toFixed(2)}
+              {data.costs.daily_budget != null
+                ? `$${data.costs.spend_today.toFixed(4)} / $${data.costs.daily_budget.toFixed(2)}`
+                : `$${data.costs.spend_today.toFixed(4)} (unlimited)`}
             </span>
           </div>
           <div className="w-full bg-secondary rounded-full h-2.5">
@@ -183,7 +185,11 @@ function PipelineTab() {
             />
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            {budgetPct < 1 ? 'No spend today' : `${budgetPct.toFixed(1)}% of daily budget`}
+            {data.costs.daily_budget == null
+              ? 'Unlimited spend'
+              : budgetPct < 1
+                ? 'No spend today'
+                : `${budgetPct.toFixed(1)}% of daily budget`}
           </p>
         </CardContent>
       </Card>

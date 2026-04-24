@@ -48,11 +48,17 @@ async def daily_research_pipeline(brand_id: str) -> dict:
     }
 
     if research_result.items_found == 0:
-        from .alerting import send_telegram_alert
-        await send_telegram_alert(
-            f"⚠️ Zero items found in daily research for brand `{brand_id}`."
-            " Check crawler/API endpoints."
-        )
+        # Alerting is best-effort: never let a Telegram outage abort the pipeline.
+        try:
+            from .alerting import send_telegram_alert
+            await send_telegram_alert(
+                f"⚠️ Zero items found in daily research for brand `{brand_id}`."
+                " Check crawler/API endpoints."
+            )
+        except Exception as alert_err:
+            logger.warning(
+                "Telegram alert failed for brand %s: %s", brand_id, alert_err,
+            )
 
     # Step 2: Scoring
     scoring_result = await run_scoring(brand_id, ScoringRequest())
@@ -102,13 +108,13 @@ async def daily_research_pipeline(brand_id: str) -> dict:
 
 
 async def publish_scheduled_posts(brand_id: str) -> dict:
-    """Publish any posts that are past their scheduled time."""
+    """Publish any posts that are past their scheduled time via Postiz."""
     db = get_db()
 
     # M-09: use timezone-aware datetime (utcnow() deprecated in Python 3.12)
     now = datetime.now(timezone.utc).isoformat()
 
-    scheduled = db.table("content_drafts").select("id, platform, scheduled_at").eq(
+    scheduled = db.table("content_drafts").select("id, platform, scheduled_at, metadata").eq(
         "brand_id", brand_id
     ).eq("status", "scheduled").lte("scheduled_at", now).execute().data
 
@@ -117,13 +123,23 @@ async def publish_scheduled_posts(brand_id: str) -> dict:
 
     for draft in (scheduled or []):
         try:
-            # For now, mark as published (actual platform delivery requires API keys)
-            db.table("content_drafts").update({
-                "status": "published",
-            }).eq("id", draft["id"]).execute()
-            published.append(draft["id"])
+            from .postiz_publisher import publish_scheduled_via_postiz
+            result = await publish_scheduled_via_postiz(brand_id, draft)
+
+            if result.get("status") == "published":
+                published.append(draft["id"])
+            elif result.get("status") == "scheduled_on_platform":
+                # Already on Postiz — mark as published in our DB
+                db.table("content_drafts").update({
+                    "status": "published",
+                }).eq("id", draft["id"]).execute()
+                published.append(draft["id"])
+            else:
+                errors.append({"draft_id": draft["id"], "error": "Unexpected status from Postiz"})
         except Exception as e:
+            logger.exception("Failed to publish scheduled draft %s", draft["id"])
             errors.append({"draft_id": draft["id"], "error": str(e)})
+            # Mark as failed after max retries logic could be added here
 
     return {
         "published": len(published),

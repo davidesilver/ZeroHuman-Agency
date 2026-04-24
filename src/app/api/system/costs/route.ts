@@ -81,7 +81,8 @@ export async function GET(request: NextRequest) {
       (rows || []).reduce((sum, r) => sum + Number(r.cost_usd), 0)
 
     // Global cap — same env var the Python backend uses.
-    const dailyBudget = parseFloat(process.env.DAILY_COST_CAP_USD || '5')
+    const dailyBudgetStr = process.env.DAILY_COST_CAP_USD
+    const dailyBudget: number | null = dailyBudgetStr ? parseFloat(dailyBudgetStr) : null
 
     // Per-brand budget from DB (null = unlimited)
     const { data: brandRow } = await supabase

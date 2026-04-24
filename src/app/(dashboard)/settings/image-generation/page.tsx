@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useBrand } from '@/lib/brand-context'
-import { Save, TestTube, Sparkles, BarChart3, ChevronLeft, ExternalLink } from 'lucide-react'
+import { Save, TestTube, BarChart3, ChevronLeft, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 
 const BACKENDS = [
@@ -33,7 +33,17 @@ export default function ImageGenerationSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [testUrl, setTestUrl] = useState<string | null>(null)
   const [testErr, setTestErr] = useState<string | null>(null)
-  const [stats, setStats] = useState<{today: {count: number; cost_usd: number}; recent_jobs: any[]} | null>(null)
+  type RecentJob = {
+    id: string
+    status: string
+    backend: string
+    model_id: string
+    cost_usd?: number | null
+  }
+  const [stats, setStats] = useState<{
+    today: { count: number; cost_usd: number }
+    recent_jobs: RecentJob[]
+  } | null>(null)
 
   useEffect(() => {
     if (!activeBrand) return
@@ -177,7 +187,7 @@ export default function ImageGenerationSettingsPage() {
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Recent jobs</p>
               <div className="max-h-48 overflow-auto space-y-1">
-                {stats.recent_jobs.map((job: any) => (
+                {stats.recent_jobs.map((job) => (
                   <div key={job.id} className="flex items-center gap-2 text-xs border-b last:border-0 pb-1">
                     <span className={`inline-block w-2 h-2 rounded-full ${
                       job.status === 'succeeded' ? 'bg-green-500' :

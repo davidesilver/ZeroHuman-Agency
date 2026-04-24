@@ -1,5 +1,24 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/functions-js@2.3.1/v1/postgres";
+import { createClient, SupabaseClient } from "jsr:@supabase/functions-js@2.3.1/v1/postgres";
+
+type SocialMetric = {
+  platform?: string;
+  impressions?: number;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  saves?: number;
+  recorded_at?: string;
+};
+
+type PostAnalytics = {
+  platform: string;
+  impressions: number;
+  likes: number;
+  shares: number;
+  comments: number;
+  saves: number;
+};
 
 Deno.serve(async (req: Request) => {
   const corsHeaders = {
@@ -43,14 +62,15 @@ Deno.serve(async (req: Request) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
 
-async function pullDailyMetrics(supabaseClient: any) {
+async function pullDailyMetrics(supabaseClient: SupabaseClient) {
   const { data: brands } = await supabaseClient
     .from('brands')
     .select('id, name');
@@ -85,7 +105,8 @@ async function pullDailyMetrics(supabaseClient: any) {
         totalProcessed++;
       }
     } catch (error) {
-      errors.push(`${brand.name || brand.id}: ${error.message}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      errors.push(`${brand.name || brand.id}: ${msg}`);
     }
   }
 
@@ -97,7 +118,7 @@ async function pullDailyMetrics(supabaseClient: any) {
   };
 }
 
-async function updateFeedbackBonus(supabaseClient: any) {
+async function updateFeedbackBonus(supabaseClient: SupabaseClient) {
   const { data: brands } = await supabaseClient
     .from('brands')
     .select('id, name, feedback_bonus');
@@ -117,7 +138,7 @@ async function updateFeedbackBonus(supabaseClient: any) {
         .select('id')
         .eq('brand_id', brandId)
         .eq('status', 'published');
-      const draftIds = (publishedDrafts || []).map((draft: any) => draft.id);
+      const draftIds = (publishedDrafts || []).map((draft: { id: string }) => draft.id);
 
       const { data: metrics } = draftIds.length === 0
         ? { data: [] }
@@ -142,7 +163,8 @@ async function updateFeedbackBonus(supabaseClient: any) {
         metrics_used: metrics.length,
       });
     } catch (error) {
-      errors.push(`${brand.name || brand.id}: ${error.message}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      errors.push(`${brand.name || brand.id}: ${msg}`);
     }
   }
 
@@ -153,7 +175,7 @@ async function updateFeedbackBonus(supabaseClient: any) {
   };
 }
 
-async function runDailyAnalyticsCycle(supabaseClient: any) {
+async function runDailyAnalyticsCycle(supabaseClient: SupabaseClient) {
   // Step 1: Pull metrics
   const pullResult = await pullDailyMetrics(supabaseClient);
 
@@ -188,12 +210,12 @@ async function fetchPostAnalytics(postizId: string) {
       comments: data.comments || 0,
       saves: data.saves || 0,
     };
-  } catch (error) {
+  } catch {
     return null;
   }
 }
 
-async function recordSocialMetrics(supabaseClient: any, draftId: string, metrics: any) {
+async function recordSocialMetrics(supabaseClient: SupabaseClient, draftId: string, metrics: PostAnalytics) {
   await supabaseClient.from('social_metrics').upsert({
     draft_id: draftId,
     platform: metrics.platform,
@@ -206,7 +228,7 @@ async function recordSocialMetrics(supabaseClient: any, draftId: string, metrics
   }, { onConflict: 'draft_id,platform' });
 }
 
-function computeEngagementScoreOptimized(metrics: any[]) {
+function computeEngagementScoreOptimized(metrics: SocialMetric[]) {
   if (!metrics || metrics.length === 0) return 5.0;
 
   const scoredMetrics: number[] = [];

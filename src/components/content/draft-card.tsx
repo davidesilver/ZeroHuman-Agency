@@ -1,9 +1,11 @@
 'use client'
 
+import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Check, Sparkles, Archive } from 'lucide-react'
+import { GenerateVisualButton } from '@/components/content-hub/generate-visual-button'
 
 interface DraftCardProps {
   draft: {
@@ -16,8 +18,10 @@ interface DraftCardProps {
     version: number | null
     god_mode_result: unknown
     created_at: string | null
+    media_urls: string[] | null
   }
   onAction: (id: string, action: string) => void
+  onMediaChange?: () => void
 }
 
 function platformColor(platform: string): string {
@@ -44,8 +48,9 @@ function statusVariant(status: string) {
   }
 }
 
-export function DraftCard({ draft, onAction }: DraftCardProps) {
+export function DraftCard({ draft, onAction, onMediaChange }: DraftCardProps) {
   const godResult = draft.god_mode_result as { verdict?: string; advocate_score?: number } | null
+  const firstMedia = draft.media_urls?.[0]
 
   return (
     <Card className="group">
@@ -64,12 +69,18 @@ export function DraftCard({ draft, onAction }: DraftCardProps) {
           </Badge>
         </div>
 
-        <div>
+        {firstMedia && (
+          <div className="rounded overflow-hidden border">
+            <img src={firstMedia} alt="Generated visual" className="w-full h-32 object-cover" />
+          </div>
+        )}
+
+        <Link href={`/content-hub/${draft.id}`} className="block hover:opacity-80 transition-opacity">
           <h3 className="font-medium text-sm line-clamp-2">{draft.title || 'Untitled'}</h3>
           <p className="text-xs text-muted-foreground mt-1 line-clamp-3">
             {draft.body?.slice(0, 200) || ''}
           </p>
-        </div>
+        </Link>
 
         {godResult?.verdict && (
           <div className="text-xs text-muted-foreground">
@@ -80,7 +91,7 @@ export function DraftCard({ draft, onAction }: DraftCardProps) {
           </div>
         )}
 
-        <div className="flex items-center gap-1 pt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 pt-1 opacity-0 group-hover:opacity-100 transition-opacity flex-wrap">
           <Button variant="ghost" size="xs" onClick={() => onAction(draft.id, 'approved')} title="Approve">
             <Check className="size-3 text-green-600" />
             Approve
@@ -89,6 +100,11 @@ export function DraftCard({ draft, onAction }: DraftCardProps) {
             <Sparkles className="size-3 text-brand-accent" />
             GOD
           </Button>
+          <GenerateVisualButton
+            draftId={draft.id}
+            platform={draft.platform}
+            onGenerated={() => onMediaChange?.()}
+          />
           <Button variant="ghost" size="xs" onClick={() => onAction(draft.id, 'archived')} title="Archive">
             <Archive className="size-3 text-muted-foreground" />
           </Button>

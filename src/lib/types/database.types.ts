@@ -249,6 +249,65 @@ export type Database = {
           },
         ]
       }
+      brand_assets: {
+        Row: {
+          brand_id: string
+          bytes: number
+          created_at: string
+          height_px: number | null
+          id: string
+          kind: string
+          label: string | null
+          metadata: Json
+          mime_type: string
+          palette_hex: string[] | null
+          storage_path: string
+          updated_at: string
+          uploaded_by: string | null
+          width_px: number | null
+        }
+        Insert: {
+          brand_id: string
+          bytes: number
+          created_at?: string
+          height_px?: number | null
+          id?: string
+          kind: string
+          label?: string | null
+          metadata?: Json
+          mime_type: string
+          palette_hex?: string[] | null
+          storage_path: string
+          updated_at?: string
+          uploaded_by?: string | null
+          width_px?: number | null
+        }
+        Update: {
+          brand_id?: string
+          bytes?: number
+          created_at?: string
+          height_px?: number | null
+          id?: string
+          kind?: string
+          label?: string | null
+          metadata?: Json
+          mime_type?: string
+          palette_hex?: string[] | null
+          storage_path?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          width_px?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_assets_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_members: {
         Row: {
           brand_id: string
@@ -288,10 +347,16 @@ export type Database = {
           discard_examples: string[] | null
           feedback_bonus: number | null
           founder_principles: string[] | null
+          from_email: string | null
+          from_name: string | null
           gold_examples: string[] | null
           humanizer_channels: string[] | null
           humanizer_model_override: string | null
           id: string
+          image_backend: string | null
+          image_model: string | null
+          image_prompt_template: string | null
+          image_style_preset: string | null
           name: string
           research_sources: Json | null
           rss_sources: Json | null
@@ -310,10 +375,16 @@ export type Database = {
           discard_examples?: string[] | null
           feedback_bonus?: number | null
           founder_principles?: string[] | null
+          from_email?: string | null
+          from_name?: string | null
           gold_examples?: string[] | null
           humanizer_channels?: string[] | null
           humanizer_model_override?: string | null
           id?: string
+          image_backend?: string | null
+          image_model?: string | null
+          image_prompt_template?: string | null
+          image_style_preset?: string | null
           name: string
           research_sources?: Json | null
           rss_sources?: Json | null
@@ -332,10 +403,16 @@ export type Database = {
           discard_examples?: string[] | null
           feedback_bonus?: number | null
           founder_principles?: string[] | null
+          from_email?: string | null
+          from_name?: string | null
           gold_examples?: string[] | null
           humanizer_channels?: string[] | null
           humanizer_model_override?: string | null
           id?: string
+          image_backend?: string | null
+          image_model?: string | null
+          image_prompt_template?: string | null
+          image_style_preset?: string | null
           name?: string
           research_sources?: Json | null
           rss_sources?: Json | null
@@ -868,6 +945,98 @@ export type Database = {
           },
           {
             foreignKeyName: "humanizer_performance_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "v_content_pipeline"
+            referencedColumns: ["draft_id"]
+          },
+        ]
+      }
+      image_generations: {
+        Row: {
+          backend: string
+          brand_id: string
+          cost_usd: number | null
+          created_at: string
+          draft_id: string | null
+          error: string | null
+          finished_at: string | null
+          height_px: number | null
+          id: string
+          model_id: string
+          negative_prompt: string | null
+          prompt: string
+          public_url: string | null
+          seed: number | null
+          started_at: string | null
+          status: string
+          storage_path: string | null
+          width_px: number | null
+        }
+        Insert: {
+          backend: string
+          brand_id: string
+          cost_usd?: number | null
+          created_at?: string
+          draft_id?: string | null
+          error?: string | null
+          finished_at?: string | null
+          height_px?: number | null
+          id?: string
+          model_id: string
+          negative_prompt?: string | null
+          prompt: string
+          public_url?: string | null
+          seed?: number | null
+          started_at?: string | null
+          status?: string
+          storage_path?: string | null
+          width_px?: number | null
+        }
+        Update: {
+          backend?: string
+          brand_id?: string
+          cost_usd?: number | null
+          created_at?: string
+          draft_id?: string | null
+          error?: string | null
+          finished_at?: string | null
+          height_px?: number | null
+          id?: string
+          model_id?: string
+          negative_prompt?: string | null
+          prompt?: string
+          public_url?: string | null
+          seed?: number | null
+          started_at?: string | null
+          status?: string
+          storage_path?: string | null
+          width_px?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "image_generations_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "image_generations_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "content_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "image_generations_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "content_performance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "image_generations_draft_id_fkey"
             columns: ["draft_id"]
             isOneToOne: false
             referencedRelation: "v_content_pipeline"

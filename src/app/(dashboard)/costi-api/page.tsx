@@ -27,10 +27,10 @@ export default function CostiAPIPage() {
     spend_today: number
     spend_week: number
     spend_month: number
-    daily_budget: number
+    daily_budget: number | null  // global env cap; null = unlimited
     brand_budget: number | null   // per-brand DB value; null = unlimited
     by_agent: AgentCost[]
-  }>({ spend_today: 0, spend_week: 0, spend_month: 0, daily_budget: 5, brand_budget: null, by_agent: [] })
+  }>({ spend_today: 0, spend_week: 0, spend_month: 0, daily_budget: null, brand_budget: null, by_agent: [] })
 
   const fetchCosts = useCallback(async () => {
     try {
@@ -42,11 +42,12 @@ export default function CostiAPIPage() {
 
   useEffect(() => { fetchCosts() }, [fetchCosts])
 
-  // Effective cap: per-brand budget (if set) wins vs. global cap
+  // Per-brand budget is the source of truth; env global cap is only a
+  // backend safety fallback when no brand budget is set.
   const effectiveBudget = data.brand_budget != null
-    ? Math.min(data.brand_budget, data.daily_budget)
+    ? data.brand_budget
     : data.daily_budget
-  const pct = effectiveBudget > 0
+  const pct = effectiveBudget != null && effectiveBudget > 0
     ? Math.min((data.spend_today / effectiveBudget) * 100, 100)
     : 0
 
@@ -67,12 +68,12 @@ export default function CostiAPIPage() {
               <span className="text-sm font-medium">Daily budget</span>
               {data.brand_budget != null && (
                 <span className="text-xs text-muted-foreground ml-2">
-                  (per-brand ${data.brand_budget.toFixed(2)} · global cap ${data.daily_budget.toFixed(2)})
+                  (per-brand ${data.brand_budget.toFixed(2)}{data.daily_budget != null ? ` · global cap $${data.daily_budget.toFixed(2)}` : ' · unlimited'})
                 </span>
               )}
             </div>
             <span className="text-sm text-muted-foreground">
-              ${data.spend_today.toFixed(2)} / {effectiveBudget > 0 ? `$${effectiveBudget.toFixed(2)}` : '∞'}
+              {effectiveBudget != null ? `$${data.spend_today.toFixed(2)} / $${effectiveBudget.toFixed(2)}` : `$${data.spend_today.toFixed(2)} (unlimited)`}
             </span>
           </div>
           <Progress value={pct} className="h-3" />
@@ -117,7 +118,7 @@ export default function CostiAPIPage() {
                 <TableCell className="text-right">{agent.tokens_output.toLocaleString()}</TableCell>
                 <TableCell className="text-right">${agent.cost_usd.toFixed(4)}</TableCell>
                 <TableCell className="text-right">
-                  {data.daily_budget > 0 ? `${((agent.cost_usd / data.daily_budget) * 100).toFixed(1)}%` : '0%'}
+                  {effectiveBudget != null && effectiveBudget > 0 ? `${((agent.cost_usd / effectiveBudget) * 100).toFixed(1)}%` : '0%'}
                 </TableCell>
               </TableRow>
             ))

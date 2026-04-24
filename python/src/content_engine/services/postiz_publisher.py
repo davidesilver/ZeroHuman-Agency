@@ -16,6 +16,7 @@ from typing import Optional
 from ..config import settings
 from ..db import get_db
 from ..utils.audit_trail import log_publish_event
+from ..utils.url_safety import UnsafeURLError, assert_safe_public_url
 from .postiz_client import PostizClient
 
 _logger = logging.getLogger("content_engine.postiz_publisher")
@@ -29,6 +30,25 @@ _PLATFORM_ALIASES = {
 
 def _normalize_platform(platform: str) -> str:
     return _PLATFORM_ALIASES.get(platform.lower(), platform.lower())
+
+
+def _validate_media_urls(urls: list[str]) -> list[str]:
+    """Filter media URLs to safe public https targets.
+
+    Any URL that fails SSRF validation is logged and dropped — we do NOT
+    raise, so a single bad asset doesn't block an otherwise-valid publish.
+    """
+    # Allow http only when Postiz runs in self-hosted mode and dev stack
+    # might use plain http for public storage URLs (supabase local).
+    allow_http = settings.postiz_mode == "self_hosted"
+    safe: list[str] = []
+    for u in urls:
+        try:
+            assert_safe_public_url(u, allow_http=allow_http)
+            safe.append(u)
+        except UnsafeURLError as e:
+            _logger.warning("Dropping unsafe media URL %r: %s", u, e)
+    return safe
 
 
 def _is_postiz_enabled() -> bool:
@@ -120,13 +140,15 @@ async def publish_now(
     post_media = media_urls or []
     if not post_media and draft.get("media_urls"):
         post_media = list(draft["media_urls"])
+    post_media = _validate_media_urls(post_media)
 
-    # Call Postiz
+    # Call Postiz — idempotency key ensures retries never duplicate posts.
     client = PostizClient()
     result = await client.create_post(
         integration_ids=integration_ids,
         content=text,
         media_urls=post_media or None,
+        idempotency_key=f"publish:{draft_id}",
     )
 
     # Postiz may return per-platform post IDs
@@ -212,7 +234,7 @@ async def schedule_post(
     if platforms and _is_postiz_enabled():
         integrations = await _get_active_integrations(brand_id, platforms)
         integration_ids = [i["integration_id"] for i in integrations]
-        post_media = list(draft.get("media_urls") or [])
+        post_media = _validate_media_urls(list(draft.get("media_urls") or []))
 
         client = PostizClient()
         result = await client.create_post(
@@ -220,6 +242,7 @@ async def schedule_post(
             content=text,
             scheduled_at=scheduled_at,
             media_urls=post_media or None,
+            idempotency_key=f"schedule:{draft_id}:{scheduled_at}",
         )
 
         if isinstance(result, dict):

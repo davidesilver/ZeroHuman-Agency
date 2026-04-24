@@ -36,14 +36,32 @@ export async function PATCH(request: Request, context: RouteContext) {
   // P1: check membership instead of active-brand equality
   if (!auth.memberBrandIds.includes(id)) return errorResponse('Forbidden', 403)
 
-  let body: { name?: string; topics?: string[]; research_sources?: Json; daily_budget_usd?: number | null }
+  let body: {
+    name?: string
+    topics?: string[]
+    research_sources?: Json
+    daily_budget_usd?: number | null
+    image_backend?: string | null
+    image_model?: string | null
+    image_style_preset?: string | null
+    image_prompt_template?: string | null
+  }
   try {
     body = await request.json()
   } catch {
     return errorResponse('Invalid JSON body', 400)
   }
 
-  const patch: { name?: string; topics?: string[]; research_sources?: Json; daily_budget_usd?: number | null } = {}
+  const patch: {
+    name?: string
+    topics?: string[]
+    research_sources?: Json
+    daily_budget_usd?: number | null
+    image_backend?: string | null
+    image_model?: string | null
+    image_style_preset?: string | null
+    image_prompt_template?: string | null
+  } = {}
   if (body.name !== undefined) {
     if (typeof body.name !== 'string') return errorResponse('name must be a string', 400)
     const trimmed = body.name.trim()
@@ -77,8 +95,33 @@ export async function PATCH(request: Request, context: RouteContext) {
       patch.daily_budget_usd = null
     }
   }
+  if ('image_backend' in body) {
+    const validBackends = ['replicate', 'openai', 'pillo', 'mock', 'openrouter', 'anthropic']
+    if (body.image_backend != null && !validBackends.includes(body.image_backend)) {
+      return errorResponse(`image_backend must be one of: ${validBackends.join(', ')}`, 400)
+    }
+    patch.image_backend = body.image_backend
+  }
+  if ('image_model' in body) {
+    if (body.image_model !== null && typeof body.image_model !== 'string') {
+      return errorResponse('image_model must be a string', 400)
+    }
+    patch.image_model = body.image_model
+  }
+  if ('image_style_preset' in body) {
+    if (body.image_style_preset !== null && typeof body.image_style_preset !== 'string') {
+      return errorResponse('image_style_preset must be a string', 400)
+    }
+    patch.image_style_preset = body.image_style_preset
+  }
+  if ('image_prompt_template' in body) {
+    if (body.image_prompt_template !== null && typeof body.image_prompt_template !== 'string') {
+      return errorResponse('image_prompt_template must be a string', 400)
+    }
+    patch.image_prompt_template = body.image_prompt_template
+  }
   if (Object.keys(patch).length === 0) {
-    return errorResponse('No editable fields provided (allowed: name, topics, research_sources, daily_budget_usd)', 400)
+    return errorResponse('No editable fields provided', 400)
   }
 
   const supabase = await createClient()

@@ -49,5 +49,21 @@ class Settings(BaseSettings):
 
     model_config = {"env_file": "../.env.local", "extra": "ignore", "populate_by_name": True}
 
+    def __repr__(self) -> str:
+        # Mask secret-like fields so accidental logging of the Settings
+        # object (e.g. during debug) cannot leak API keys / tokens.
+        secret_markers = ("api_key", "secret", "token", "service_role")
+        parts: list[str] = []
+        for name in self.model_fields:
+            value = getattr(self, name)
+            if isinstance(value, str) and value and any(m in name.lower() for m in secret_markers):
+                shown = f"***{value[-4:]}" if len(value) > 4 else "***"
+                parts.append(f"{name}={shown!r}")
+            else:
+                parts.append(f"{name}={value!r}")
+        return f"Settings({', '.join(parts)})"
+
+    __str__ = __repr__
+
 
 settings = Settings()

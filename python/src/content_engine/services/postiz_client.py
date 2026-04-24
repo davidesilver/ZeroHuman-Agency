@@ -13,13 +13,18 @@ Endpoints used:
 """
 from __future__ import annotations
 from typing import Optional
+import asyncio
 import logging
+import random
 
 import httpx
 
 from ..config import settings
 
 _logger = logging.getLogger("content_engine.postiz_client")
+
+_RETRYABLE_STATUS = {408, 429, 500, 502, 503, 504}
+_MAX_ATTEMPTS = 3
 
 
 class PostizClient:
@@ -81,15 +86,13 @@ class PostizClient:
         scheduled_at: Optional[str] = None,
         media_urls: Optional[list[str]] = None,
         settings_json: Optional[dict] = None,
+        idempotency_key: Optional[str] = None,
     ) -> dict:
         """Create a post (publish immediately or schedule).
 
-        Args:
-            integration_ids: List of Postiz integration IDs to publish to.
-            content: Post text content.
-            scheduled_at: ISO 8601 timestamp for scheduling. If None, publishes now.
-            media_urls: Optional list of public image URLs to attach.
-            settings_json: Optional platform-specific settings.
+        Retries transient 5xx/429 up to 3 attempts with exponential backoff
+        + jitter. Callers MUST pass a stable idempotency_key (e.g. draft_id)
+        so a retry never produces duplicate posts on the platform.
         """
         self._check_config()
         body: dict = {
@@ -103,14 +106,44 @@ class PostizClient:
         if settings_json:
             body["settings"] = settings_json
 
-        async with httpx.AsyncClient(timeout=60) as c:
-            r = await c.post(
-                f"{self.api_url}/public/v1/posts",
-                json=body,
-                headers=self._headers(),
-            )
-            r.raise_for_status()
-            return r.json()
+        headers = self._headers()
+        if idempotency_key:
+            headers["Idempotency-Key"] = idempotency_key
+
+        last_exc: Exception | None = None
+        for attempt in range(1, _MAX_ATTEMPTS + 1):
+            try:
+                async with httpx.AsyncClient(timeout=60) as c:
+                    r = await c.post(
+                        f"{self.api_url}/public/v1/posts",
+                        json=body,
+                        headers=headers,
+                    )
+                if r.status_code in _RETRYABLE_STATUS and attempt < _MAX_ATTEMPTS:
+                    backoff = (2 ** (attempt - 1)) + random.uniform(0, 0.5)
+                    _logger.warning(
+                        "Postiz create_post attempt %d got %d; retrying in %.1fs",
+                        attempt, r.status_code, backoff,
+                    )
+                    await asyncio.sleep(backoff)
+                    continue
+                r.raise_for_status()
+                return r.json()
+            except (httpx.TimeoutException, httpx.TransportError) as e:
+                last_exc = e
+                if attempt < _MAX_ATTEMPTS:
+                    backoff = (2 ** (attempt - 1)) + random.uniform(0, 0.5)
+                    _logger.warning(
+                        "Postiz create_post transport error on attempt %d: %s; retrying in %.1fs",
+                        attempt, e, backoff,
+                    )
+                    await asyncio.sleep(backoff)
+                    continue
+                raise
+        # Should be unreachable, but keep typing honest
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("Postiz create_post failed without exception")
 
     async def delete_post(self, post_id: str) -> dict:
         """Delete a post from Postiz."""

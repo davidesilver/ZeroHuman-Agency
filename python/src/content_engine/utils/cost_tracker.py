@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from ..db import get_db
+
+logger = logging.getLogger(__name__)
 
 # Approximate pricing per 1M tokens (input/output) — updated May 2025
 MODEL_PRICING = {
@@ -54,13 +58,23 @@ async def track_cost(
     input_chars: int,
     output_chars: int,
     latency_ms: int | None = None,
+    cost_usd: float | None = None,
 ) -> None:
-    """Log an API call cost to the api_costs table."""
-    # M-12: Derive token estimates directly from char counts — do NOT allocate
-    # large strings of 'x' * chars just to call len() on them.
-    tokens_in = max(1, input_chars // CHARS_PER_TOKEN)
-    tokens_out = max(1, output_chars // CHARS_PER_TOKEN)
-    cost = estimate_cost(model, tokens_in, tokens_out)
+    """Log an API call cost to the api_costs table.
+
+    Args:
+        cost_usd: Optional explicit cost override for non-LLM services
+                  (images, external APIs). When provided, skips token estimation.
+    """
+    if cost_usd is not None:
+        cost = float(cost_usd)
+        tokens_in = 0
+        tokens_out = 0
+    else:
+        # M-12: Derive token estimates directly from char counts
+        tokens_in = max(1, input_chars // CHARS_PER_TOKEN)
+        tokens_out = max(1, output_chars // CHARS_PER_TOKEN)
+        cost = estimate_cost(model, tokens_in, tokens_out)
 
     db = get_db()
     db.table("api_costs").insert({
@@ -92,7 +106,20 @@ async def check_daily_cost_cap(brand_id: str) -> None:
     import os
     from datetime import datetime, timezone
 
-    global_cap = float(os.environ.get("DAILY_COST_CAP_USD", "5.0"))
+    global_cap_str = os.environ.get("DAILY_COST_CAP_USD")
+    # If env var is not set → unlimited (None); parse defensively so a
+    # malformed value doesn't crash the whole pipeline.
+    if global_cap_str:
+        try:
+            global_cap = float(global_cap_str)
+        except ValueError:
+            logger.error(
+                "DAILY_COST_CAP_USD=%r is not a number; treating as unlimited",
+                global_cap_str,
+            )
+            global_cap = None
+    else:
+        global_cap = None
 
     # Fetch per-brand budget from DB (service role bypasses RLS)
     db = get_db()
@@ -106,13 +133,14 @@ async def check_daily_cost_cap(brand_id: str) -> None:
     brand_row = brand_resp.data or {}
     brand_budget = brand_row.get("daily_budget_usd")
 
-    # Resolve effective cap:
-    #  - If per-brand budget is set (not None/null), use the LOWER of the two.
-    #  - If per-brand budget is None (unlimited), use the global cap as safety net.
+    # Per-brand value wins when set — env is only a fallback, not a ceiling.
+    # Both NULL = unlimited (None)
     if brand_budget is not None:
-        cap = min(float(brand_budget), global_cap)
-    else:
+        cap = float(brand_budget)
+    elif global_cap is not None:
         cap = global_cap
+    else:
+        cap = None  # unlimited
 
     # Start of today in UTC (midnight)
     now_utc = datetime.now(timezone.utc)
@@ -128,7 +156,7 @@ async def check_daily_cost_cap(brand_id: str) -> None:
     rows = resp.data or []
     total = sum(float(r.get("cost_usd", 0) or 0) for r in rows)
 
-    if total >= cap:
+    if cap is not None and total >= cap:
         # Lazy import to avoid circular import at module load time
         from ..monitoring.pipeline_health import send_alerts
         source = "per-brand DB" if brand_budget is not None else "global env var"

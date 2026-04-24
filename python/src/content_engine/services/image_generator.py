@@ -94,11 +94,23 @@ async def create_image_job(
     }).execute().data[0]
     gen_id = gen_row["id"]
 
-    # Fire background task
-    asyncio.create_task(
+    # Fire background task; attach callback to surface unhandled errors
+    # (otherwise asyncio.create_task failures are silently dropped).
+    task = asyncio.create_task(
         _run_image_job_with_timeout(gen_id, brand_id, draft_id, width, height),
         name=f"image-job-{gen_id}",
     )
+
+    def _log_task_exc(t: asyncio.Task) -> None:
+        if t.cancelled():
+            return
+        exc = t.exception()
+        if exc is not None:
+            logger.error(
+                "Background image job %s crashed: %s", gen_id, exc, exc_info=exc,
+            )
+
+    task.add_done_callback(_log_task_exc)
 
     return {"id": gen_id, "status": "pending"}
 
