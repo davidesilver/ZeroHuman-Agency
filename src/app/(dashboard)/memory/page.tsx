@@ -32,7 +32,10 @@ import {
   Zap,
   Archive,
   Activity,
+  ImageIcon,
+  Settings2,
 } from 'lucide-react'
+import Link from 'next/link'
 import { useBrand } from '@/lib/brand-context'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -433,7 +436,7 @@ export default function MemoryInspectorPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Brain className="size-6" /> Memory Inspector
@@ -445,6 +448,20 @@ export default function MemoryInspectorPage() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/settings/brand-context"
+            className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                       border hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+          >
+            <Settings2 className="size-3" /> Brand Context
+          </Link>
+          <Link
+            href="/settings/brand-assets"
+            className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                       border hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+          >
+            <ImageIcon className="size-3" /> Visual Assets
+          </Link>
           {consolidateMsg && (
             <p className="text-xs text-muted-foreground max-w-xs text-right">{consolidateMsg}</p>
           )}
@@ -549,7 +566,8 @@ export default function MemoryInspectorPage() {
               ) : filteredFacts.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">
                   No memory facts yet. Run <strong>Consolidate</strong> to extract from
-                  recent events, or use the Discover wizard (coming in P3).
+                  recent events, or add facts manually via{' '}
+                  <Link href="/settings/brand-context" className="underline">Brand Context</Link>.
                 </div>
               ) : (
                 <div>

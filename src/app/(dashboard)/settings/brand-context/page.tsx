@@ -620,12 +620,20 @@ export default function BrandContextPage() {
               {activeBrand && <span className="ml-1.5">· {activeBrand.name}</span>}
             </p>
           </div>
-          <Link
-            href="/memory"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0 mt-1"
-          >
-            Full Memory Inspector <ExternalLink className="size-3" />
-          </Link>
+          <div className="flex items-center gap-3 shrink-0 mt-1">
+            <Link
+              href="/settings/brand-assets"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Visual Assets <ExternalLink className="size-3" />
+            </Link>
+            <Link
+              href="/memory"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Full Memory Inspector <ExternalLink className="size-3" />
+            </Link>
+          </div>
         </div>
       </div>
 

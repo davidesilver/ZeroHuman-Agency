@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Settings as SettingsIcon, Key, Bot, Mail, Share2, Database, Clock, Building, Plus, Loader2, ExternalLink, Brain } from 'lucide-react'
+import { Settings as SettingsIcon, Key, Bot, Mail, Share2, Database, Clock, Building, Plus, Loader2, ExternalLink, Brain, ImageIcon, Link2 } from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
 import Link from 'next/link'
 
@@ -239,6 +239,31 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Brand Visual Assets */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ImageIcon className="size-4 text-muted-foreground" />
+              Brand Visual Assets
+            </CardTitle>
+            <Link
+              href="/settings/brand-assets"
+              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+            >
+              <ExternalLink className="size-3" /> Manage
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <p className="text-xs text-muted-foreground">
+            Logo, palette, design system, example newsletters and posts. Long-term editable assets
+            referenced by the image generator and text agents.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* API Keys */}
       <Card>
         <CardHeader className="pb-3">
@@ -349,12 +374,60 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Social Platforms */}
+      {/* Image Generation */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ImageIcon className="size-4 text-muted-foreground" />
+              Image Generation
+            </CardTitle>
+            <Link
+              href="/settings/image-generation"
+              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+            >
+              <ExternalLink className="size-3" /> Configure
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <p className="text-xs text-muted-foreground">
+            Per-brand model, backend, style preset and prompt template for AI-generated visuals.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Social Connections */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Link2 className="size-4 text-muted-foreground" />
+              Social Connections
+            </CardTitle>
+            <Link
+              href="/settings/social-connections"
+              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+            >
+              <ExternalLink className="size-3" /> Manage
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <p className="text-xs text-muted-foreground">
+            Connect social platforms via Postiz (self-hosted or cloud). OAuth handled by Postiz — paste integration IDs here.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Social Platforms (legacy env-var view) */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <Share2 className="size-4 text-muted-foreground" />
-            Social Platforms
+            Social Platforms (legacy)
           </CardTitle>
         </CardHeader>
         <CardContent>
