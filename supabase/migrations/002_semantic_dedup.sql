@@ -4,6 +4,8 @@
 -- Description: Adds SQL function for semantic dedup + audit_trail table
 -- ============================================================================
 
+SET search_path = public, extensions;
+
 -- ----------------------------------------------------------------------------
 -- 1. Semantic similarity search function
 -- ----------------------------------------------------------------------------

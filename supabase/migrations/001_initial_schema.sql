@@ -21,6 +21,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
 -- Scheduled jobs
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
+-- Ensure extension types (vector, etc.) are resolvable without schema prefix
+SET search_path = public, extensions;
+
 -- ----------------------------------------------------------------------------
 -- 2. CUSTOM ENUM TYPES
 -- ----------------------------------------------------------------------------
@@ -208,19 +211,6 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
--- Helper: get the brand_id for the current authenticated user
-CREATE OR REPLACE FUNCTION auth_user_brand_id()
-RETURNS uuid AS $$
-  SELECT brand_id FROM public.users WHERE id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
-
--- Helper: get the role for the current authenticated user
-CREATE OR REPLACE FUNCTION auth_user_role()
-RETURNS user_role AS $$
-  SELECT role FROM public.users WHERE id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
-
 
 -- ============================================================================
 -- 4. TABLES
@@ -786,6 +776,21 @@ COMMENT ON VIEW v_newsletter_performance IS 'Aggregated newsletter performance w
 -- ============================================================================
 -- 6. ROW LEVEL SECURITY (RLS)
 -- ============================================================================
+
+-- Helper: get the brand_id for the current authenticated user.
+-- Redefined in migration 017 to support multi-brand membership; bootstrap
+-- definition here references public.users (single-brand era) so RLS policies
+-- in this migration compile cleanly on a fresh database.
+CREATE OR REPLACE FUNCTION auth_user_brand_id()
+RETURNS uuid AS $$
+  SELECT brand_id FROM public.users WHERE id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- Helper: get the role for the current authenticated user.
+CREATE OR REPLACE FUNCTION auth_user_role()
+RETURNS user_role AS $$
+  SELECT role FROM public.users WHERE id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 -- Enable RLS on all tables
 ALTER TABLE brands                ENABLE ROW LEVEL SECURITY;
