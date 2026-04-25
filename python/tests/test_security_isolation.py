@@ -103,12 +103,31 @@ class TestBrandIsolation:
         routes_module._SCHEDULER_BRAND_ID = "cron-brand-456"
         assert _get_scheduler_brand_ids() == ["cron-brand-456"]
 
-    def test_scheduler_brand_ids_reads_memberships_when_override_missing(self):
-        """Multi-brand scheduler should fan out over brand_members when no override exists."""
+    def test_scheduler_brand_ids_refuses_without_explicit_opt_in(self):
+        """Audit P0-2: missing SCHEDULER_BRAND_ID *and* missing
+        SCHEDULER_ALLOW_ALL_BRANDS must hard-fail rather than silently iterate
+        across every tenant — otherwise a misconfigured deploy leaks across
+        brands.
+        """
+        from content_engine.api.routes import _get_scheduler_brand_ids
+        import content_engine.api.routes as routes_module
+        from fastapi import HTTPException
+
+        routes_module._SCHEDULER_BRAND_ID = ""
+        routes_module._SCHEDULER_ALLOW_ALL_BRANDS = False
+
+        with pytest.raises(HTTPException) as exc_info:
+            _get_scheduler_brand_ids()
+        assert exc_info.value.status_code == 503
+
+    def test_scheduler_brand_ids_reads_memberships_when_explicitly_allowed(self):
+        """When the operator explicitly opts in via SCHEDULER_ALLOW_ALL_BRANDS,
+        fanning out across brand_members is the documented multi-brand path."""
         from content_engine.api.routes import _get_scheduler_brand_ids
         import content_engine.api.routes as routes_module
 
         routes_module._SCHEDULER_BRAND_ID = ""
+        routes_module._SCHEDULER_ALLOW_ALL_BRANDS = True
         mock_db = MagicMock()
         mock_db.table.return_value.select.return_value.execute.return_value.data = [
             {"brand_id": "brand-b"},
@@ -117,4 +136,7 @@ class TestBrandIsolation:
         ]
         routes_module.get_db = MagicMock(return_value=mock_db)
 
-        assert _get_scheduler_brand_ids() == ["brand-a", "brand-b"]
+        try:
+            assert _get_scheduler_brand_ids() == ["brand-a", "brand-b"]
+        finally:
+            routes_module._SCHEDULER_ALLOW_ALL_BRANDS = False

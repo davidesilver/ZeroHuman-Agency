@@ -95,18 +95,42 @@ async def _embed_and_dedup(
         logger.error("Embedding generation failed, skipping semantic dedup: %s", e)
         return 0
 
-    # Update each item with its embedding
-    for item_id, embedding in zip(inserted_ids, embeddings):
-        if any(v != 0.0 for v in embedding):  # skip zero embeddings
-            try:
-                db.table("research_items").update({
-                    "embedding": embedding,
-                }).eq("id", item_id).execute()
-            except Exception as e:
-                logger.warning("Failed to update embedding for item %s: %s", item_id, e)
+    # Batched embedding writes.  The previous per-item .update() chain was the
+    # single biggest source of latency in the research pipeline (one HTTP
+    # round-trip per item × N items per run).  upsert() on the primary key
+    # collapses the entire batch into one request and re-uses the connection.
+    embedding_rows = [
+        {"id": item_id, "embedding": embedding}
+        for item_id, embedding in zip(inserted_ids, embeddings)
+        if any(v != 0.0 for v in embedding)
+    ]
+    if embedding_rows:
+        try:
+            (
+                db.table("research_items")
+                .upsert(embedding_rows, on_conflict="id")
+                .execute()
+            )
+        except Exception as e:
+            logger.warning(
+                "Batched embedding upsert failed (n=%d): %s — falling back to per-row updates",
+                len(embedding_rows), e,
+            )
+            for row in embedding_rows:
+                try:
+                    db.table("research_items").update(
+                        {"embedding": row["embedding"]}
+                    ).eq("id", row["id"]).execute()
+                except Exception as inner:
+                    logger.warning(
+                        "Failed to update embedding for item %s: %s", row["id"], inner
+                    )
 
-    # Run semantic dedup: for each new item, check if it's a near-duplicate of older items
-    archived = 0
+    # Run semantic dedup: for each new item, check if it's a near-duplicate of
+    # older items.  The RPC call is unavoidably one-per-item (it's a vector
+    # search), but the writes for archived duplicates are collected and flushed
+    # in a single upsert at the end.
+    archive_rows: list[dict] = []
     for item_id, embedding in zip(inserted_ids, embeddings):
         if not any(v != 0.0 for v in embedding):
             continue
@@ -119,23 +143,43 @@ async def _embed_and_dedup(
             }).execute()
 
             if dupes.data:
-                # Filter out self-matches
                 real_dupes = [d for d in dupes.data if d["id"] != item_id]
                 if real_dupes:
                     logger.info(
                         "Item %s is semantic duplicate of %s (similarity: %.2f)",
                         item_id, real_dupes[0]["id"], real_dupes[0]["similarity"],
                     )
-                    db.table("research_items").update({
+                    archive_rows.append({
+                        "id": item_id,
                         "status": "archived",
                         "metadata": {
                             "semantic_duplicate_of": real_dupes[0]["id"],
                             "similarity": real_dupes[0]["similarity"],
                         },
-                    }).eq("id", item_id).execute()
-                    archived += 1
+                    })
         except Exception as e:
             logger.warning("Semantic dedup check failed for item %s: %s", item_id, e)
+
+    archived = len(archive_rows)
+    if archive_rows:
+        try:
+            (
+                db.table("research_items")
+                .upsert(archive_rows, on_conflict="id")
+                .execute()
+            )
+        except Exception as e:
+            logger.warning(
+                "Batched dedup archive upsert failed (n=%d): %s — falling back to per-row updates",
+                archived, e,
+            )
+            for row in archive_rows:
+                try:
+                    db.table("research_items").update(
+                        {"status": row["status"], "metadata": row["metadata"]}
+                    ).eq("id", row["id"]).execute()
+                except Exception as inner:
+                    logger.warning("Failed to archive duplicate %s: %s", row["id"], inner)
 
     if archived:
         logger.info("Archived %d semantic duplicates (threshold: %.2f)", archived, threshold)

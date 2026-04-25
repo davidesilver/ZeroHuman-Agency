@@ -62,8 +62,13 @@ def _get_brand_id(request: Request) -> str:
 
 
 # System-level brand override for cron/scheduler calls (no user JWT).
-# If unset, scheduler routes operate on all known brands.
+# If unset AND _SCHEDULER_ALLOW_ALL_BRANDS is false, scheduler routes refuse
+# to run.  Multi-brand fan-out is opt-in to prevent a misconfigured deploy
+# (missing SCHEDULER_BRAND_ID) from silently iterating across every tenant.
 _SCHEDULER_BRAND_ID = os.environ.get("SCHEDULER_BRAND_ID", "")
+_SCHEDULER_ALLOW_ALL_BRANDS = os.environ.get(
+    "SCHEDULER_ALLOW_ALL_BRANDS", "false"
+).strip().lower() in ("1", "true", "yes")
 
 
 def _get_scheduler_brand_id() -> str:
@@ -85,11 +90,24 @@ def _get_scheduler_brand_ids() -> list[str]:
     """Resolve the target brand set for cron-driven routes.
 
     Priority:
-    1. SCHEDULER_BRAND_ID env var when explicitly configured (legacy/dev override)
-    2. All distinct brand_ids present in brand_members (multi-brand production path)
+    1. SCHEDULER_BRAND_ID env var when explicitly configured (legacy/dev override).
+    2. All distinct brand_ids present in brand_members ONLY when
+       SCHEDULER_ALLOW_ALL_BRANDS=true is also set (multi-brand prod opt-in).
+
+    A misconfigured deployment that simply forgets SCHEDULER_BRAND_ID must NOT
+    silently fan out across every tenant — it must refuse to run.
     """
     if _SCHEDULER_BRAND_ID:
         return [_SCHEDULER_BRAND_ID]
+
+    if not _SCHEDULER_ALLOW_ALL_BRANDS:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Scheduler is unconfigured: set SCHEDULER_BRAND_ID for a single brand, "
+                "or SCHEDULER_ALLOW_ALL_BRANDS=true to fan out across every tenant."
+            ),
+        )
 
     db = get_db()
     memberships = db.table("brand_members").select("brand_id").execute().data or []
@@ -390,6 +408,22 @@ async def update_draft(draft_id: str, body: dict, request: Request):
 async def research_stats(request: Request):
     brand_id = _get_brand_id(request)
     db = _get_client_db(request)
+    # Migration 030 ships an RPC that does the GROUP BY in Postgres so we no
+    # longer materialise every research_item row in Python.  Fall back to the
+    # in-memory loop if the RPC is missing (older DB / partial migration set).
+    try:
+        rpc_resp = db.rpc(
+            "research_items_status_counts", {"p_brand_id": brand_id}
+        ).execute()
+        counts = rpc_resp.data or {}
+        if counts:
+            return {"success": True, "data": counts}
+    except Exception:  # pragma: no cover - defensive fallback for legacy DBs
+        _logger.warning(
+            "research_items_status_counts RPC unavailable; falling back to client-side aggregation",
+            exc_info=True,
+        )
+
     all_items = (
         db.table("research_items")
         .select("id, status")
@@ -511,22 +545,33 @@ async def api_generate_newsletter(request: Request):
 async def api_weekly_newsletter(request: Request):
     """Generate newsletter drafts for all brands with sufficient content.
     Called by pg_cron weekly (Monday 05:00 UTC) or manually.
+
+    Brands are fanned out concurrently with a small concurrency cap so a slow
+    LLM provider on one brand does not block the others.
     """
+    import asyncio
+
     from ..services.newsletter_generator import generate_newsletter
 
     db = get_db()
-    # Get all distinct brand_ids from brand_members
     brands_resp = db.table("brand_members").select("brand_id").execute()
-    brand_ids = list({row["brand_id"] for row in (brands_resp.data or [])})
+    brand_ids = sorted({row["brand_id"] for row in (brands_resp.data or [])})
 
-    results = []
-    for brand_id in brand_ids:
-        try:
-            r = await generate_newsletter(brand_id)
-            results.append({"brand_id": brand_id, **r})
-        except Exception as e:
-            results.append({"brand_id": brand_id, "ok": False, "error": str(e)})
+    if not brand_ids:
+        return {"success": True, "data": {"brands_processed": 0, "results": []}}
 
+    # Cap concurrency so we don't hammer LLM rate limits with N brands at once.
+    sem = asyncio.Semaphore(min(5, max(1, len(brand_ids))))
+
+    async def _one(bid: str) -> dict:
+        async with sem:
+            try:
+                r = await generate_newsletter(bid)
+                return {"brand_id": bid, **r}
+            except Exception as e:
+                return {"brand_id": bid, "ok": False, "error": str(e)}
+
+    results = await asyncio.gather(*(_one(bid) for bid in brand_ids))
     return {"success": True, "data": {"brands_processed": len(results), "results": results}}
 
 

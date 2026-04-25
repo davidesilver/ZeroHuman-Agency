@@ -22,8 +22,16 @@ app = FastAPI(title="Content Engine Backend", version="0.1.0")
 # Restrictive methods/headers — no wildcards in production
 _raw_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000")
 _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+_debug_mode = os.environ.get("DEBUG", "").strip().lower() in ("1", "true", "yes")
 if "*" in _allowed_origins:
-    _logger.warning("ALLOWED_ORIGINS contains wildcard '*' — this is insecure in production!")
+    if not _debug_mode:
+        raise RuntimeError(
+            "Refusing to start: ALLOWED_ORIGINS contains '*' but DEBUG is not enabled. "
+            "Set DEBUG=true for local development or restrict ALLOWED_ORIGINS for production."
+        )
+    _logger.warning(
+        "ALLOWED_ORIGINS contains wildcard '*' — accepted only because DEBUG=true."
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -48,6 +56,13 @@ app.include_router(images_router)
 # P9: Postiz social publishing bridge (health, integrations CRUD, analytics)
 from .api.routes_postiz import router as postiz_router
 app.include_router(postiz_router)  # prefix="/social" already declared in routes_postiz.py
+
+
+@app.on_event("shutdown")
+async def _close_shared_clients() -> None:
+    """Tear down module-level httpx pools on graceful shutdown."""
+    from .services.postiz_client import close_shared_client
+    await close_shared_client()
 
 
 @app.get("/health")

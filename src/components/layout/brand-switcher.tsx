@@ -30,8 +30,10 @@ export function BrandSwitcher() {
     if (brand.id === activeBrand?.id) return
     setActiveBrand(brand)
     setOpen(false)
-    // Hard reload so all server-side API calls pick up the new active_brand_id cookie.
-    window.location.reload()
+    // setActiveBrand persists active_brand_id; router.refresh() re-fetches all
+    // Server Components & route handlers with the new cookie.  No full reload
+    // needed (preserves client state, avoids Tailwind FOUC).
+    router.refresh()
   }
 
   const handleAddBrand = () => {

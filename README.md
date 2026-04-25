@@ -338,9 +338,27 @@ POSTIZ_API_KEY=your-postiz-api-key
 
 Connect your social accounts in the Postiz UI at `http://localhost:4200`, then paste the integration IDs into **Settings → Social Connections** in the Content Engine dashboard.
 
-**Cloud**
+**Cloud — Postiz.com managed service**
 
-Set `POSTIZ_MODE=cloud` and point `POSTIZ_API_URL` at your Postiz cloud instance. Everything else is the same.
+1. Sign up at [postiz.com](https://postiz.com) (free tier supports 3 channels)
+2. Go to **Settings → API** → generate an API key
+3. Set in `.env.local`:
+
+```bash
+POSTIZ_MODE=cloud
+POSTIZ_API_URL=https://api.postiz.com
+POSTIZ_API_KEY=<your-postiz-api-key>
+```
+
+**Cloud — self-managed Postiz on a VPS**
+
+Deploy Postiz via its own Docker Compose on any VPS (Hetzner, DigitalOcean, fly.io…), then:
+
+```bash
+POSTIZ_MODE=cloud
+POSTIZ_API_URL=https://postiz.yourdomain.com
+POSTIZ_API_KEY=<your-postiz-api-key>
+```
 
 Postiz handles all platform OAuth, rate limiting, and post retry logic. Content Engine stores only opaque integration IDs — no social platform tokens are held in the Content Engine database.
 
@@ -350,16 +368,16 @@ Postiz handles all platform OAuth, rate limiting, and post retry logic. Content 
 
 Configure per brand in **Settings → Image Generation**. Available backends:
 
-| Backend | What you need |
-|---|---|
-| `mock` | Nothing — returns a placeholder. Good for development. |
-| `replicate` | `REPLICATE_API_TOKEN` |
-| `openai` | `OPENAI_API_KEY` |
-| `openrouter` | `OPENROUTER_API_KEY` |
-| `anthropic` | `ANTHROPIC_API_KEY` |
-| `pillo` | `PILLO_API_KEY` (carousel specialist) |
+| Backend | Key needed | Example model |
+|---|---|---|
+| `mock` | — | `mock-v1` — free placeholder, good for development |
+| `replicate` | `REPLICATE_API_TOKEN` | `black-forest-labs/flux-schnell` |
+| `openai` | `OPENAI_API_KEY` | `dall-e-3` |
+| `openrouter` | `OPENROUTER_API_KEY` | `openai/dall-e-3` |
+| `anthropic` | `ANTHROPIC_API_KEY` | model string from Anthropic docs |
+| `pillo` | `PILLO_API_KEY` | `carousel-v1` — carousel specialist |
 
-Set `DEFAULT_IMAGE_BACKEND=mock` to disable image costs during development.
+Set `DEFAULT_IMAGE_BACKEND=mock` to disable image costs during development. Each brand can override the default in **Settings → Image Generation**.
 
 ---
 

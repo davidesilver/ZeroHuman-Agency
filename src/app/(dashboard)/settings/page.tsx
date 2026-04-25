@@ -334,7 +334,11 @@ export default function SettingsPage() {
           <div className="space-y-0">
             <Row label="Global daily cap (all brands)" envKey="DAILY_COST_CAP_USD">
               <span className="text-sm font-mono text-muted-foreground">
-                {bud ? `$${bud.daily_cap_usd.toFixed(2)} / day` : <span className="animate-pulse">…</span>}
+                {!bud
+                  ? <span className="animate-pulse">…</span>
+                  : bud.daily_cap_usd != null
+                    ? `$${Number(bud.daily_cap_usd).toFixed(2)} / day`
+                    : <span className="text-muted-foreground">Unlimited</span>}
               </span>
             </Row>
             <Row label="Per-brand budget" envKey="">

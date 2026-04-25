@@ -78,15 +78,31 @@ POSTIZ_API_KEY=<api-key-from-step-3>
 
 ## Cloud setup
 
-The process is identical except:
+Two sub-options:
+
+### Option 1 — Postiz.com managed service
+
+1. Sign up at [postiz.com](https://postiz.com) — free tier includes 3 channels
+2. In the Postiz dashboard, go to **Settings → API** and generate an API key
+3. Add to your Content Engine `.env.local`:
 
 ```bash
 POSTIZ_MODE=cloud
-POSTIZ_API_URL=https://your-postiz-domain.com
+POSTIZ_API_URL=https://api.postiz.com
+POSTIZ_API_KEY=<your-postiz-api-key>
+```
+
+### Option 2 — Self-managed Postiz on a VPS
+
+Deploy [Postiz](https://github.com/gitroomhq/postiz-app) on any VPS (DigitalOcean, Hetzner, fly.io, etc.) using their official Docker Compose. Once running:
+
+```bash
+POSTIZ_MODE=cloud
+POSTIZ_API_URL=https://postiz.yourdomain.com   # your public Postiz domain
 POSTIZ_API_KEY=<your-api-key>
 ```
 
-Complete OAuth and paste integration IDs the same way.
+In both cases, complete the OAuth flow inside Postiz and paste integration IDs into **Settings → Social Connections** in the Content Engine dashboard (same as self-hosted).
 
 ---
 

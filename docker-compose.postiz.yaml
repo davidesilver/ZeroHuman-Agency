@@ -1,0 +1,71 @@
+version: "3.8"
+# Postiz Self-Hosted Satellite — Docker Compose overlay
+# Use this ONLY when POSTIZ_MODE=self_hosted. For cloud mode, skip this file.
+#
+# Quick start:
+#   1. Fill postiz/.env.postiz with OAuth client IDs/secrets
+#   2. docker compose -f docker-compose.postiz.yaml up -d
+#   3. Open http://localhost:4200 → create admin → Settings → API → copy key
+#   4. Paste API key into root .env.local as POSTIZ_API_KEY
+
+services:
+  postiz-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks: [postiz]
+
+  postiz-temporal:
+    image: temporalio/auto-setup:1.25
+    restart: unless-stopped
+    environment:
+      DB: postgresql
+      POSTGRES_USER: postgres
+      POSTGRES_PWD: ${SUPABASE_DB_PASSWORD:-}
+      POSTGRES_SEEDS: ${POSTGRES_HOST:-db}
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sql.yaml
+      TEMPORAL_BROADCAST_ADDRESS: postiz-temporal
+    networks: [postiz]
+
+  postiz-temporal-ui:
+    image: temporalio/ui:2.34.0
+    restart: unless-stopped
+    environment:
+      TEMPORAL_HOST: postiz-temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:4200
+    ports:
+      - "8233:8080"
+    networks: [postiz]
+    depends_on: [postiz-temporal]
+
+  postiz-app:
+    image: ghcr.io/gitroomhq/postiz-app:latest
+    restart: unless-stopped
+    env_file:
+      - ./postiz/.env.postiz
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${SUPABASE_DB_PASSWORD:-}@${POSTGRES_HOST:-db}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}?schema=postiz"
+      REDIS_URL: "redis://postiz-redis:6379"
+      FRONTEND_URL: "http://localhost:4200"
+      NEXT_PUBLIC_BACKEND_URL: "http://localhost:3001"
+      BACKEND_INTERNAL_URL: "http://localhost:3000"
+      STORAGE_PROVIDER: local
+      UPLOAD_DIRECTORY: /uploads
+      NEXT_PUBLIC_UPLOAD_STATIC_DIRECTORY: /uploads
+      DISABLE_REGISTRATION: "true"
+      API_LIMIT: "300"
+    volumes:
+      - postiz-uploads:/uploads
+    ports:
+      - "4200:4200"   # Postiz UI
+      - "3001:3000"   # Postiz API (mapped to avoid clash with Next.js 3000)
+    networks: [postiz]
+    depends_on: [postiz-redis, postiz-temporal]
+
+volumes:
+  postiz-uploads:
+
+networks:
+  postiz:
+    driver: bridge

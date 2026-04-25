@@ -57,6 +57,7 @@ export default function BrandsPage() {
     setFormName('')
     setFormSlug('')
     setFormTopics('')
+    setFormBudget('')
     setSaveError(null)
     setDialogOpen(true)
   }
@@ -105,6 +106,18 @@ export default function BrandsPage() {
           })
       const json = await resp.json()
       if (json.success) {
+        // On create, if a budget was specified, apply it via PATCH
+        // (the create RPC does not accept budget).
+        if (!editId && budgetVal != null) {
+          const newId = json.data?.id || json.data?.brand_id
+          if (newId) {
+            await fetch(`/api/brands/${newId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ daily_budget_usd: budgetVal }),
+            })
+          }
+        }
         setDialogOpen(false)
         fetchBrands()
       } else {
@@ -183,8 +196,7 @@ export default function BrandsPage() {
                 placeholder="AI, marketing, SaaS"
               />
             </div>
-            {editId && (
-              <div className="space-y-1.5">
+            <div className="space-y-1.5">
                 <Label htmlFor="brand-budget">
                   Daily budget (USD)
                   <span className="text-muted-foreground text-xs"> — leave blank for unlimited</span>
@@ -206,7 +218,6 @@ export default function BrandsPage() {
                   Pipeline stops if daily spend reaches this limit and resumes automatically next UTC day.
                 </p>
               </div>
-            )}
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
           </div>
           <DialogFooter>

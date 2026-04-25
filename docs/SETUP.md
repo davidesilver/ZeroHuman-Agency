@@ -177,22 +177,64 @@ Then in the dashboard:
 
 ## 7. Optional: Social publishing (Postiz)
 
-Skip this section if you don't need social publishing.
+Skip this section if you don't need social publishing. There are two modes.
+
+### Mode A — Self-hosted (Docker)
+
+Run Postiz locally alongside the Content Engine. Gives you full control and no SaaS fees.
+
+**Requirements:** Docker and Docker Compose; OAuth app credentials for each platform you want to connect.
 
 ```bash
-# Start the Postiz stack
+# 1. Copy and edit the Postiz env file
+cp postiz/.env.postiz.example postiz/.env.postiz
+# Fill in your OAuth app credentials (LinkedIn, X/Twitter, Meta, etc.)
+
+# 2. Start the Postiz stack
 docker compose -f docker-compose.postiz.yaml up -d
 ```
 
-Add to `.env.local`:
+Services started:
+
+| Service | Port | Purpose |
+|---|---|---|
+| Postiz UI | 4200 | Admin interface (register, connect accounts) |
+| Postiz API | 3001 | REST API used by Content Engine |
+| Temporal UI | 8233 | Workflow monitoring (localhost only) |
 
 ```bash
+# 3. Add to .env.local
 POSTIZ_MODE=self_hosted
 POSTIZ_API_URL=http://localhost:3001
-POSTIZ_API_KEY=your-postiz-api-key
+POSTIZ_API_KEY=<key-from-postiz-ui>
 ```
 
-Open the Postiz UI at `http://localhost:4200`, connect your social accounts, then paste the integration IDs into **Settings → Social Connections** in the Content Engine dashboard.
+Then open `http://localhost:4200`, register your admin account, go to **Settings → API** to generate an API key.
+
+### Mode B — Cloud / Managed instance
+
+Use the hosted [Postiz Cloud](https://postiz.com) or any managed Postiz deployment. No Docker needed.
+
+1. Sign up at [postiz.com](https://postiz.com) (or deploy Postiz to a VPS yourself)
+2. Generate an API key in **Settings → API**
+3. Add to `.env.local`:
+
+```bash
+POSTIZ_MODE=cloud
+POSTIZ_API_URL=https://api.postiz.com    # or your self-managed domain
+POSTIZ_API_KEY=<your-api-key>
+```
+
+### Connecting social accounts (both modes)
+
+1. Open the Postiz UI (local: `http://localhost:4200`, cloud: your domain)
+2. Go to **Integrations → Add** and complete the OAuth flow for each platform
+3. Copy the **Integration ID** shown in the integrations list
+4. In the Content Engine dashboard, go to **Settings → Social Connections** and paste each ID
+
+The Content Engine never stores OAuth tokens — only the opaque integration ID. Postiz owns the credentials and handles rate limiting, retries, and scheduling.
+
+For full details see [`docs/POSTIZ_SATELLITE.md`](POSTIZ_SATELLITE.md).
 
 ---
 
@@ -207,6 +249,60 @@ DEFAULT_IMAGE_MODEL=        # backend-specific model string
 ```
 
 Use `mock` during development to avoid image API costs.
+
+**Backend-specific model strings:**
+
+| Backend | Example model |
+|---|---|
+| `replicate` | `black-forest-labs/flux-schnell` |
+| `openai` | `dall-e-3` |
+| `openrouter` | `openai/dall-e-3` |
+| `anthropic` | *(not currently supported for images)* |
+| `pillo` | `carousel-v1` |
+
+Per-brand overrides are set in **Settings → Brand Context → Image Generation**.
+
+---
+
+## 9. Optional: Other API integrations
+
+All of these can be added to `.env.local` at any time. The platform degrades gracefully when they are absent.
+
+### Research
+
+| Key | Service | Get it at | Purpose |
+|---|---|---|---|
+| `SERPER_API_KEY` | [Serper](https://serper.dev) | serper.dev → API Keys | Google Search results for the research pipeline |
+| `YOUTUBE_API_KEY` | [Google Cloud](https://console.cloud.google.com) | Enable YouTube Data API v3 → Credentials | YouTube trend retriever |
+| `FIRECRAWL_API_KEY` | [Firecrawl](https://firecrawl.dev) | firecrawl.dev → Dashboard | Premium web scraping (falls back to `trafilatura` if absent) |
+
+### Email / Newsletter
+
+| Key | Service | Get it at | Purpose |
+|---|---|---|---|
+| `RESEND_API_KEY` | [Resend](https://resend.com) | resend.com → API Keys | Transactional email for newsletter sends |
+| `NEWSLETTER_FROM_EMAIL` | — | Your verified sending domain | `From:` address on outbound newsletters |
+| `NEWSLETTER_FROM_NAME` | — | Freeform string | Display name on outbound newsletters |
+
+> Resend requires a verified sending domain. Follow [their domain setup guide](https://resend.com/docs/dashboard/domains/introduction) before sending.
+
+### LLM providers
+
+| Key | Service | Notes |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | [Anthropic](https://console.anthropic.com) | Preferred — used for Claude models |
+| `OPENROUTER_API_KEY` | [OpenRouter](https://openrouter.ai) | Fallback; also enables 100+ third-party models |
+
+At least one must be set. If both are set, Anthropic is tried first and OpenRouter is the automatic fallback. Fallback events are logged in `llm_fallback_log`.
+
+### Alerts
+
+| Key | How to get it |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | Create a bot with [@BotFather](https://t.me/BotFather) on Telegram |
+| `TELEGRAM_CHAT_ID` | Send a message to your bot, then get the chat ID from [@userinfobot](https://t.me/userinfobot) |
+
+When both are set, the backend sends alerts for pipeline errors and daily summaries.
 
 ---
 

@@ -20,8 +20,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { Loader2, Pencil, Trash2, Check, X, ExternalLink, ChevronLeft, Rss, Plus } from 'lucide-react'
+import { Loader2, Pencil, Trash2, Check, X, ExternalLink, ChevronLeft, Rss, Plus, FileUp } from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
+import { AssetUploadCard } from '@/components/brand-assets/asset-upload-card'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -655,6 +656,30 @@ export default function BrandContextPage() {
             />
           ))}
           {activeBrand && <RssFeedsCard brandId={activeBrand.id} />}
+          {activeBrand && (
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <FileUp className="size-4 text-sky-600" />
+                    Upload Brand Files
+                  </CardTitle>
+                  <Link
+                    href="/settings/brand-assets"
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Manage all assets <ExternalLink className="size-3" />
+                  </Link>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Logos, palette files, design system PDFs, example content. Agents reference these when generating images and copy.
+                </p>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <AssetUploadCard brandId={activeBrand.id} onUploaded={() => {}} />
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>

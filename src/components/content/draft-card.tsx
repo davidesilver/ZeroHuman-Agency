@@ -1,10 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Check, Sparkles, Archive } from 'lucide-react'
+import { Check, Sparkles, Archive, Loader2, Eye, RefreshCw } from 'lucide-react'
 import { GenerateVisualButton } from '@/components/content-hub/generate-visual-button'
 
 interface DraftCardProps {
@@ -51,10 +52,19 @@ function statusVariant(status: string) {
 export function DraftCard({ draft, onAction, onMediaChange }: DraftCardProps) {
   const godResult = draft.god_mode_result as { verdict?: string; advocate_score?: number } | null
   const firstMedia = draft.media_urls?.[0]
+  const [pendingAction, setPendingAction] = useState<string | null>(null)
+
+  const handle = async (action: string) => {
+    setPendingAction(action)
+    try { await onAction(draft.id, action) } finally { setPendingAction(null) }
+  }
+
+  const isTerminal = draft.status === 'published' || draft.status === 'archived'
+  const isApproved = draft.status === 'approved' || draft.status === 'scheduled'
 
   return (
-    <Card className="group">
-      <CardContent className="pt-4 space-y-3">
+    <Card className="flex flex-col">
+      <CardContent className="pt-4 space-y-3 flex-1 flex flex-col">
         <div className="flex items-start justify-between gap-2">
           <div className="flex gap-1.5 flex-wrap">
             <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${platformColor(draft.platform)}`}>
@@ -75,7 +85,7 @@ export function DraftCard({ draft, onAction, onMediaChange }: DraftCardProps) {
           </div>
         )}
 
-        <Link href={`/content-hub/${draft.id}`} className="block hover:opacity-80 transition-opacity">
+        <Link href={`/content-hub/${draft.id}`} className="block hover:opacity-80 transition-opacity flex-1">
           <h3 className="font-medium text-sm line-clamp-2">{draft.title || 'Untitled'}</h3>
           <p className="text-xs text-muted-foreground mt-1 line-clamp-3">
             {draft.body?.slice(0, 200) || ''}
@@ -83,31 +93,92 @@ export function DraftCard({ draft, onAction, onMediaChange }: DraftCardProps) {
         </Link>
 
         {godResult?.verdict && (
-          <div className="text-xs text-muted-foreground">
-            GOD: <span className={godResult.verdict === 'pass' ? 'text-green-600' : 'text-amber-600'}>
+          <div className="text-xs">
+            <span className="text-muted-foreground">GOD Review:</span>{' '}
+            <span className={godResult.verdict === 'pass' ? 'text-green-600 font-medium' : 'text-amber-600 font-medium'}>
               {godResult.verdict.toUpperCase()}
             </span>
-            {godResult.advocate_score != null && ` (${godResult.advocate_score}/10)`}
+            {godResult.advocate_score != null && (
+              <span className="text-muted-foreground"> · {godResult.advocate_score}/10</span>
+            )}
           </div>
         )}
 
-        <div className="flex items-center gap-1 pt-1 opacity-0 group-hover:opacity-100 transition-opacity flex-wrap">
-          <Button variant="ghost" size="xs" onClick={() => onAction(draft.id, 'approved')} title="Approve">
-            <Check className="size-3 text-green-600" />
-            Approve
-          </Button>
-          <Button variant="ghost" size="xs" onClick={() => onAction(draft.id, 'god_mode')} title="GOD Mode">
-            <Sparkles className="size-3 text-brand-accent" />
-            GOD
-          </Button>
+        {/* Action bar — always visible, primary action emphasized */}
+        <div className="flex items-center gap-1.5 pt-2 border-t flex-wrap">
+          <Link href={`/content-hub/${draft.id}`} className="shrink-0">
+            <Button variant="ghost" size="xs" title="Open draft">
+              <Eye className="size-3" />
+              View
+            </Button>
+          </Link>
+
+          {!isTerminal && !isApproved && (
+            <Button
+              variant="default"
+              size="xs"
+              onClick={() => handle('approved')}
+              disabled={pendingAction !== null}
+              className="bg-green-600 hover:bg-green-700 text-white"
+              title="Approve this draft"
+            >
+              {pendingAction === 'approved'
+                ? <Loader2 className="size-3 animate-spin" />
+                : <Check className="size-3" />}
+              Approve
+            </Button>
+          )}
+
+          {isApproved && (
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => handle('draft')}
+              disabled={pendingAction !== null}
+              title="Move back to draft"
+            >
+              {pendingAction === 'draft'
+                ? <Loader2 className="size-3 animate-spin" />
+                : <RefreshCw className="size-3" />}
+              Revert
+            </Button>
+          )}
+
+          {!isTerminal && (
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => handle('god_mode')}
+              disabled={pendingAction !== null}
+              title="Run 4-agent GOD mode review"
+            >
+              {pendingAction === 'god_mode'
+                ? <Loader2 className="size-3 animate-spin" />
+                : <Sparkles className="size-3 text-brand-accent" />}
+              GOD
+            </Button>
+          )}
+
           <GenerateVisualButton
             draftId={draft.id}
             platform={draft.platform}
             onGenerated={() => onMediaChange?.()}
           />
-          <Button variant="ghost" size="xs" onClick={() => onAction(draft.id, 'archived')} title="Archive">
-            <Archive className="size-3 text-muted-foreground" />
-          </Button>
+
+          {!isTerminal && (
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => handle('archived')}
+              disabled={pendingAction !== null}
+              className="ml-auto text-muted-foreground hover:text-destructive"
+              title="Archive this draft"
+            >
+              {pendingAction === 'archived'
+                ? <Loader2 className="size-3 animate-spin" />
+                : <Archive className="size-3" />}
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -36,6 +36,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // P10 audit: shave bytes + drop the X-Powered-By: Next.js fingerprint.
+  compress: true,
+  poweredByHeader: false,
   async headers() {
     return [
       {

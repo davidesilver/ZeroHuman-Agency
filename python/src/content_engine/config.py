@@ -55,6 +55,29 @@ class Settings(BaseSettings):
         """Anon key for JWT verification and user-scoped DB clients (C-01/C-02)."""
         return self.next_public_supabase_anon_key
 
+    # Any field whose name contains one of these tokens gets masked in repr().
+    # Prevents credentials leaking through tracebacks, log captures, or naive
+    # `print(settings)` calls.
+    _SENSITIVE_TOKENS = ("key", "secret", "token", "password", "api_url")
+
+    def __repr__(self) -> str:  # pragma: no cover - trivial
+        def _mask(name: str, value: object) -> str:
+            if not isinstance(value, str) or not value:
+                return repr(value)
+            lname = name.lower()
+            if any(t in lname for t in self._SENSITIVE_TOKENS):
+                if len(value) <= 8:
+                    return "'***'"
+                return f"'{value[:4]}…{value[-2:]}'"
+            return repr(value)
+
+        body = ", ".join(
+            f"{k}={_mask(k, v)}" for k, v in self.model_dump().items()
+        )
+        return f"Settings({body})"
+
+    __str__ = __repr__
+
     model_config = {"env_file": "../.env.local", "extra": "ignore", "populate_by_name": True}
 
 

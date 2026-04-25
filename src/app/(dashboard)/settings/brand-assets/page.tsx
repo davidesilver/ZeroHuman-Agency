@@ -22,7 +22,8 @@ export default function BrandAssetsPage() {
     if (!activeBrand) return
     setLoading(true)
     const res = await fetch(`/api/brands/${activeBrand.id}/assets`)
-    const data: Asset[] = await res.json()
+    const json = await res.json()
+    const data: Asset[] = Array.isArray(json) ? json : (json?.data ?? [])
     setAssets(data)
     // Fetch signed preview URLs for images
     const entries = await Promise.all(data.filter(a => a.mime_type.startsWith('image/')).map(async a => {

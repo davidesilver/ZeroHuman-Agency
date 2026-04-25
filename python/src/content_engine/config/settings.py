@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     youtube_api_key: str = ""
     anthropic_api_key: str = ""
     openai_api_key: str = ""
+    pillo_api_key: str = ""
     resend_api_key: str = ""
     firecrawl_api_key: str = ""
     postiz_api_key: str = ""

@@ -2201,6 +2201,17 @@ export type Database = {
         Args: { p_tier: Database["public"]["Enums"]["memory_tier"] }
         Returns: string
       }
+      research_items_status_counts: {
+        Args: { p_brand_id: string }
+        Returns: {
+          total: number
+          pending: number
+          approved: number
+          rejected: number
+          archived: number
+          top_pick: number
+        }
+      }
       user_has_brand: { Args: { p_brand_id: string }; Returns: boolean }
     }
     Enums: {

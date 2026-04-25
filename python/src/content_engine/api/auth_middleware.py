@@ -23,6 +23,12 @@ from ..db import get_user_db
 
 _logger = logging.getLogger("content_engine.auth")
 
+# JWT/brand-membership cache TTL (seconds).  Lower values reduce the window in
+# which a revoked brand membership remains effective; raise it to cut Supabase
+# auth round-trips on hot paths.  60 s is the audit-recommended default.
+import os as _os
+_AUTH_CACHE_TTL = int(_os.environ.get("AUTH_CACHE_TTL_SECONDS", "60"))
+
 # Paths that do NOT require a JWT token
 _PUBLIC_PATHS = {
     "/health",
@@ -79,10 +85,10 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
 
         # Cleanup old entries occasionally
         if len(_AUTH_CACHE) > 1000:
-            _AUTH_CACHE = {k: v for k, v in _AUTH_CACHE.items() if now - v["ts"] < 300}
+            _AUTH_CACHE = {k: v for k, v in _AUTH_CACHE.items() if now - v["ts"] < _AUTH_CACHE_TTL}
 
         try:
-            if jwt in _AUTH_CACHE and now - _AUTH_CACHE[jwt]["ts"] < 300:
+            if jwt in _AUTH_CACHE and now - _AUTH_CACHE[jwt]["ts"] < _AUTH_CACHE_TTL:
                 user_id = _AUTH_CACHE[jwt]["user_id"]
                 brand_id = _AUTH_CACHE[jwt]["brand_id"]
             else:

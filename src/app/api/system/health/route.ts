@@ -65,15 +65,15 @@ export async function GET() {
       typedAgents.map(a => a.engine).filter((e): e is string => Boolean(e))
     )]
 
-    // Count emergency fallbacks in last 24h
-    const { data: fallbacks } = await supabase
+    // Count emergency fallbacks in last 24h.
+    // Use head=true + count='exact' so the round-trip never fetches row data;
+    // an unbounded SELECT * here grew to thousands of rows in production.
+    const { count: emergencyCount } = await supabase
       .from('llm_fallback_log')
-      .select('*')
+      .select('id', { count: 'exact', head: true })
       .eq('brand_id', auth.brandId)
       .eq('is_emergency', true)
       .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-
-    const emergencyCount = fallbacks?.length || 0
 
     const summary: HealthSummary = {
       avg_uptime: Math.round(avgUptime * 10) / 10,
@@ -84,7 +84,7 @@ export async function GET() {
       agents_down: typedAgents.filter(a => a.status === 'down').length,
       active_models: activeModels,
       active_engines: activeEngines,
-      emergency_fallbacks_24h: emergencyCount,
+      emergency_fallbacks_24h: emergencyCount ?? 0,
     }
 
     return jsonResponse({
