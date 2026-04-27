@@ -20,9 +20,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { Loader2, Pencil, Trash2, Check, X, ExternalLink, ChevronLeft, Rss, Plus, FileUp } from 'lucide-react'
+import { Loader2, Pencil, Trash2, Check, X, ExternalLink, ChevronLeft, Rss, Plus, Sparkles } from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
-import { AssetUploadCard } from '@/components/brand-assets/asset-upload-card'
+import { ContextDocumentUpload } from '@/components/brand-context/context-document-upload'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,9 +86,11 @@ function FactRow({
   const [importance, setImportance] = useState(fact.importance)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [rowError, setRowError] = useState<string | null>(null)
 
   const handleSave = async () => {
     setSaving(true)
+    setRowError(null)
     try {
       const resp = await fetch(`/api/memory/facts/${fact.id}`, {
         method: 'PATCH',
@@ -99,19 +101,27 @@ function FactRow({
       if (json.success) {
         onUpdated({ ...fact, statement: statement.trim(), tier, importance })
         setEditing(false)
+      } else {
+        setRowError(json?.error?.message || 'Could not save changes')
       }
-    } catch {}
+    } catch {
+      setRowError('Network error — changes were not saved')
+    }
     setSaving(false)
   }
 
   const handleDelete = async () => {
     if (!confirm(`Delete fact?\n\n"${fact.statement.slice(0, 120)}"`)) return
     setDeleting(true)
+    setRowError(null)
     try {
       const resp = await fetch(`/api/memory/facts/${fact.id}`, { method: 'DELETE' })
       const json = await resp.json()
       if (json.success) onDeleted(fact.id)
-    } catch {}
+      else setRowError(json?.error?.message || 'Could not delete the fact')
+    } catch {
+      setRowError('Network error — fact was not deleted')
+    }
     setDeleting(false)
   }
 
@@ -124,6 +134,9 @@ function FactRow({
 
   return (
     <div className="py-3 border-b border-border last:border-0 group">
+      {rowError && (
+        <p className="text-[11px] text-destructive mb-1.5">{rowError}</p>
+      )}
       {editing ? (
         <div className="space-y-2">
           <textarea
@@ -378,6 +391,10 @@ interface RssFeed {
 
 function RssFeedsCard({ brandId }: { brandId: string }) {
   const [feeds, setFeeds] = useState<RssFeed[]>([])
+  // Cache the full research_sources object so we can merge-patch (preserve
+  // every other key — web_sources, hashtags, …). Without this, replacing
+  // research_sources.rss_feeds would silently wipe sibling settings.
+  const [researchSources, setResearchSources] = useState<Record<string, unknown>>({})
   const [loading, setLoading] = useState(true)
   const [newUrl, setNewUrl] = useState('')
   const [newName, setNewName] = useState('')
@@ -392,11 +409,19 @@ function RssFeedsCard({ brandId }: { brandId: string }) {
         const resp = await fetch('/api/brands')
         const json = await resp.json()
         if (json.success && Array.isArray(json.data)) {
-          const brand = json.data.find((b: { id: string; research_sources?: { rss_feeds?: RssFeed[] } }) => b.id === brandId)
-          const rssFeeds: RssFeed[] = brand?.research_sources?.rss_feeds ?? []
-          setFeeds(rssFeeds)
+          const brand = json.data.find(
+            (b: { id: string; research_sources?: Record<string, unknown> & { rss_feeds?: RssFeed[] } }) =>
+              b.id === brandId,
+          )
+          const sources = (brand?.research_sources ?? {}) as Record<string, unknown> & { rss_feeds?: RssFeed[] }
+          setResearchSources(sources)
+          setFeeds(sources.rss_feeds ?? [])
+        } else {
+          setError('Could not load RSS feeds')
         }
-      } catch {}
+      } catch {
+        setError('Network error loading RSS feeds')
+      }
       setLoading(false)
     }
     loadFeeds()
@@ -413,12 +438,22 @@ function RssFeedsCard({ brandId }: { brandId: string }) {
     }
   }, [newUrl])
 
-  async function patchFeeds(updatedFeeds: RssFeed[]) {
-    await fetch(`/api/brands/${brandId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ research_sources: { rss_feeds: updatedFeeds } }),
-    })
+  // Merge-patch: only research_sources.rss_feeds is replaced, every other key
+  // under research_sources is preserved. Returns true on success.
+  async function patchFeeds(updatedFeeds: RssFeed[]): Promise<boolean> {
+    try {
+      const merged = { ...researchSources, rss_feeds: updatedFeeds }
+      const resp = await fetch(`/api/brands/${brandId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ research_sources: merged }),
+      })
+      if (!resp.ok) return false
+      setResearchSources(merged)
+      return true
+    } catch {
+      return false
+    }
   }
 
   async function handleAdd() {
@@ -438,27 +473,29 @@ function RssFeedsCard({ brandId }: { brandId: string }) {
     }
     const name = newName.trim() || new URL(url).hostname.replace(/^www\./, '')
     const updated = [...feeds, { url, name }]
+    const previous = feeds
     // Optimistic update
     setFeeds(updated)
     setNewUrl('')
     setNewName('')
     setAdding(true)
-    try {
-      await patchFeeds(updated)
-    } catch {
-      // silent — local state already updated
+    const ok = await patchFeeds(updated)
+    if (!ok) {
+      setFeeds(previous) // roll back so the UI matches the server
+      setError('Could not save the feed — try again')
     }
     setAdding(false)
   }
 
   async function handleDelete(url: string) {
+    const previous = feeds
     const updated = feeds.filter((f) => f.url !== url)
     // Optimistic update
     setFeeds(updated)
-    try {
-      await patchFeeds(updated)
-    } catch {
-      // silent — local state already updated
+    const ok = await patchFeeds(updated)
+    if (!ok) {
+      setFeeds(previous) // roll back
+      setError('Could not delete the feed — try again')
     }
   }
 
@@ -565,9 +602,11 @@ export default function BrandContextPage() {
   const { activeBrand, isLoading: brandLoading } = useBrand()
   const [facts, setFacts] = useState<MemoryFact[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
+    setLoadError(null)
     try {
       const results = await Promise.all(
         IDENTITY_KINDS.map((kind) =>
@@ -575,11 +614,16 @@ export default function BrandContextPage() {
         )
       )
       const all: MemoryFact[] = []
+      let anyFailed = false
       for (const r of results) {
         if (r.success) all.push(...(r.data as MemoryFact[]))
+        else anyFailed = true
       }
       setFacts(all)
-    } catch {}
+      if (anyFailed) setLoadError('Some memory categories failed to load — list may be partial')
+    } catch {
+      setLoadError('Could not load brand context. Try refreshing.')
+    }
     setLoading(false)
   }, [])
 
@@ -639,6 +683,11 @@ export default function BrandContextPage() {
       </div>
 
       {/* Content */}
+      {loadError && (
+        <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-md px-3 py-2">
+          {loadError}
+        </p>
+      )}
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -661,22 +710,21 @@ export default function BrandContextPage() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <FileUp className="size-4 text-sky-600" />
-                    Upload Brand Files
+                    <Sparkles className="size-4 text-violet-600" />
+                    AI Context Ingest
                   </CardTitle>
-                  <Link
-                    href="/settings/brand-assets"
-                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    Manage all assets <ExternalLink className="size-3" />
-                  </Link>
+                  <span className="text-[11px] text-muted-foreground">
+                    Karpathy-wiki style · LLM-extracted
+                  </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Logos, palette files, design system PDFs, example content. Agents reference these when generating images and copy.
+                  Drop a brand document or paste a URL. The AI extracts candidate facts
+                  (tone rules, principles, gold/discard examples) for review, then merges
+                  the approved ones into the brand wiki every agent reads.
                 </p>
               </CardHeader>
               <CardContent className="pt-2">
-                <AssetUploadCard brandId={activeBrand.id} onUploaded={() => {}} />
+                <ContextDocumentUpload onIngested={load} />
               </CardContent>
             </Card>
           )}

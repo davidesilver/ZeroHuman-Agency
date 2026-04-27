@@ -37,8 +37,8 @@ This guide gets you from zero to a running local stack. Every section is marked 
 ## 1. Clone and install
 
 ```bash
-git clone <repo-url>
-cd ai-automation
+git clone https://github.com/davidesilver/ZeroHuman-Agency.git
+cd ZeroHuman-Agency
 
 # Frontend
 npm install
@@ -49,7 +49,36 @@ cd python && uv sync && cd ..
 
 ---
 
-## 2. Environment variables
+## 2. Database setup
+
+**Option A: Using individual migrations (recommended for production)**
+
+```bash
+# Install Supabase CLI
+brew install supabase/tap/supabase
+
+# Link to your project
+supabase link --project-ref YOUR_PROJECT_REF
+
+# Apply all migrations (001-030)
+supabase db push
+```
+
+**Option B: Using complete schema file (recommended for fresh setup)**
+
+```bash
+# Get your database connection string from Supabase dashboard
+export DATABASE_URL="postgresql://user:password@host:port/database"
+
+# Apply the complete schema
+psql "$DATABASE_URL" -f supabase/schema_complete.sql
+```
+
+For detailed migration information, see [`supabase/MIGRATIONS_LIST.md`](../supabase/MIGRATIONS_LIST.md).
+
+---
+
+## 3. Environment variables
 
 ```bash
 cp .env.example .env.local
@@ -88,7 +117,7 @@ supabase link --project-ref YOUR_PROJECT_REF
 supabase db push
 ```
 
-This applies all 29 migrations in [`supabase/migrations/`](../supabase/migrations/), which creates:
+This applies all 30 migrations in [`supabase/migrations/`](../supabase/migrations/), which creates:
 
 - Tenant tables: `brands`, `users`, `brand_members`
 - Content pipeline: `research_items`, `scores`, `content_drafts`, `newsletters`

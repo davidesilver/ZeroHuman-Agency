@@ -260,10 +260,12 @@ function FactRow({
   fact,
   onEdit,
   onDelete,
+  deleting,
 }: {
   fact: MemoryFact
   onEdit: (f: MemoryFact) => void
   onDelete: (f: MemoryFact) => void
+  deleting?: boolean
 }) {
   const isExpiringSoon =
     fact.expires_at &&
@@ -322,9 +324,10 @@ function FactRow({
           size="icon"
           className="h-7 w-7 text-destructive hover:text-destructive"
           onClick={() => onDelete(fact)}
+          disabled={deleting}
           title="Delete"
         >
-          <Trash2 className="size-3.5" />
+          {deleting ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
         </Button>
       </div>
     </div>
@@ -347,10 +350,15 @@ export default function MemoryInspectorPage() {
 
   // Edit / Delete
   const [editFact, setEditFact] = useState<MemoryFact | null>(null)
-  const [, setDeletingId] = useState<string | null>(null)
+  // Was previously discarded ([, setDeletingId]); we now read it to disable
+  // the delete button on the row currently being deleted (audit P2 #12).
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
+    setLoadError(null)
     try {
       const kindParam = filterKind !== 'all' ? `&kind=${filterKind}` : ''
       const tierParam = filterTier !== 'all' ? `&tier=${filterTier}` : ''
@@ -361,8 +369,11 @@ export default function MemoryInspectorPage() {
       const factsJson = await factsResp.json()
       const eventsJson = await eventsResp.json()
       if (factsJson.success) setFacts(factsJson.data || [])
+      else setLoadError(factsJson?.error?.message || 'Could not load memory facts')
       if (eventsJson.success) setEvents(eventsJson.data || [])
-    } catch {}
+    } catch {
+      setLoadError('Network error loading memory')
+    }
     setLoading(false)
   }, [filterKind, filterTier])
 
@@ -373,13 +384,18 @@ export default function MemoryInspectorPage() {
   const handleDelete = async (fact: MemoryFact) => {
     if (!confirm(`Delete fact?\n\n"${fact.statement.slice(0, 100)}…"`)) return
     setDeletingId(fact.id)
+    setDeleteError(null)
     try {
       const resp = await fetch(`/api/memory/facts/${fact.id}`, { method: 'DELETE' })
       const json = await resp.json()
       if (json.success) {
         setFacts((prev) => prev.filter((f) => f.id !== fact.id))
+      } else {
+        setDeleteError(json?.error?.message || 'Delete failed')
       }
-    } catch {}
+    } catch {
+      setDeleteError('Network error — fact was not deleted')
+    }
     setDeletingId(null)
   }
 
@@ -492,26 +508,48 @@ export default function MemoryInspectorPage() {
         </div>
       </div>
 
+      {/* Surface load + delete errors before everything else so users notice */}
+      {(loadError || deleteError) && (
+        <div className="space-y-1">
+          {loadError && (
+            <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-md px-3 py-2">
+              {loadError}
+            </p>
+          )}
+          {deleteError && (
+            <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-md px-3 py-2 flex items-center justify-between gap-2">
+              <span>{deleteError}</span>
+              <button
+                onClick={() => setDeleteError(null)}
+                className="text-xs underline shrink-0"
+              >
+                dismiss
+              </button>
+            </p>
+          )}
+        </div>
+      )}
+
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KpiCard label="Total facts" value={facts.length} icon={Brain} />
+        <KpiCard label="Total facts" value={loading ? '—' : facts.length} icon={Brain} />
         <KpiCard
           label="Core / Persistent"
-          value={`${countByTier('core')} / ${countByTier('persistent')}`}
+          value={loading ? '—' : `${countByTier('core')} / ${countByTier('persistent')}`}
           icon={CheckCircle}
           sub="never / 365d TTL"
         />
         <KpiCard
           label="Avg age"
-          value={`${avgAge}d`}
+          value={loading ? '—' : `${avgAge}d`}
           icon={Clock}
-          sub={`${countByTier('transient')} transient`}
+          sub={loading ? '' : `${countByTier('transient')} transient`}
         />
         <KpiCard
           label="Expiring ≤7d"
-          value={expiringSoon}
+          value={loading ? '—' : expiringSoon}
           icon={AlertTriangle}
-          sub={expiringSoon > 0 ? 'review needed' : 'all good'}
+          sub={loading ? '' : expiringSoon > 0 ? 'review needed' : 'all good'}
         />
       </div>
 
@@ -577,6 +615,7 @@ export default function MemoryInspectorPage() {
                       fact={f}
                       onEdit={setEditFact}
                       onDelete={handleDelete}
+                      deleting={deletingId === f.id}
                     />
                   ))}
                 </div>

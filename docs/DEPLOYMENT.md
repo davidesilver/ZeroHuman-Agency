@@ -30,8 +30,8 @@ The backend must **not** be publicly exposed — only the frontend should be abl
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
-PYTHON_BACKEND_URL=https://your-backend-internal-url:8000
-NEXT_PUBLIC_APP_URL=https://your-frontend-domain.com
+PYTHON_BACKEND_URL=https://backend.yourdomain.com:8000
+NEXT_PUBLIC_APP_URL=https://app.yourdomain.com
 ```
 
 ### Backend host
@@ -43,7 +43,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
 # Security
-ALLOWED_ORIGINS=https://your-frontend-domain.com
+ALLOWED_ORIGINS=https://app.yourdomain.com
 SCHEDULER_SECRET=<openssl rand -hex 32>
 SCHEDULER_BRAND_ID=            # UUID of the brand to run scheduled jobs for
                                # leave empty to fan out to all active brands
@@ -163,7 +163,7 @@ jobs:
 
 ```bash
 # Publish scheduled posts every 15 minutes
-*/15 * * * * curl -s -X POST https://your-backend/api/scheduler/publish-scheduled \
+*/15 * * * * curl -s -X POST https://backend.yourdomain.com/api/scheduler/publish-scheduled \
   -H "X-Scheduler-Secret: YOUR_SECRET"
 ```
 
@@ -201,7 +201,7 @@ GET /health/db     → {"status": "ok", "latency_ms": N} (readiness)
 **Supabase keys:** After rotating in the Supabase dashboard, update env on both hosts and invalidate the backend JWT cache:
 
 ```bash
-curl -X POST https://your-backend/api/auth/cache-invalidate \
+curl -X POST https://backend.yourdomain.com/api/auth/cache-invalidate \
   -H "X-Scheduler-Secret: <scheduler-secret>"
 ```
 

@@ -13,24 +13,37 @@ type Asset = {
 }
 
 export default function BrandAssetsPage() {
-  const { activeBrand } = useBrand()
+  const { activeBrand, isLoading: brandLoading } = useBrand()
   const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({})
 
   const refresh = useCallback(async () => {
     if (!activeBrand) return
     setLoading(true)
-    const res = await fetch(`/api/brands/${activeBrand.id}/assets`)
-    const json = await res.json()
-    const data: Asset[] = Array.isArray(json) ? json : (json?.data ?? [])
-    setAssets(data)
-    // Fetch signed preview URLs for images
-    const entries = await Promise.all(data.filter(a => a.mime_type.startsWith('image/')).map(async a => {
-      const u = await fetch(`/api/brands/${activeBrand.id}/assets/${a.id}/preview`).then(r => r.ok ? r.json() : null)
-      return [a.id, u?.data?.url ?? ''] as const
-    }))
-    setSignedUrls(Object.fromEntries(entries))
+    setLoadError(null)
+    try {
+      const res = await fetch(`/api/brands/${activeBrand.id}/assets`)
+      const json = await res.json()
+      // The route returns the canonical {success, data} envelope
+      // (see src/app/api/brands/[id]/assets/route.ts:30 → jsonResponse(data || []))
+      // — always read .data, never the bare body.
+      const data: Asset[] = Array.isArray(json?.data) ? json.data : []
+      setAssets(data)
+      // Fetch signed preview URLs for images
+      const entries = await Promise.all(
+        data.filter(a => a.mime_type.startsWith('image/')).map(async a => {
+          const u = await fetch(`/api/brands/${activeBrand.id}/assets/${a.id}/preview`)
+            .then(r => r.ok ? r.json() : null)
+          return [a.id, u?.data?.url ?? ''] as const
+        })
+      )
+      setSignedUrls(Object.fromEntries(entries))
+    } catch {
+      setLoadError('Could not load brand assets. Try refreshing the page.')
+      setAssets([])
+    }
     setLoading(false)
   }, [activeBrand])
 
@@ -39,10 +52,21 @@ export default function BrandAssetsPage() {
   async function remove(id: string) {
     if (!activeBrand) return
     if (!confirm('Delete this asset?')) return
-    await fetch(`/api/brands/${activeBrand.id}/assets/${id}`, { method: 'DELETE' })
-    refresh()
+    try {
+      const res = await fetch(`/api/brands/${activeBrand.id}/assets/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      refresh()
+    } catch {
+      alert('Delete failed. The asset is still on the server — try again.')
+    }
   }
 
+  // Wait for the brand context to hydrate from localStorage before deciding
+  // there's no active brand — otherwise the "Select a brand first" message
+  // flashes on every cold load.
+  if (brandLoading) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading brand…</div>
+  }
   if (!activeBrand) return <div className="p-6">Select a brand first.</div>
 
   const grouped = assets.reduce<Record<string, Asset[]>>((acc, a) => {
@@ -77,6 +101,11 @@ export default function BrandAssetsPage() {
       <AssetUploadCard brandId={activeBrand.id} onUploaded={refresh} />
 
       {loading && <p className="text-sm text-gray-500">Loading…</p>}
+      {loadError && (
+        <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-md px-3 py-2">
+          {loadError}
+        </p>
+      )}
 
       {Object.entries(grouped).map(([kind, list]) => (
         <section key={kind} className="space-y-2">

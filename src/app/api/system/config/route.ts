@@ -6,8 +6,8 @@
  * values without embedding process.env in client bundles.
  *
  * Security: only returns whether sensitive keys are SET (boolean), never
- * their actual values. Non-sensitive config values (model names, thresholds)
- * are returned as strings.
+ * their actual values. Non-sensitive config values (model names, thresholds,
+ * URLs that the user already pastes themselves) are returned as strings.
  */
 import { requireAuth } from '@/lib/supabase/auth-helpers'
 import { jsonResponse } from '@/lib/api-helpers'
@@ -44,6 +44,33 @@ export async function GET() {
       serper:      isSet('SERPER_API_KEY'),
       youtube:     isSet('YOUTUBE_API_KEY'),
       resend:      isSet('RESEND_API_KEY'),
+      firecrawl:   isSet('FIRECRAWL_API_KEY'),
+    },
+    image_backends: {
+      default_backend: envStr('DEFAULT_IMAGE_BACKEND', 'mock'),
+      default_model:   envStr('DEFAULT_IMAGE_MODEL',   'mock-v1'),
+      replicate:       isSet('REPLICATE_API_TOKEN'),
+      openai:          isSet('OPENAI_API_KEY'),
+      pillo:           isSet('PILLO_API_KEY'),
+      // Re-uses the same env var as the LLM provider; surfaced here so users
+      // can verify image generation via OpenRouter/Anthropic also has a key.
+      openrouter:      isSet('OPENROUTER_API_KEY'),
+      anthropic:       isSet('ANTHROPIC_API_KEY'),
+    },
+    postiz: {
+      mode:     envStr('POSTIZ_MODE',    'disabled'),  // disabled | self_hosted | cloud
+      api_url:  envStr('POSTIZ_API_URL', ''),
+      api_key:  isSet('POSTIZ_API_KEY'),
+    },
+    alerts: {
+      telegram_bot:  isSet('TELEGRAM_BOT_TOKEN'),
+      telegram_chat: isSet('TELEGRAM_CHAT_ID'),
+    },
+    operations: {
+      scheduler_secret:   isSet('SCHEDULER_SECRET'),
+      python_backend_url: envStr('PYTHON_BACKEND_URL', ''),
+      allowed_origins:    envStr('ALLOWED_ORIGINS',    ''),
+      scheduler_brand_id: envStr('SCHEDULER_BRAND_ID', ''),  // empty → fan-out
     },
     llm: {
       scoring_model:       envStr('SCORING_MODEL',           'claude-sonnet-4-20250514'),
@@ -51,8 +78,8 @@ export async function GET() {
       auto_reject_score:   envNum('AUTO_REJECT_SCORE',       3.0),
     },
     email: {
-      from_email: envStr('FROM_EMAIL', ''),
-      from_name:  envStr('FROM_NAME',  'Content Engine'),
+      from_email: envStr('NEWSLETTER_FROM_EMAIL', envStr('FROM_EMAIL', '')),
+      from_name:  envStr('NEWSLETTER_FROM_NAME',  envStr('FROM_NAME',  'Content Engine')),
     },
     research: {
       dedup_threshold:     envNum('DEDUP_THRESHOLD',         0.85),

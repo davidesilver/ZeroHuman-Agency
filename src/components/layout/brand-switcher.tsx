@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronDown, Plus, Check, Building } from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
@@ -25,6 +25,14 @@ export function BrandSwitcher() {
   const router = useRouter()
   const { brands, activeBrand, setActiveBrand, isLoading } = useBrand()
   const [open, setOpen] = useState(false)
+  // Hydration guard: BrandProvider seeds state from sessionStorage during the
+  // client's first render, but the server has no storage access. That gap
+  // means `isLoading` can be `true` on the server and `false` on the client
+  // for the same render pass — React then complains about a mismatched tree.
+  // We force the first client render to match the server (skeleton) and only
+  // reveal the real switcher after the mount effect runs.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
 
   const handleSwitch = (brand: { id: string; name: string; slug: string }) => {
     if (brand.id === activeBrand?.id) return
@@ -41,7 +49,7 @@ export function BrandSwitcher() {
     router.push('/settings')
   }
 
-  if (isLoading) {
+  if (!mounted || isLoading) {
     return (
       <div className="mx-3 my-2 h-8 bg-sidebar-accent rounded animate-pulse" />
     )

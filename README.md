@@ -1,12 +1,21 @@
 # Content Engine
 
-**An autonomous, multi-tenant content operations platform.** Give it your topics, sources, and brand voice — it researches the web, scores what matters, drafts content for every channel, reviews it with multiple AI agents, and publishes or schedules it. All from a single dashboard.
+**An autonomous, multi-tenant AI content operations platform that transforms how teams create, manage, and publish content across multiple channels.**
+
+Content Engine combines intelligent web research, AI-powered content generation, multi-agent review systems, and automated publishing into a unified platform. Perfect for content teams, marketing agencies, and businesses that need to scale their content production while maintaining quality and brand consistency.
 
 ```
 Topics + Sources → Research → Scoring → Draft → Review → Publish
                                                  ↑
                                        Metrics feedback loop
 ```
+
+**Perfect for:**
+- Marketing teams managing multiple brands
+- Content agencies scaling client deliverables  
+- Businesses automating their content marketing
+- Creators maintaining consistency across platforms
+- Teams needing AI-powered content research and generation
 
 ---
 
@@ -109,8 +118,11 @@ brew install supabase/tap/supabase   # or: npm i -g supabase
 # Link to your project (get the ref from your Supabase dashboard)
 supabase link --project-ref YOUR_PROJECT_REF
 
-# Apply all 29 migrations
+# Apply all migrations (001-030)
 supabase db push
+
+# Or use the complete schema file for fresh setup
+psql "$DATABASE_URL" -f supabase/schema_complete.sql
 ```
 
 ### 2 — Environment
@@ -453,4 +465,19 @@ Add the platform to the `platform` enum in a new migration, add platform-specifi
 
 ## License
 
-See [LICENSE](LICENSE).
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+**What this means for you:**
+- ✅ **Commercial Use**: You can use this code to build products, services, or businesses
+- ✅ **Modification**: You can modify the code to fit your needs
+- ✅ **Distribution**: You can distribute your modified versions
+- ✅ **Private Use**: You can use it privately without sharing your changes
+- ✅ **Sublicensing**: You can incorporate it into larger projects with different licenses
+
+**Only requirement**: Keep the license and copyright notice in any distributed copies.
+
+This license is ideal for:
+- Building commercial SaaS products
+- Creating agency solutions for clients
+- Developing internal tools for your company
+- Starting a content automation business

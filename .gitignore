@@ -55,6 +55,24 @@ supabase/.temp/
 # Claude
 .claude/
 
+# Logs
+logs/
+*.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# Backup files
+*.bak
+*.backup
+
 # Misc
 *.swp
 *.swo

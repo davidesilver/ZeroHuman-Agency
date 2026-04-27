@@ -1,15 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Settings as SettingsIcon, Key, Bot, Mail, Share2, Database, Clock, Building, Plus, Loader2, ExternalLink, Brain, ImageIcon, Link2 } from 'lucide-react'
+import {
+  Settings as SettingsIcon, Bot, Mail, Clock,
+  Building, Plus, Loader2, ExternalLink, Brain, ImageIcon, Link2,
+  Server, Bell, Search,
+} from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
 import Link from 'next/link'
 
+// ── Types ─────────────────────────────────────────────────────────────────────
 // Shape returned by GET /api/system/config
 interface SystemConfig {
   api_keys: {
@@ -18,6 +23,31 @@ interface SystemConfig {
     serper: boolean
     youtube: boolean
     resend: boolean
+    firecrawl: boolean
+  }
+  image_backends: {
+    default_backend: string
+    default_model: string
+    replicate: boolean
+    openai: boolean
+    pillo: boolean
+    openrouter: boolean
+    anthropic: boolean
+  }
+  postiz: {
+    mode: string             // disabled | self_hosted | cloud
+    api_url: string
+    api_key: boolean
+  }
+  alerts: {
+    telegram_bot: boolean
+    telegram_chat: boolean
+  }
+  operations: {
+    scheduler_secret: boolean
+    python_backend_url: string
+    allowed_origins: string
+    scheduler_brand_id: string
   }
   llm: {
     scoring_model: string
@@ -38,7 +68,7 @@ interface SystemConfig {
     publish_scheduled: string
   }
   budget: {
-    daily_cap_usd: number
+    daily_cap_usd: number | null
   }
   social: {
     linkedin: boolean
@@ -48,29 +78,297 @@ interface SystemConfig {
   }
 }
 
+// Shape returned by GET /api/system/llm-routing
+interface ModelRef {
+  model_id: string
+  provider: string
+  cost_tier: string
+}
+interface CapabilityRoute {
+  key: string
+  label: string
+  primary: ModelRef | null
+  fallbacks: ModelRef[]
+}
+interface LLMRouting {
+  backend_online: boolean
+  capabilities: CapabilityRoute[]
+  emergency_fallbacks: ModelRef[]
+}
+
+// ── Reusable building blocks ──────────────────────────────────────────────────
+
 function StatusBadge({ configured, label }: { configured: boolean | null; label?: string }) {
   if (configured === null) {
     return <Badge variant="outline" className="text-[10px] text-muted-foreground">Loading…</Badge>
   }
   if (configured) {
-    return <Badge className="text-[10px] bg-green-600">{label || 'Configured'}</Badge>
+    return <Badge className="text-[10px] bg-green-600 hover:bg-green-600">{label || 'Configured'}</Badge>
   }
-  return <Badge variant="outline" className="text-[10px] text-amber-600">Check .env.local</Badge>
+  return <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-600/40">Not set</Badge>
 }
 
-function Row({ label, envKey, children }: { label: string; envKey?: string; children: React.ReactNode }) {
+function PostizModeBadge({ mode }: { mode: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    disabled:    { label: 'Disabled',    cls: 'text-muted-foreground border-muted-foreground/40' },
+    self_hosted: { label: 'Self-hosted', cls: 'bg-blue-600 text-white border-blue-600' },
+    cloud:       { label: 'Cloud',       cls: 'bg-indigo-600 text-white border-indigo-600' },
+  }
+  const m = map[mode] ?? map.disabled
+  return <Badge variant="outline" className={`text-[10px] ${m.cls}`}>{m.label}</Badge>
+}
+
+function Row({ label, envKey, hint, children }: {
+  label: string
+  envKey?: string
+  hint?: string
+  children: React.ReactNode
+}) {
   return (
-    <div className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
-      <div className="flex items-center gap-2">
-        <span className="text-sm">{label}</span>
+    <div className="flex items-center justify-between gap-3 py-1.5 border-b border-border last:border-0">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-sm whitespace-nowrap">{label}</span>
         {envKey && (
-          <code className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+          <code className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded shrink-0">
             {envKey}
           </code>
         )}
+        {hint && <span className="text-[11px] text-muted-foreground truncate">{hint}</span>}
       </div>
-      <div>{children}</div>
+      <div className="shrink-0">{children}</div>
     </div>
+  )
+}
+
+function MonoValue({ value, fallback = '…', placeholder }: {
+  value: string | number | null | undefined
+  fallback?: string
+  placeholder?: string
+}) {
+  if (value == null || value === '') {
+    if (placeholder) return <span className="text-sm text-amber-600">{placeholder}</span>
+    return <span className="animate-pulse text-sm text-muted-foreground">{fallback}</span>
+  }
+  return <span className="text-sm font-mono text-muted-foreground">{value}</span>
+}
+
+// ── Health Overview (shown at top) ────────────────────────────────────────────
+
+function HealthOverview({ cfg }: { cfg: SystemConfig | null }) {
+  const stats = useMemo(() => {
+    if (!cfg) return null
+    const llm = (cfg.api_keys.anthropic ? 1 : 0) + (cfg.api_keys.openrouter ? 1 : 0)
+    const research =
+      (cfg.api_keys.serper ? 1 : 0) +
+      (cfg.api_keys.youtube ? 1 : 0) +
+      (cfg.api_keys.firecrawl ? 1 : 0)
+    const imageBackends =
+      (cfg.image_backends.replicate ? 1 : 0) +
+      (cfg.image_backends.openai ? 1 : 0) +
+      (cfg.image_backends.pillo ? 1 : 0) +
+      (cfg.image_backends.openrouter ? 1 : 0) +
+      (cfg.image_backends.anthropic ? 1 : 0)
+    const postizConfigured = cfg.postiz.mode !== 'disabled' && cfg.postiz.api_key
+    return {
+      llmReady: llm > 0,
+      llmCount: llm,
+      researchCount: research,
+      imageReady: imageBackends > 0 || cfg.image_backends.default_backend === 'mock',
+      imageCount: imageBackends,
+      newsletterReady: cfg.api_keys.resend && !!cfg.email.from_email,
+      socialReady: postizConfigured,
+      postizMode: cfg.postiz.mode,
+      schedulerReady: cfg.operations.scheduler_secret,
+      backendUrlSet: !!cfg.operations.python_backend_url,
+    }
+  }, [cfg])
+
+  if (!cfg || !stats) {
+    return (
+      <Card>
+        <CardContent className="py-4">
+          <div className="animate-pulse text-sm text-muted-foreground">Loading system status…</div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const tile = (ok: boolean, label: string, sub: string) => (
+    <div className={`rounded-md border px-3 py-2 ${
+      ok ? 'border-green-600/30 bg-green-600/5' : 'border-amber-600/30 bg-amber-600/5'
+    }`}>
+      <div className="flex items-center gap-1.5">
+        <span className={`size-1.5 rounded-full ${ok ? 'bg-green-600' : 'bg-amber-500'}`} />
+        <span className="text-xs font-medium">{label}</span>
+      </div>
+      <div className="text-[11px] text-muted-foreground mt-0.5">{sub}</div>
+    </div>
+  )
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Server className="size-4 text-muted-foreground" />
+          System Status
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+          {tile(stats.llmReady,        'LLM',        `${stats.llmCount}/2 providers`)}
+          {tile(stats.researchCount > 0,'Research',  `${stats.researchCount}/3 sources`)}
+          {tile(stats.imageReady,      'Images',     stats.imageCount > 0
+                                                      ? `${stats.imageCount} backends`
+                                                      : 'mock only')}
+          {tile(stats.newsletterReady, 'Newsletter', stats.newsletterReady ? 'ready' : 'needs Resend + from')}
+          {tile(stats.socialReady,     'Social',     stats.postizMode === 'disabled'
+                                                      ? 'Postiz off'
+                                                      : `Postiz ${stats.postizMode}`)}
+          {tile(stats.schedulerReady && stats.backendUrlSet, 'Operations', stats.schedulerReady ? 'cron ready' : 'no SCHEDULER_SECRET')}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ── LLM Routing Matrix ───────────────────────────────────────────────────────
+// Shows the capability → primary/fallback model chain pulled from the Python
+// backend (config/llm_models.py is the single source of truth).
+
+function ProviderDot({ provider }: { provider: string }) {
+  const map: Record<string, string> = {
+    anthropic:  'bg-orange-500',
+    openai:     'bg-emerald-500',
+    openrouter: 'bg-violet-500',
+    google:     'bg-sky-500',
+  }
+  const cls = map[provider] ?? 'bg-muted-foreground'
+  return <span className={`size-1.5 rounded-full ${cls} shrink-0`} title={provider} />
+}
+
+function ModelChip({ model, kind = 'fallback' }: { model: ModelRef; kind?: 'primary' | 'fallback' }) {
+  const isPrimary = kind === 'primary'
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-mono ${
+        isPrimary
+          ? 'bg-green-600/10 text-green-700 dark:text-green-400 border border-green-600/30'
+          : 'bg-secondary text-muted-foreground border border-border'
+      }`}
+      title={`${model.provider} · ${model.cost_tier}`}
+    >
+      <ProviderDot provider={model.provider} />
+      {model.model_id}
+    </span>
+  )
+}
+
+function LLMRoutingMatrix({ routing }: { routing: LLMRouting | null }) {
+  if (!routing) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Brain className="size-4 text-muted-foreground" />
+            Agent Model Routing
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="animate-pulse text-sm text-muted-foreground">Loading routing matrix…</div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!routing.backend_online) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Brain className="size-4 text-muted-foreground" />
+            Agent Model Routing
+            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-600/40">
+              Backend offline
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground">
+            Could not reach the Python backend at <code className="bg-secondary px-1 rounded">PYTHON_BACKEND_URL</code>.
+            Start it with <code className="bg-secondary px-1 rounded">make backend</code> to see the
+            primary/fallback model chain used by each agent.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Brain className="size-4 text-muted-foreground" />
+            Agent Model Routing
+            <Badge variant="secondary" className="text-[10px] ml-1">
+              {routing.capabilities.length} capabilities
+            </Badge>
+          </CardTitle>
+          <code className="text-[10px] text-muted-foreground">
+            python/config/llm_models.py
+          </code>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2.5">
+          {routing.capabilities.map(cap => (
+            <div
+              key={cap.key}
+              className="grid grid-cols-[120px_1fr] gap-3 items-start py-1.5 border-b border-border last:border-0"
+            >
+              <div className="pt-0.5">
+                <div className="text-sm font-medium capitalize">{cap.key.replace('_', ' ')}</div>
+                <div className="text-[10px] text-muted-foreground">{cap.label}</div>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {cap.primary && <ModelChip model={cap.primary} kind="primary" />}
+                {cap.fallbacks.length > 0 && (
+                  <>
+                    <span className="text-[10px] text-muted-foreground mx-0.5">→</span>
+                    {cap.fallbacks.map(m => (
+                      <ModelChip key={m.model_id} model={m} kind="fallback" />
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {routing.emergency_fallbacks.length > 0 && (
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-start pt-3 mt-2 border-t border-dashed">
+              <div className="pt-0.5">
+                <div className="text-sm font-medium">Emergency</div>
+                <div className="text-[10px] text-muted-foreground">free-tier last resort</div>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {routing.emergency_fallbacks.map(m => (
+                  <ModelChip key={m.model_id} model={m} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1"><ProviderDot provider="anthropic" /> Anthropic</span>
+          <span className="inline-flex items-center gap-1"><ProviderDot provider="openai" /> OpenAI</span>
+          <span className="inline-flex items-center gap-1"><ProviderDot provider="openrouter" /> OpenRouter</span>
+          <span className="ml-auto">
+            Primary = green · order = priority. Models are tried left-to-right on failure.
+          </span>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -152,11 +450,11 @@ function AddBrandCard() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Name</Label>
-                <Input value={name} onChange={e => handleNameChange(e.target.value)} placeholder="Silvestri Pallets" className="h-8 text-sm" />
+                <Input value={name} onChange={e => handleNameChange(e.target.value)} placeholder="My Brand" className="h-8 text-sm" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Slug <span className="text-muted-foreground">(auto)</span></Label>
-                <Input value={slug} onChange={e => setSlug(e.target.value)} placeholder="silvestri-pallets" className="h-8 text-sm" />
+                <Input value={slug} onChange={e => setSlug(e.target.value)} placeholder="my-brand" className="h-8 text-sm" />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -186,20 +484,21 @@ function AddBrandCard() {
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const [cfg, setCfg] = useState<SystemConfig | null>(null)
+  const [routing, setRouting] = useState<LLMRouting | null>(null)
 
   useEffect(() => {
     fetch('/api/system/config')
       .then(r => r.json())
       .then(j => { if (j.success) setCfg(j.data) })
       .catch(() => {/* show loading state indefinitely on error */})
-  }, [])
 
-  const k = cfg?.api_keys
-  const llm = cfg?.llm
-  const soc = cfg?.social
-  const sch = cfg?.scheduler
-  const res = cfg?.research
-  const bud = cfg?.budget
+    // Routing matrix lives in Python (single source of truth in
+    // config/llm_models.py); proxy returns backend_online=false on outage.
+    fetch('/api/system/llm-routing')
+      .then(r => r.json())
+      .then(j => { if (j.success) setRouting(j.data) })
+      .catch(() => setRouting({ backend_online: false, capabilities: [], emergency_fallbacks: [] }))
+  }, [])
 
   return (
     <div className="space-y-4">
@@ -211,10 +510,12 @@ export default function SettingsPage() {
         </Badge>
       </div>
 
-      {/* Brands */}
+      {/* High-level system status */}
+      <HealthOverview cfg={cfg} />
+
+      {/* ── Tenancy ─────────────────────────────────────────────────────────── */}
       <AddBrandCard />
 
-      {/* Brand Context Memory */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -239,7 +540,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Brand Visual Assets */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -264,65 +564,167 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* API Keys */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Key className="size-4 text-muted-foreground" />
-            API Keys
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-0">
-            <Row label="Claude API" envKey="ANTHROPIC_API_KEY">
-              <StatusBadge configured={k?.anthropic ?? null} />
-            </Row>
-            <Row label="OpenRouter" envKey="OPENROUTER_API_KEY">
-              <StatusBadge configured={k?.openrouter ?? null} />
-            </Row>
-            <Row label="Serper (search)" envKey="SERPER_API_KEY">
-              <StatusBadge configured={k?.serper ?? null} />
-            </Row>
-            <Row label="YouTube Data" envKey="YOUTUBE_API_KEY">
-              <StatusBadge configured={k?.youtube ?? null} />
-            </Row>
-            <Row label="Resend (email)" envKey="RESEND_API_KEY">
-              <StatusBadge configured={k?.resend ?? null} />
-            </Row>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* LLM Configuration */}
+      {/* ── LLM Providers ───────────────────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <Bot className="size-4 text-muted-foreground" />
-            LLM Configuration
+            LLM Providers
+            <Badge variant="secondary" className="text-[10px] ml-1">at least one required</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-0">
+            <Row label="Claude (Anthropic)" envKey="ANTHROPIC_API_KEY" hint="primary — Sonnet/Opus">
+              <StatusBadge configured={cfg?.api_keys.anthropic ?? null} />
+            </Row>
+            <Row label="OpenRouter" envKey="OPENROUTER_API_KEY" hint="fallback or primary">
+              <StatusBadge configured={cfg?.api_keys.openrouter ?? null} />
+            </Row>
             <Row label="Scoring Model" envKey="SCORING_MODEL">
-              <span className="text-sm font-mono text-muted-foreground">
-                {llm?.scoring_model ?? <span className="animate-pulse">…</span>}
-              </span>
+              <MonoValue value={cfg?.llm.scoring_model} />
             </Row>
             <Row label="Auto-approve threshold" envKey="AUTO_APPROVE_SCORE">
-              <span className="text-sm font-mono text-muted-foreground">
-                {llm ? `≥ ${llm.auto_approve_score}` : <span className="animate-pulse">…</span>}
-              </span>
+              <MonoValue value={cfg ? `≥ ${cfg.llm.auto_approve_score}` : null} />
             </Row>
             <Row label="Auto-reject threshold" envKey="AUTO_REJECT_SCORE">
-              <span className="text-sm font-mono text-muted-foreground">
-                {llm ? `≤ ${llm.auto_reject_score}` : <span className="animate-pulse">…</span>}
-              </span>
+              <MonoValue value={cfg ? `≤ ${cfg.llm.auto_reject_score}` : null} />
             </Row>
           </div>
         </CardContent>
       </Card>
 
-      {/* Budget */}
+      {/* ── Agent Model Routing (primary + fallback chain per capability) ───── */}
+      <LLMRoutingMatrix routing={routing} />
+
+      {/* ── Research APIs ───────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Search className="size-4 text-muted-foreground" />
+            Research APIs
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-0">
+            <Row label="Serper (Google search)" envKey="SERPER_API_KEY" hint="serper.dev">
+              <StatusBadge configured={cfg?.api_keys.serper ?? null} />
+            </Row>
+            <Row label="YouTube Data API v3" envKey="YOUTUBE_API_KEY" hint="trend retriever">
+              <StatusBadge configured={cfg?.api_keys.youtube ?? null} />
+            </Row>
+            <Row label="Firecrawl (premium scraping)" envKey="FIRECRAWL_API_KEY" hint="optional — falls back to trafilatura">
+              <StatusBadge configured={cfg?.api_keys.firecrawl ?? null} label="Configured" />
+            </Row>
+            <Row label="Dedup similarity threshold" envKey="DEDUP_THRESHOLD">
+              <MonoValue value={cfg?.research.dedup_threshold} />
+            </Row>
+            <Row label="Max items per retriever" envKey="MAX_ITEMS_PER_RETRIEVER">
+              <MonoValue value={cfg?.research.max_items_retriever} />
+            </Row>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Email / Newsletter ──────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Mail className="size-4 text-muted-foreground" />
+            Email / Newsletter
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-0">
+            <Row label="Resend API" envKey="RESEND_API_KEY" hint="resend.com">
+              <StatusBadge configured={cfg?.api_keys.resend ?? null} />
+            </Row>
+            <Row label="From email" envKey="NEWSLETTER_FROM_EMAIL">
+              <MonoValue value={cfg?.email.from_email} placeholder="not set" />
+            </Row>
+            <Row label="From name" envKey="NEWSLETTER_FROM_NAME">
+              <MonoValue value={cfg?.email.from_name} />
+            </Row>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Image Generation ────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ImageIcon className="size-4 text-muted-foreground" />
+              Image Generation
+            </CardTitle>
+            <Link
+              href="/settings/image-generation"
+              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+            >
+              <ExternalLink className="size-3" /> Per-brand config
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-0">
+            <Row label="Default backend" envKey="DEFAULT_IMAGE_BACKEND">
+              <MonoValue value={cfg?.image_backends.default_backend} />
+            </Row>
+            <Row label="Default model" envKey="DEFAULT_IMAGE_MODEL">
+              <MonoValue value={cfg?.image_backends.default_model} />
+            </Row>
+            <Row label="Replicate" envKey="REPLICATE_API_TOKEN" hint="FLUX, SDXL">
+              <StatusBadge configured={cfg?.image_backends.replicate ?? null} />
+            </Row>
+            <Row label="OpenAI" envKey="OPENAI_API_KEY" hint="DALL-E 3">
+              <StatusBadge configured={cfg?.image_backends.openai ?? null} />
+            </Row>
+            <Row label="Pillo (carousel)" envKey="PILLO_API_KEY" hint="multi-slide specialist">
+              <StatusBadge configured={cfg?.image_backends.pillo ?? null} />
+            </Row>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Social Publishing (Postiz) ──────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Link2 className="size-4 text-muted-foreground" />
+              Social Publishing (Postiz)
+              {cfg && <PostizModeBadge mode={cfg.postiz.mode} />}
+            </CardTitle>
+            <Link
+              href="/settings/social-connections"
+              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+            >
+              <ExternalLink className="size-3" /> Connections
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-0">
+            <Row label="Mode" envKey="POSTIZ_MODE" hint="disabled · self_hosted · cloud">
+              <MonoValue value={cfg?.postiz.mode} />
+            </Row>
+            <Row label="API URL" envKey="POSTIZ_API_URL">
+              <MonoValue value={cfg?.postiz.api_url} placeholder="not set" />
+            </Row>
+            <Row label="API Key" envKey="POSTIZ_API_KEY">
+              <StatusBadge configured={cfg?.postiz.api_key ?? null} />
+            </Row>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+            OAuth and platform credentials live inside Postiz. Content Engine stores only the
+            opaque integration IDs (managed in Connections).
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* ── Cost Budget ─────────────────────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
@@ -334,11 +736,11 @@ export default function SettingsPage() {
           <div className="space-y-0">
             <Row label="Global daily cap (all brands)" envKey="DAILY_COST_CAP_USD">
               <span className="text-sm font-mono text-muted-foreground">
-                {!bud
+                {!cfg
                   ? <span className="animate-pulse">…</span>
-                  : bud.daily_cap_usd != null
-                    ? `$${Number(bud.daily_cap_usd).toFixed(2)} / day`
-                    : <span className="text-muted-foreground">Unlimited</span>}
+                  : cfg.budget.daily_cap_usd != null
+                    ? `$${Number(cfg.budget.daily_cap_usd).toFixed(2)} / day`
+                    : 'Unlimited'}
               </span>
             </Row>
             <Row label="Per-brand budget" envKey="">
@@ -354,129 +756,33 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Email / Newsletter */}
+      {/* ── Operations & Security ───────────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Mail className="size-4 text-muted-foreground" />
-            Email / Newsletter
+            <Server className="size-4 text-muted-foreground" />
+            Operations & Security
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-0">
-            <Row label="From email" envKey="FROM_EMAIL">
-              <span className="text-sm font-mono text-muted-foreground">
-                {cfg ? (cfg.email.from_email || <em className="not-italic text-amber-600">not set</em>) : <span className="animate-pulse">…</span>}
-              </span>
+            <Row label="Scheduler secret" envKey="SCHEDULER_SECRET" hint="protects cron endpoints">
+              <StatusBadge configured={cfg?.operations.scheduler_secret ?? null} />
             </Row>
-            <Row label="From name" envKey="FROM_NAME">
-              <span className="text-sm font-mono text-muted-foreground">
-                {cfg ? cfg.email.from_name : <span className="animate-pulse">…</span>}
-              </span>
+            <Row label="Python backend URL" envKey="PYTHON_BACKEND_URL">
+              <MonoValue value={cfg?.operations.python_backend_url} placeholder="not set" />
             </Row>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Image Generation */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <ImageIcon className="size-4 text-muted-foreground" />
-              Image Generation
-            </CardTitle>
-            <Link
-              href="/settings/image-generation"
-              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
-                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
-            >
-              <ExternalLink className="size-3" /> Configure
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <p className="text-xs text-muted-foreground">
-            Per-brand model, backend, style preset and prompt template for AI-generated visuals.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Social Connections */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Link2 className="size-4 text-muted-foreground" />
-              Social Connections
-            </CardTitle>
-            <Link
-              href="/settings/social-connections"
-              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
-                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
-            >
-              <ExternalLink className="size-3" /> Manage
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <p className="text-xs text-muted-foreground">
-            Connect social platforms via Postiz (self-hosted or cloud). OAuth handled by Postiz — paste integration IDs here.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Social Platforms (legacy env-var view) */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Share2 className="size-4 text-muted-foreground" />
-            Social Platforms (legacy)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-0">
-            <Row label="LinkedIn" envKey="LINKEDIN_TOKEN">
-              <StatusBadge configured={soc?.linkedin ?? null} label="Connected" />
+            <Row label="Allowed origins (CORS)" envKey="ALLOWED_ORIGINS">
+              <MonoValue value={cfg?.operations.allowed_origins} placeholder="not set" />
             </Row>
-            <Row label="Twitter/X" envKey="TWITTER_BEARER_TOKEN">
-              <StatusBadge configured={soc?.twitter ?? null} label="Connected" />
-            </Row>
-            <Row label="Instagram" envKey="INSTAGRAM_TOKEN">
-              <StatusBadge configured={soc?.instagram ?? null} label="Connected" />
-            </Row>
-            <Row label="TikTok" envKey="TIKTOK_TOKEN">
-              <StatusBadge configured={soc?.tiktok ?? null} label="Connected" />
+            <Row label="Scheduler brand ID" envKey="SCHEDULER_BRAND_ID" hint="empty = fan-out to all brands">
+              <MonoValue value={cfg?.operations.scheduler_brand_id || 'fan-out'} />
             </Row>
           </div>
         </CardContent>
       </Card>
 
-      {/* Research Pipeline */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Database className="size-4 text-muted-foreground" />
-            Research Pipeline
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-0">
-            <Row label="Dedup similarity threshold" envKey="DEDUP_THRESHOLD">
-              <span className="text-sm font-mono text-muted-foreground">
-                {res ? res.dedup_threshold : <span className="animate-pulse">…</span>}
-              </span>
-            </Row>
-            <Row label="Max items per retriever" envKey="MAX_ITEMS_PER_RETRIEVER">
-              <span className="text-sm font-mono text-muted-foreground">
-                {res ? res.max_items_retriever : <span className="animate-pulse">…</span>}
-              </span>
-            </Row>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Scheduler */}
+      {/* ── Scheduler ───────────────────────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
@@ -487,21 +793,39 @@ export default function SettingsPage() {
         <CardContent>
           <div className="space-y-0">
             <Row label="Daily research pipeline" envKey="CRON_DAILY_PIPELINE">
-              <span className="text-sm font-mono text-muted-foreground">
-                {sch ? sch.daily_pipeline : <span className="animate-pulse">…</span>}
-              </span>
+              <MonoValue value={cfg?.scheduler.daily_pipeline} />
             </Row>
             <Row label="Feedback loop update" envKey="CRON_FEEDBACK_LOOP">
-              <span className="text-sm font-mono text-muted-foreground">
-                {sch ? sch.feedback_loop : <span className="animate-pulse">…</span>}
-              </span>
+              <MonoValue value={cfg?.scheduler.feedback_loop} />
             </Row>
             <Row label="Publish scheduled posts" envKey="CRON_PUBLISH_SCHEDULED">
-              <span className="text-sm font-mono text-muted-foreground">
-                {sch ? sch.publish_scheduled : <span className="animate-pulse">…</span>}
-              </span>
+              <MonoValue value={cfg?.scheduler.publish_scheduled} />
             </Row>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Alerts ──────────────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Bell className="size-4 text-muted-foreground" />
+            Alerts
+            <Badge variant="secondary" className="text-[10px] ml-1">optional</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-0">
+            <Row label="Telegram bot token" envKey="TELEGRAM_BOT_TOKEN" hint="@BotFather">
+              <StatusBadge configured={cfg?.alerts.telegram_bot ?? null} />
+            </Row>
+            <Row label="Telegram chat ID" envKey="TELEGRAM_CHAT_ID" hint="@userinfobot">
+              <StatusBadge configured={cfg?.alerts.telegram_chat ?? null} />
+            </Row>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+            When both are set, the backend sends pipeline error alerts and daily summaries via Telegram.
+          </p>
         </CardContent>
       </Card>
     </div>

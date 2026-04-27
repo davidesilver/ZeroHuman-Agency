@@ -132,6 +132,74 @@ def _get_client_db(request: Request):
     return get_db()
 
 
+@router.get("/system/llm-routing")
+async def get_llm_routing(request: Request):
+    """Expose the capability→model routing matrix for the Settings UI.
+
+    This is a read-only view of `config/llm_models.py` — the single source of
+    truth used by `call_llm()`. The frontend renders it so operators can see
+    exactly which model is primary, and which models will be tried on fallback,
+    for each task type (creative, scoring, research, etc.).
+
+    The endpoint is auth-gated by JWTAuthMiddleware (any logged-in user can
+    read it — the data isn't sensitive, just operational metadata).
+    """
+    from ..config.llm_models import (
+        MODEL_ROUTING,
+        MODEL_CAPABILITIES,
+        OPENROUTER_FALLBACK_MODELS,
+        MODEL_CONFIGS,
+    )
+
+    capabilities = []
+    for capability, models in MODEL_ROUTING.items():
+        # Models are already ordered by priority in routing — first = primary,
+        # rest = fallback chain. We surface that ordering plus per-model meta.
+        ordered = sorted(models, key=lambda m: m.priority)
+        capabilities.append({
+            "key": capability.value,
+            "label": MODEL_CAPABILITIES.get(capability, capability.value),
+            "primary": {
+                "model_id": ordered[0].model_id,
+                "provider": ordered[0].provider,
+                "cost_tier": ordered[0].cost_tier,
+            } if ordered else None,
+            "fallbacks": [
+                {
+                    "model_id": m.model_id,
+                    "provider": m.provider,
+                    "cost_tier": m.cost_tier,
+                }
+                for m in ordered[1:]
+            ],
+        })
+
+    # Free-tier emergency fallbacks (used when *all* primary models fail)
+    emergency = [
+        {
+            "model_id": mid,
+            "provider": MODEL_CONFIGS[mid].provider if mid in MODEL_CONFIGS else "openrouter",
+            "cost_tier": "free",
+        }
+        for mid in OPENROUTER_FALLBACK_MODELS
+    ]
+
+    return {
+        "capabilities": capabilities,
+        "emergency_fallbacks": emergency,
+        "task_type_map": {
+            # Mirrors the routing inside utils/llm_client.py:call_llm
+            "reasoning":  "reasoning",
+            "creative":   "creative",
+            "research":   "research",
+            "scoring":    "scoring",
+            "fact_check": "fact_check",
+            "editing":    "editing",
+            "general":    "general",
+        },
+    }
+
+
 @router.post("/research/trigger")
 async def trigger_research(request: Request, req: TriggerRequest | None = None):
     brand_id = _get_brand_id(request)
