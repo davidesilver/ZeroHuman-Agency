@@ -263,6 +263,84 @@ function ModelChip({ model, kind = 'fallback' }: { model: ModelRef; kind?: 'prim
   )
 }
 
+// ── Provider Stats card (Phase 4) ───────────────────────────────────────────
+interface ProviderStat {
+  provider: string
+  window: string
+  total_calls: number
+  error_rate: number
+  avg_latency_ms: number | null
+  total_cost_usd: number
+  cost_per_1k_tokens: number | null
+}
+
+function ProviderStatsCard() {
+  const [stats, setStats] = useState<ProviderStat[]>([])
+  const [loading, setLoading] = useState(true)
+  const [window, setWindow] = useState<'24h' | '7d' | '30d'>('7d')
+
+  useEffect(() => {
+    setLoading(true)
+    fetch(`/api/llm/providers/metrics?window=${window}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setStats)
+      .catch(() => setStats([]))
+      .finally(() => setLoading(false))
+  }, [window])
+
+  if (!loading && stats.length === 0) return null
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Bot className="size-4 text-muted-foreground" />
+            Provider Stats
+          </CardTitle>
+          <div className="flex gap-1">
+            {(['24h', '7d', '30d'] as const).map(w => (
+              <button
+                key={w}
+                onClick={() => setWindow(w)}
+                className={`text-xs px-2 py-0.5 rounded ${
+                  window === w ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {w}
+              </button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" /> Loading...
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {stats.map(s => (
+              <div key={s.provider} className="text-xs grid grid-cols-4 gap-2 items-center">
+                <span className="font-mono font-medium">{s.provider}</span>
+                <span className="text-muted-foreground">{s.total_calls} calls</span>
+                <span className="text-muted-foreground">
+                  {s.avg_latency_ms != null ? `${s.avg_latency_ms}ms` : '—'}
+                </span>
+                <span className="text-muted-foreground">
+                  {s.cost_per_1k_tokens != null
+                    ? `$${s.cost_per_1k_tokens.toFixed(4)}/1k`
+                    : `$${s.total_cost_usd.toFixed(4)}`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 function LLMRoutingMatrix({ routing }: { routing: LLMRouting | null }) {
   if (!routing) {
     return (
@@ -596,6 +674,9 @@ export default function SettingsPage() {
 
       {/* ── Agent Model Routing (primary + fallback chain per capability) ───── */}
       <LLMRoutingMatrix routing={routing} />
+
+      {/* ── Provider Stats (Phase 4 telemetria) ─────────────────────────────── */}
+      <ProviderStatsCard />
 
       {/* ── Research APIs ───────────────────────────────────────────────────── */}
       <Card>

@@ -26,7 +26,8 @@ interface SyncResult {
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AudiencePage() {
-  const { brandId } = useBrand()
+  const { activeBrand } = useBrand()
+  const brandId = activeBrand?.id
   const [apiKey, setApiKey] = useState('')
   const [savingKey, setSavingKey] = useState(false)
   const [keySaved, setKeySaved] = useState(false)

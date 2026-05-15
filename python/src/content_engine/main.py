@@ -65,6 +65,10 @@ app.include_router(email_marketing_router)
 from .api.routes_internal import router as internal_router
 app.include_router(internal_router)
 
+# Phase 4: LLM provider list + metrics
+from .api.routes_llm_providers import router as llm_providers_router
+app.include_router(llm_providers_router)
+
 
 @app.on_event("shutdown")
 async def _close_shared_clients() -> None:
