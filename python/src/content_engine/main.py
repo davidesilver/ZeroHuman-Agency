@@ -57,6 +57,14 @@ app.include_router(images_router)
 from .api.routes_postiz import router as postiz_router
 app.include_router(postiz_router)  # prefix="/social" already declared in routes_postiz.py
 
+# Phase 3: Email marketing (Brevo)
+from .api.routes_email_marketing import router as email_marketing_router
+app.include_router(email_marketing_router)
+
+# Phase 0: Internal brand secrets management
+from .api.routes_internal import router as internal_router
+app.include_router(internal_router)
+
 
 @app.on_event("shutdown")
 async def _close_shared_clients() -> None:

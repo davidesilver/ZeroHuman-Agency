@@ -724,6 +724,31 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* ── Email Marketing (Brevo) ──────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Mail className="size-4 text-muted-foreground" />
+              Email Marketing (Brevo)
+            </CardTitle>
+            <Link
+              href="/settings/audience"
+              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+            >
+              <ExternalLink className="size-3" /> Audience
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Connect Brevo for contact management, campaigns, and automations.
+            Resend remains the default for transactional email.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* ── Cost Budget ─────────────────────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
