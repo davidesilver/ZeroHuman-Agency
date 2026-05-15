@@ -175,6 +175,22 @@ curl -X POST http://localhost:3000/api/content/generate \
 
 ---
 
+## Dev skills (Claude Code)
+
+The project pins Claude Code skills in `skills-lock.json`. Each skill is loaded automatically when running Claude Code in this repo.
+
+| Skill | Source | Purpose |
+|---|---|---|
+| `supabase-postgres-best-practices` | `supabase/agent-skills` | Postgres query optimization, RLS patterns, index design |
+| `obra-superpowers` | `obra/superpowers` | Core agentic patterns: TDD, debugging, collaboration workflows |
+| `thedotmack-claude-mem` | `thedotmack/claude-mem` | Persistent context across sessions — captures, compresses, and injects prior work |
+| `yamadashy-repomix` | `yamadashy/repomix` | Pack the full repo into a single AI-friendly file for large context operations |
+| `leonxlnx-taste-skill` | `leonxlnx/taste-skill` | Aesthetic judgment — prevents generic output, enforces opinionated design choices |
+
+No manual setup needed. Skills are version-pinned by commit hash.
+
+---
+
 ## Common mistakes
 
 | Mistake | Symptom | Fix |

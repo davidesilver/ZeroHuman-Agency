@@ -194,3 +194,50 @@ The next time the writer agent runs for this brand, it will use the custom ident
 4. Add a hardcoded fallback prompt in the agent module for tenants without DB configuration.
 
 No migrations needed unless you want to store the key as an enum (currently stored as text with application-layer validation).
+
+---
+
+## Community agent library (agency-agents)
+
+The `.vendor/agency-agents` submodule pins `msitarzewski/agency-agents` — 142+ specialist agent `.md` files covering marketing, paid-media, design, sales, product, and more.
+
+### Install a subset into `/agents`
+
+```bash
+# First-time submodule init
+git submodule update --init --recursive
+
+# Install default categories (marketing, paid-media, design, sales, product)
+./scripts/install-agents.sh
+
+# Install specific categories
+./scripts/install-agents.sh --categories marketing,design
+
+# Install everything
+./scripts/install-agents.sh --all
+```
+
+The script copies selected categories into `/agents/` for runtime use. After running it, review with `git diff --stat agents/` and commit only the subset you approve (HITL gate).
+
+### Runtime API
+
+Once agents are in `/agents/`, they are surfaced through:
+
+```
+GET  /api/agents/          — list available agents (slug, name, description)
+POST /api/agents/:slug/invoke  — invoke an agent with a user prompt
+```
+
+The invoke endpoint loads the agent's `.md` file as the system prompt and calls the LLM via the provider registrar.
+
+### Available categories
+
+| Category | Count | Use case |
+|---|---|---|
+| `marketing` | 50+ | SEO, content creation, growth, brand |
+| `paid-media` | 5 | PPC, paid social, programmatic, creative |
+| `design` | 5 | Brand guardian, UI/UX, image prompts |
+| `sales` | varies | SDR, account management, deal coaching |
+| `product` | varies | Product strategy, roadmap, PRDs |
+
+Full category list: `ls .vendor/agency-agents/`
