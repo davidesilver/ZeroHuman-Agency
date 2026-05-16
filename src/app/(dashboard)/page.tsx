@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 import { Activity } from 'lucide-react'
 
 import { KPICard } from '@/components/dashboard/kpi-card'
+import { GettingStartedBanner } from '@/components/dashboard/getting-started'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -21,13 +22,14 @@ import {
   loadHealth,
   loadStats,
 } from './_dashboard-data'
-
 export const dynamic = 'force-dynamic'
 
 export default function DashboardPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+
+      <GettingStartedBanner />
 
       <Suspense fallback={<KpiRowSkeleton count={4} />}>
         <PrimaryKpis />

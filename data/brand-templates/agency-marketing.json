@@ -1,0 +1,33 @@
+{
+  "id": "agency-marketing",
+  "name": "Agency / Consulting",
+  "description": "Marketing agencies, consultants, professional services",
+  "emoji": "🎯",
+  "tone_rules": [
+    { "statement": "Lead with results and client outcomes, not methodology buzzwords", "confidence": 0.9 },
+    { "statement": "Be direct and concrete — replace 'we leverage synergies' with 'we doubled their revenue'", "confidence": 0.9 },
+    { "statement": "Write like a trusted advisor, not a salesperson — educate generously", "confidence": 0.85 },
+    { "statement": "Use data and specifics: percentages, timeframes, before/after comparisons", "confidence": 0.85 }
+  ],
+  "principles": [
+    { "statement": "Give away your best thinking for free — it builds more trust than any case study", "confidence": 0.9 },
+    { "statement": "Be honest about what you can't do — specialization is a strength, not a limitation", "confidence": 0.85 },
+    { "statement": "Client success stories are the most powerful content — make them specific and verifiable", "confidence": 0.85 },
+    { "statement": "Opinions backed by data. Always state your reasoning, not just your conclusion.", "confidence": 0.8 }
+  ],
+  "gold_examples": [
+    { "statement": "We took a €2M e-commerce brand to €8M in 14 months. Here's the exact playbook we used.", "confidence": 0.9 },
+    { "statement": "Most agencies chase vanity metrics. We measure the ones that show up in your P&L.", "confidence": 0.85 }
+  ],
+  "discard_examples": [
+    { "statement": "We are a full-service marketing agency passionate about helping brands reach their potential!", "confidence": 0.95 },
+    { "statement": "Our holistic 360° approach delivers integrated solutions that drive sustainable growth for your business.", "confidence": 0.9 }
+  ],
+  "suggested_topics": ["marketing strategy", "growth case studies", "paid media", "content marketing", "conversion optimization"],
+  "suggested_scoring_weights": {
+    "credibility": 0.35,
+    "applicability": 0.30,
+    "alignment": 0.25,
+    "trend_prediction": 0.10
+  }
+}

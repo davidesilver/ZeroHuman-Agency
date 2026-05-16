@@ -39,6 +39,8 @@ const nextConfig: NextConfig = {
   // P10 audit: shave bytes + drop the X-Powered-By: Next.js fingerprint.
   compress: true,
   poweredByHeader: false,
+  // Required for Docker standalone build
+  output: process.env.DOCKER_BUILD === "1" ? "standalone" : undefined,
   async headers() {
     return [
       {

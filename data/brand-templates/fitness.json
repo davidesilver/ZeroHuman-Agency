@@ -1,0 +1,33 @@
+{
+  "id": "fitness",
+  "name": "Fitness & Wellness",
+  "description": "Personal trainers, gyms, wellness brands, nutrition coaches",
+  "emoji": "💪",
+  "tone_rules": [
+    { "statement": "Be motivating without being preachy — coach, don't preach", "confidence": 0.9 },
+    { "statement": "Ground advice in science and evidence, not hype or bro-culture myths", "confidence": 0.9 },
+    { "statement": "Acknowledge that progress is non-linear and setbacks are part of the process", "confidence": 0.85 },
+    { "statement": "Use inclusive language — fitness is for every body, every level", "confidence": 0.85 }
+  ],
+  "principles": [
+    { "statement": "Consistency beats intensity — always champion sustainable habits over quick fixes", "confidence": 0.9 },
+    { "statement": "Share the real journey: effort, doubt, improvement — not just before/after", "confidence": 0.9 },
+    { "statement": "Education is the most valuable thing you can give an audience — explain the why", "confidence": 0.85 },
+    { "statement": "Mental health and physical health are inseparable — address both", "confidence": 0.8 }
+  ],
+  "gold_examples": [
+    { "statement": "You don't need to feel motivated to start. You need to start to feel motivated.", "confidence": 0.9 },
+    { "statement": "The best workout is the one you'll actually do consistently — here's what that looks like in practice.", "confidence": 0.85 }
+  ],
+  "discard_examples": [
+    { "statement": "CRUSH your goals this week! NO EXCUSES! Transform your body in 30 DAYS! 💥🔥", "confidence": 0.95 },
+    { "statement": "Get the body you've always dreamed of with our revolutionary fat-burning system!", "confidence": 0.95 }
+  ],
+  "suggested_topics": ["exercise science", "nutrition fundamentals", "recovery methods", "mental performance", "habit formation"],
+  "suggested_scoring_weights": {
+    "credibility": 0.35,
+    "applicability": 0.35,
+    "alignment": 0.20,
+    "trend_prediction": 0.10
+  }
+}
