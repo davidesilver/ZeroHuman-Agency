@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { KPICard } from '@/components/dashboard/kpi-card'
 import { cn } from '@/lib/utils'
-import { Loader2, Sparkles, Video } from 'lucide-react'
+import { Loader2, Sparkles, Video, Mail } from 'lucide-react'
 
 const CONTENT_TYPES = ['Newsletter', 'Social', 'Blog', 'LinkedIn', 'Video Script'] as const
 
@@ -52,6 +52,8 @@ export default function WritingLabPage() {
   const [godLoading, setGodLoading] = useState(false)
   const [talkingHeadLoading, setTalkingHeadLoading] = useState(false)
   const [talkingHeadVideoId, setTalkingHeadVideoId] = useState<string | null>(null)
+  const [campaignLoading, setCampaignLoading] = useState(false)
+  const [campaignSent, setCampaignSent] = useState(false)
 
   const startSession = useCallback(async () => {
     if (!topic.trim()) return
@@ -128,6 +130,26 @@ export default function WritingLabPage() {
     } catch {}
     setGodLoading(false)
   }, [session, currentRound, contentType])
+
+  const sendBrevoEmail = useCallback(async () => {
+    const text = session?.current_champion || currentRound?.champion_text
+    if (!text) return
+    setCampaignLoading(true)
+    try {
+      const res = await fetch('/api/email-marketing/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `Writing Lab — ${session?.topic ?? 'Champion'}`,
+          subject: session?.topic ?? 'Content Engine Newsletter',
+          html_content: `<html><body><p>${text.replace(/\n/g, '</p><p>')}</p></body></html>`,
+        }),
+      })
+      if (res.ok) setCampaignSent(true)
+    } finally {
+      setCampaignLoading(false)
+    }
+  }, [session, currentRound])
 
   const generateTalkingHead = useCallback(async () => {
     const script = session?.current_champion || currentRound?.champion_text
@@ -374,6 +396,31 @@ export default function WritingLabPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Brevo campaign CTA — shown for Newsletter content type */}
+      {contentType === 'Newsletter' && (session?.current_champion || currentRound?.champion_text) && (
+        <Card>
+          <CardContent className="pt-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Send as Brevo campaign</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Create a Brevo email campaign from the champion copy and schedule it.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={sendBrevoEmail}
+              disabled={campaignLoading || campaignSent}
+            >
+              {campaignLoading
+                ? <Loader2 className="size-4 mr-1 animate-spin" />
+                : <Mail className="size-4 mr-1" />}
+              {campaignSent ? 'Campaign created ✓' : 'Send as campaign'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Talking-head CTA — shown when content type is Video Script and champion exists */}
       {contentType === 'Video Script' && (session?.current_champion || currentRound?.champion_text) && (

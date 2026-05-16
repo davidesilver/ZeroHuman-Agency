@@ -77,6 +77,15 @@ app.include_router(research_ext_router)
 from .api.routes_video import router as video_router
 app.include_router(video_router)
 
+# Phase 5: Brevo campaigns
+from .api.routes_campaigns import router as campaigns_router, webhook_router as campaigns_webhook_router
+app.include_router(campaigns_router)
+app.include_router(campaigns_webhook_router)
+
+# Phase 6: Brevo automations
+from .api.routes_automations import router as automations_router
+app.include_router(automations_router)
+
 
 @app.on_event("shutdown")
 async def _close_shared_clients() -> None:

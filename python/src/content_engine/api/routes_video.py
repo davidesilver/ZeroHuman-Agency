@@ -41,6 +41,36 @@ def _brand_id(request: Request) -> str:
     return brand_id
 
 
+class CreateTemplateRequest(BaseModel):
+    name: str
+    slug: str
+    description: Optional[str] = None
+    composition_path: str
+    props_schema: dict = {}
+
+
+@router.post("/templates", status_code=201)
+async def create_template(body: CreateTemplateRequest, request: Request):
+    """Create a brand-specific video template."""
+    brand_id = _brand_id(request)
+    if not body.name.strip() or not body.slug.strip():
+        raise HTTPException(400, "name and slug are required")
+    result = (
+        get_db()
+        .from_("video_templates")
+        .insert({
+            "brand_id": brand_id,
+            "name": body.name.strip(),
+            "slug": body.slug.strip().lower().replace(" ", "-"),
+            "description": body.description,
+            "composition_path": body.composition_path.strip(),
+            "props_schema": body.props_schema,
+        })
+        .execute()
+    )
+    return result.data[0] if result.data else {}
+
+
 class RenderRequest(BaseModel):
     template_slug: str
     render_props: dict

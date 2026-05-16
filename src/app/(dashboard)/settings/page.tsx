@@ -274,6 +274,75 @@ interface ProviderStat {
   cost_per_1k_tokens: number | null
 }
 
+function OpenClawShareCard() {
+  const { activeBrand } = useBrand()
+  const [share, setShare] = useState(0)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    if (!activeBrand) return
+    fetch('/api/feature-flags?key=llm_provider_openclaw_share')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.value != null) setShare(Math.round(parseFloat(d.value) * 100)) })
+      .catch(() => {})
+  }, [activeBrand])
+
+  async function save() {
+    if (!activeBrand) return
+    setSaving(true)
+    setSaved(false)
+    try {
+      await fetch('/api/feature-flags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: 'llm_provider_openclaw_share',
+          value: share / 100,
+          brand_id: activeBrand.id,
+        }),
+      })
+      setSaved(true)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Bot className="size-4 text-muted-foreground" />
+          OpenClaw A/B Split
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Route a percentage of LLM calls to OpenClaw for cost and latency comparison. Requires an OpenClaw API key in brand integrations.
+        </p>
+        <div className="flex items-center gap-4">
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={share}
+            onChange={e => setShare(Number(e.target.value))}
+            className="flex-1"
+          />
+          <span className="text-sm font-mono w-12 text-right">{share}%</span>
+        </div>
+        <div className="flex gap-2 items-center">
+          <Button size="sm" onClick={save} disabled={saving || !activeBrand}>
+            {saving ? <Loader2 className="size-3 animate-spin mr-1" /> : null}
+            Save
+          </Button>
+          {saved && <span className="text-xs text-green-600">Saved</span>}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 function ProviderStatsCard() {
   const [stats, setStats] = useState<ProviderStat[]>([])
   const [loading, setLoading] = useState(true)
@@ -677,6 +746,9 @@ export default function SettingsPage() {
 
       {/* ── Provider Stats (Phase 4 telemetria) ─────────────────────────────── */}
       <ProviderStatsCard />
+
+      {/* ── OpenClaw A/B Traffic Split (Phase 14) ────────────────────────────── */}
+      <OpenClawShareCard />
 
       {/* ── Research APIs ───────────────────────────────────────────────────── */}
       <Card>

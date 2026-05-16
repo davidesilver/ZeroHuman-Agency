@@ -14,11 +14,15 @@ import threading
 from typing import Optional
 
 from .openrouter import OpenRouterProvider
+from .openclaw import OpenClawProvider
 from .provider import LLMProvider
 
 _lock = threading.Lock()
 _registry: dict[str, LLMProvider] = {}
 _initialized = False
+
+
+_openclaw_provider = OpenClawProvider()
 
 
 def _ensure_defaults() -> None:
@@ -28,6 +32,7 @@ def _ensure_defaults() -> None:
     with _lock:
         if not _initialized:
             _registry["openrouter"] = OpenRouterProvider()
+            _registry["openclaw"] = _openclaw_provider
             _initialized = True
 
 
@@ -63,13 +68,19 @@ class ProviderRegistrar:
 
         Selection order:
           1. preferred (if specified and available)
-          2. 'openrouter' (always available as fallback)
+          2. OpenClaw traffic-split (if configured and random roll hits the share)
+          3. openrouter (always-on fallback)
         """
         _ensure_defaults()
         if preferred:
             p = _registry.get(preferred)
             if p and p.is_available(brand_id):
                 return p
+
+        # Phase 14: OpenClaw A/B routing via feature flag share
+        if _openclaw_provider.is_available(brand_id) and _openclaw_provider.should_route(brand_id):
+            return _openclaw_provider
+
         return _registry["openrouter"]
 
 
