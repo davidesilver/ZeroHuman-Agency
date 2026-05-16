@@ -1,11 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2, Globe, Plus, Trash2 } from 'lucide-react'
+import { FeatureGate } from '@/components/ui/feature-gate'
+import { ErrorCard } from '@/components/ui/error-card'
+import { EmptyState } from '@/components/ui/empty-state'
+import { usePolling } from '@/hooks/use-polling'
+import { getStatusVariant } from '@/lib/status-colors'
+import { useBrand } from '@/lib/brand-context'
+import { Loader2, Globe, Plus, Trash2, Eye } from 'lucide-react'
 
 interface Snapshot {
   id: string
@@ -17,48 +23,63 @@ interface Snapshot {
   error?: string
 }
 
-export default function CompetitorWatchPage() {
+function CompetitorWatchContent() {
+  const { activeBrand } = useBrand()
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [urls, setUrls] = useState<string[]>([''])
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const loadSnapshots = useCallback(async () => {
-    const res = await fetch('/api/research/competitor/snapshots?limit=50')
-    if (res.ok) setSnapshots(await res.json())
-    setLoading(false)
+    try {
+      const res = await fetch('/api/research/competitor/snapshots?limit=50')
+      if (!res.ok) {
+        setError(`Failed to load snapshots (${res.status})`)
+        return
+      }
+      setSnapshots(await res.json())
+      setError(null)
+    } catch {
+      setError('Unable to reach competitor monitoring service')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  useEffect(() => {
-    loadSnapshots()
-    const interval = setInterval(loadSnapshots, 15_000)
-    return () => clearInterval(interval)
-  }, [loadSnapshots])
+  usePolling(loadSnapshots, 15_000)
 
   async function submit() {
     const validUrls = urls.filter(u => u.trim())
     if (!validUrls.length) return
     setSubmitting(true)
+    setSubmitError(null)
     try {
       const res = await fetch('/api/research/competitor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ urls: validUrls }),
       })
-      if (res.ok) {
-        setUrls([''])
-        await loadSnapshots()
+      if (!res.ok) {
+        setSubmitError(`Failed to start capture (${res.status})`)
+        return
       }
+      setUrls([''])
+      await loadSnapshots()
+    } catch {
+      setSubmitError('Network error — unable to start capture')
     } finally {
       setSubmitting(false)
     }
   }
 
-  const STATUS_BADGE: Record<string, string> = {
-    pending: 'secondary',
-    running: 'default',
-    completed: 'outline',
-    failed: 'destructive',
+  if (!activeBrand) {
+    return (
+      <div className="p-6 max-w-3xl">
+        <EmptyState icon={Eye} message="Select a brand to use Competitor Watch." />
+      </div>
+    )
   }
 
   return (
@@ -100,6 +121,9 @@ export default function CompetitorWatchPage() {
               )}
             </div>
           ))}
+          {submitError && (
+            <p className="text-xs text-destructive">{submitError}</p>
+          )}
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => setUrls([...urls, ''])}>
               <Plus className="h-4 w-4 mr-1" /> Add URL
@@ -114,12 +138,14 @@ export default function CompetitorWatchPage() {
 
       {/* Snapshots history */}
       <div className="space-y-2">
-        {loading ? (
+        {error ? (
+          <ErrorCard message={error} onRetry={loadSnapshots} />
+        ) : loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading...
           </div>
         ) : snapshots.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No snapshots yet.</p>
+          <EmptyState icon={Globe} message="No snapshots yet." />
         ) : (
           snapshots.map(s => (
             <Card key={s.id}>
@@ -133,7 +159,7 @@ export default function CompetitorWatchPage() {
                       : new Date(s.created_at).toLocaleString()}
                   </p>
                 </div>
-                <Badge variant={(STATUS_BADGE[s.status] as any) ?? 'secondary'}>
+                <Badge variant={(getStatusVariant(s.status)) as any}>
                   {s.status}
                 </Badge>
                 {s.status === 'running' && (
@@ -145,5 +171,14 @@ export default function CompetitorWatchPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function CompetitorWatchPage() {
+  const { activeBrand } = useBrand()
+  return (
+    <FeatureGate flag="competitor_monitoring_enabled" brandId={activeBrand?.id}>
+      <CompetitorWatchContent />
+    </FeatureGate>
   )
 }

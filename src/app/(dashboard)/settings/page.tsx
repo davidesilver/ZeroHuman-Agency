@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import {
   Settings as SettingsIcon, Bot, Mail, Clock,
   Building, Plus, Loader2, ExternalLink, Brain, ImageIcon, Link2,
-  Server, Bell, Search,
+  Server, Bell, Search, Video as VideoIcon,
 } from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
 import Link from 'next/link'
@@ -840,6 +840,30 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* ── Video (HyperFrames) ──────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <VideoIcon className="size-4 text-muted-foreground" />
+              Video (HyperFrames)
+            </CardTitle>
+            <Link
+              href="/settings/video-templates"
+              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+            >
+              <ExternalLink className="size-3" /> Templates
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Create and manage video composition templates. Render animated recaps and motion graphics via HyperFrames CLI.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* ── Social Publishing (Postiz) ──────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
@@ -885,13 +909,22 @@ export default function SettingsPage() {
               <Mail className="size-4 text-muted-foreground" />
               Email Marketing (Brevo)
             </CardTitle>
-            <Link
-              href="/settings/audience"
-              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
-                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
-            >
-              <ExternalLink className="size-3" /> Audience
-            </Link>
+            <div className="flex gap-1">
+              <Link
+                href="/settings/audience"
+                className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                           hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+              >
+                <ExternalLink className="size-3" /> Audience
+              </Link>
+              <Link
+                href="/settings/automations"
+                className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                           hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+              >
+                <ExternalLink className="size-3" /> Automations
+              </Link>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -931,6 +964,31 @@ export default function SettingsPage() {
               </Link>
             </Row>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Feature Flags ──────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <SettingsIcon className="size-4 text-muted-foreground" />
+              Feature Flags
+            </CardTitle>
+            <Link
+              href="/settings/feature-flags"
+              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+            >
+              <ExternalLink className="size-3" /> Manage
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Enable or disable capabilities (video, email marketing, deep research, competitor monitoring) per brand.
+            Changes take effect immediately.
+          </p>
         </CardContent>
       </Card>
 

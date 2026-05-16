@@ -6,6 +6,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { FeatureGate } from '@/components/ui/feature-gate'
+import { ErrorCard } from '@/components/ui/error-card'
+import { EmptyState } from '@/components/ui/empty-state'
+import { usePolling } from '@/hooks/use-polling'
+import { getStatusVariant } from '@/lib/status-colors'
+import { useBrand } from '@/lib/brand-context'
 import { Loader2, Video, Play, Download, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface Template {
@@ -26,41 +32,42 @@ interface VideoJob {
   created_at: string
 }
 
-const STATUS_BADGE: Record<string, string> = {
-  pending: 'secondary',
-  rendering: 'default',
-  completed: 'outline',
-  failed: 'destructive',
-}
-
-export default function VideosPage() {
+function VideosContent() {
+  const { activeBrand } = useBrand()
   const [templates, setTemplates] = useState<Template[]>([])
   const [videos, setVideos] = useState<VideoJob[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
   const [props, setProps] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
-    const [tRes, vRes] = await Promise.all([
-      fetch('/api/video/templates'),
-      fetch('/api/video'),
-    ])
-    if (tRes.ok) {
+    try {
+      const [tRes, vRes] = await Promise.all([
+        fetch('/api/video/templates'),
+        fetch('/api/video'),
+      ])
+      if (!tRes.ok || !vRes.ok) {
+        setError(`Failed to load video data (templates: ${tRes.status}, videos: ${vRes.status})`)
+        setLoading(false)
+        return
+      }
       const t: Template[] = await tRes.json()
       setTemplates(t)
       if (!selectedTemplate && t.length > 0) setSelectedTemplate(t[0])
+      setVideos(await vRes.json())
+      setError(null)
+    } catch {
+      setError('Unable to reach video service')
+    } finally {
+      setLoading(false)
     }
-    if (vRes.ok) setVideos(await vRes.json())
-    setLoading(false)
   }, [selectedTemplate])
 
-  useEffect(() => {
-    loadData()
-    const iv = setInterval(loadData, 10_000)
-    return () => clearInterval(iv)
-  }, [loadData])
+  usePolling(loadData, 10_000)
 
   // Initialise prop fields when template changes
   useEffect(() => {
@@ -85,6 +92,7 @@ export default function VideosPage() {
   async function submit() {
     if (!selectedTemplate) return
     setSubmitting(true)
+    setSubmitError(null)
     try {
       const res = await fetch('/api/video/render', {
         method: 'POST',
@@ -94,10 +102,24 @@ export default function VideosPage() {
           render_props: props,
         }),
       })
-      if (res.ok) await loadData()
+      if (!res.ok) {
+        setSubmitError(`Render failed (${res.status})`)
+        return
+      }
+      await loadData()
+    } catch {
+      setSubmitError('Network error — unable to start render')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (!activeBrand) {
+    return (
+      <div className="p-6 max-w-3xl">
+        <EmptyState icon={Video} message="Select a brand to render videos." />
+      </div>
+    )
   }
 
   const schema = selectedTemplate?.props_schema?.properties ?? {}
@@ -159,6 +181,9 @@ export default function VideosPage() {
             </div>
           ))}
 
+          {submitError && (
+            <p className="text-xs text-destructive">{submitError}</p>
+          )}
           <Button
             onClick={submit}
             disabled={submitting || !selectedTemplate}
@@ -171,12 +196,14 @@ export default function VideosPage() {
 
       {/* Video history */}
       <div className="space-y-2">
-        {loading ? (
+        {error ? (
+          <ErrorCard message={error} onRetry={loadData} />
+        ) : loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading...
           </div>
         ) : videos.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No videos yet.</p>
+          <EmptyState icon={Video} message="No videos yet." />
         ) : (
           videos.map(v => (
             <Card key={v.id} className="overflow-hidden">
@@ -188,7 +215,7 @@ export default function VideosPage() {
                     {v.duration_secs && ` · ${v.duration_secs}s`}
                   </p>
                 </div>
-                <Badge variant={(STATUS_BADGE[v.status] as any) ?? 'secondary'}>
+                <Badge variant={(getStatusVariant(v.status)) as any}>
                   {v.status}
                 </Badge>
                 {v.status === 'rendering' && (
@@ -233,5 +260,14 @@ export default function VideosPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function VideosPage() {
+  const { activeBrand } = useBrand()
+  return (
+    <FeatureGate flag="video_enabled" brandId={activeBrand?.id}>
+      <VideosContent />
+    </FeatureGate>
   )
 }

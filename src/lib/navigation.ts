@@ -13,6 +13,9 @@ import {
   Building,
   Settings,
   Brain,
+  Microscope,
+  Eye,
+  Video,
 } from 'lucide-react'
 
 export const navigationItems = [
@@ -20,10 +23,14 @@ export const navigationItems = [
   { label: 'Content Hub', href: '/content-hub', icon: FileText },
   { type: 'separator' as const, label: 'PRODUCTION' },
   { label: 'Research', href: '/ricerca', icon: Search },
+  { label: 'Deep Research', href: '/deep-research', icon: Microscope },
   { label: 'Calendar', href: '/calendario', icon: Calendar },
   { label: 'Newsletter', href: '/newsletter', icon: Mail },
   { label: 'Blog', href: '/blog', icon: BookOpen },
   { label: 'Social', href: '/social', icon: Share2 },
+  { type: 'separator' as const, label: 'VIDEO & MEDIA' },
+  { label: 'Videos', href: '/videos', icon: Video },
+  { label: 'Competitor Watch', href: '/competitor-watch', icon: Eye },
   { type: 'separator' as const, label: 'QUALITY' },
   { label: 'Writing Lab', href: '/writing-lab', icon: FlaskConical },
   { label: 'Metrics', href: '/metriche', icon: BarChart3 },

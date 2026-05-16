@@ -1,12 +1,18 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, Search, ChevronDown, ChevronUp, ExternalLink, Sparkles } from 'lucide-react'
+import { FeatureGate } from '@/components/ui/feature-gate'
+import { ErrorCard } from '@/components/ui/error-card'
+import { EmptyState } from '@/components/ui/empty-state'
+import { usePolling } from '@/hooks/use-polling'
+import { getStatusVariant } from '@/lib/status-colors'
+import { useBrand } from '@/lib/brand-context'
+import { Loader2, Search, ChevronDown, ChevronUp, ExternalLink, Sparkles, Microscope } from 'lucide-react'
 
 interface Job {
   id: string
@@ -18,49 +24,56 @@ interface Job {
   completed_at?: string
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'secondary',
-  running: 'default',
-  completed: 'outline',
-  failed: 'destructive',
-}
-
-export default function DeepResearchPage() {
+function DeepResearchContent() {
+  const { activeBrand } = useBrand()
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [topic, setTopic] = useState('')
   const [depth, setDepth] = useState(3)
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [results, setResults] = useState<Record<string, any>>({})
   const [generatingIdeas, setGeneratingIdeas] = useState<Record<string, boolean>>({})
   const [ideaResults, setIdeaResults] = useState<Record<string, { created: number; items: any[] }>>({})
 
   const loadJobs = useCallback(async () => {
-    const res = await fetch('/api/research/deep')
-    if (res.ok) setJobs(await res.json())
-    setLoading(false)
+    try {
+      const res = await fetch('/api/research/deep')
+      if (!res.ok) {
+        setError(`Failed to load jobs (${res.status})`)
+        return
+      }
+      setJobs(await res.json())
+      setError(null)
+    } catch {
+      setError('Unable to reach the research service')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  useEffect(() => {
-    loadJobs()
-    const interval = setInterval(loadJobs, 10_000) // poll every 10s
-    return () => clearInterval(interval)
-  }, [loadJobs])
+  usePolling(loadJobs, 10_000)
 
   async function submit() {
     if (!topic.trim()) return
     setSubmitting(true)
+    setSubmitError(null)
     try {
       const res = await fetch('/api/research/deep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic: topic.trim(), depth }),
       })
-      if (res.ok) {
-        setTopic('')
-        await loadJobs()
+      if (!res.ok) {
+        setSubmitError(`Failed to start research (${res.status})`)
+        return
       }
+      setTopic('')
+      await loadJobs()
+    } catch {
+      setSubmitError('Network error — unable to start research')
     } finally {
       setSubmitting(false)
     }
@@ -68,11 +81,13 @@ export default function DeepResearchPage() {
 
   async function loadResults(jobId: string) {
     if (results[jobId]) { setExpandedId(expandedId === jobId ? null : jobId); return }
-    const res = await fetch(`/api/research/deep/${jobId}/results`)
-    if (res.ok) {
-      const data = await res.json()
-      setResults(r => ({ ...r, [jobId]: data }))
-    }
+    try {
+      const res = await fetch(`/api/research/deep/${jobId}/results`)
+      if (res.ok) {
+        const data = await res.json()
+        setResults(r => ({ ...r, [jobId]: data }))
+      }
+    } catch { /* silent — results panel simply won't expand */ }
     setExpandedId(jobId)
   }
 
@@ -91,6 +106,14 @@ export default function DeepResearchPage() {
     } finally {
       setGeneratingIdeas(g => ({ ...g, [jobId]: false }))
     }
+  }
+
+  if (!activeBrand) {
+    return (
+      <div className="p-6 max-w-3xl">
+        <EmptyState icon={Microscope} message="Select a brand to use Deep Research." />
+      </div>
+    )
   }
 
   return (
@@ -141,6 +164,9 @@ export default function DeepResearchPage() {
               Deeper = more sources + longer runtime. Default cap is depth 3 per brand.
             </p>
           </div>
+          {submitError && (
+            <p className="text-xs text-destructive">{submitError}</p>
+          )}
           <Button onClick={submit} disabled={submitting || !topic.trim()}>
             {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Start Research
@@ -150,12 +176,14 @@ export default function DeepResearchPage() {
 
       {/* Jobs list */}
       <div className="space-y-2">
-        {loading ? (
+        {error ? (
+          <ErrorCard message={error} onRetry={loadJobs} />
+        ) : loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading jobs...
           </div>
         ) : jobs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No research jobs yet.</p>
+          <EmptyState icon={Search} message="No research jobs yet." />
         ) : (
           jobs.map(job => (
             <Card key={job.id} className="overflow-hidden">
@@ -166,18 +194,14 @@ export default function DeepResearchPage() {
                     Depth {job.depth} · {new Date(job.created_at).toLocaleString()}
                   </p>
                 </div>
-                <Badge variant={(STATUS_COLORS[job.status] as any) ?? 'secondary'}>
+                <Badge variant={(getStatusVariant(job.status)) as any}>
                   {job.status}
                 </Badge>
                 {job.status === 'running' && (
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 )}
                 {job.status === 'completed' && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => loadResults(job.id)}
-                  >
+                  <Button size="sm" variant="ghost" onClick={() => loadResults(job.id)}>
                     {expandedId === job.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </Button>
                 )}
@@ -240,5 +264,14 @@ export default function DeepResearchPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function DeepResearchPage() {
+  const { activeBrand } = useBrand()
+  return (
+    <FeatureGate flag="deep_research_enabled" brandId={activeBrand?.id}>
+      <DeepResearchContent />
+    </FeatureGate>
   )
 }
