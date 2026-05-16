@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { BrandDiscovery } from '@/components/brand-context/brand-discovery'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -596,6 +597,12 @@ function RssFeedsCard({ brandId }: { brandId: string }) {
   )
 }
 
+// ─── Brand Discovery Widget (thin wrapper to pass reload callback) ─────────────
+
+function BrandDiscoveryWidget({ onSaved }: { onSaved: () => void }) {
+  return <BrandDiscovery onFactsSaved={onSaved} />
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function BrandContextPage() {
@@ -694,6 +701,23 @@ export default function BrandContextPage() {
         </div>
       ) : (
         <div className="grid gap-4">
+          {/* Auto-discovery card — shown prominently when brand context is empty */}
+          {facts.length === 0 && (
+            <Card className="border-2 border-dashed border-primary/30 bg-primary/5">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Sparkles className="size-4 text-primary" />
+                  Auto-Discover Brand Voice
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Paste your website URL and let AI extract your brand tone, principles, and examples automatically.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <BrandDiscoveryWidget onSaved={load} />
+              </CardContent>
+            </Card>
+          )}
           {IDENTITY_KINDS.map((kind) => (
             <KindSection
               key={kind}

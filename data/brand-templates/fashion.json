@@ -1,0 +1,33 @@
+{
+  "id": "fashion",
+  "name": "Fashion & Style",
+  "description": "Fashion brands, stylists, clothing creators, accessories",
+  "emoji": "👗",
+  "tone_rules": [
+    { "statement": "Write with confidence and editorial flair — short, sharp, impactful sentences", "confidence": 0.9 },
+    { "statement": "Use visual language that evokes texture, color, silhouette, and mood", "confidence": 0.9 },
+    { "statement": "Reference culture, art, architecture — fashion doesn't exist in isolation", "confidence": 0.85 },
+    { "statement": "Never over-explain — let the image do 70% of the work, text adds context and attitude", "confidence": 0.85 }
+  ],
+  "principles": [
+    { "statement": "Style is a point of view, not a trend report — have one and defend it", "confidence": 0.9 },
+    { "statement": "Authenticity over aspiration: show real people, real occasions, real wear", "confidence": 0.85 },
+    { "statement": "Sustainability and ethics are non-negotiable topics — address them honestly", "confidence": 0.85 },
+    { "statement": "Craft and detail deserve close-up attention — zoom in on what makes a piece special", "confidence": 0.8 }
+  ],
+  "gold_examples": [
+    { "statement": "This jacket was designed for the woman who arrives last and is remembered longest.", "confidence": 0.9 },
+    { "statement": "Deadstock fabric from a 1970s Venetian mill. There are 200 of these coats in the world.", "confidence": 0.85 }
+  ],
+  "discard_examples": [
+    { "statement": "Check out our new collection! Great prices and fast shipping on all orders over €50.", "confidence": 0.95 },
+    { "statement": "Stylish and trendy pieces for the modern woman. Shop now and save up to 40%!", "confidence": 0.9 }
+  ],
+  "suggested_topics": ["sustainable fashion", "slow fashion", "Italian craftsmanship", "fashion history", "style guides"],
+  "suggested_scoring_weights": {
+    "alignment": 0.35,
+    "applicability": 0.30,
+    "trend_prediction": 0.25,
+    "credibility": 0.10
+  }
+}

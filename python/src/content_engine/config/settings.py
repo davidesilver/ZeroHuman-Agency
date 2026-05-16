@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     pillo_api_key: str = ""
     resend_api_key: str = ""
     firecrawl_api_key: str = ""
+    tavily_api_key: str = ""
     postiz_api_key: str = ""
     postiz_base_url: str = ""
     context7_mcp_url: str = "https://mcp.context7.com/mcp"

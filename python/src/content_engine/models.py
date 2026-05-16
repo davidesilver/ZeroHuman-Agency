@@ -17,6 +17,8 @@ class RetrieverType(StrEnum):
     YOUTUBE = "youtube"
     GMAIL = "gmail"
     X = "x"
+    DUCKDUCKGO = "duckduckgo"
+    TAVILY = "tavily"
 
 
 class ItemStatus(StrEnum):

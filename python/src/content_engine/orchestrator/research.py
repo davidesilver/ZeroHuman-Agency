@@ -15,10 +15,13 @@ from ..models import (
     RunStatus,
     TriggerRequest,
 )
+from ..config import settings as _settings
 from ..retrievers.base import BaseRetriever
 from ..retrievers.rss import RSSRetriever
 from ..retrievers.serper import SemanticRetriever, KeywordRetriever, PractitionerRetriever
 from ..retrievers.youtube import YouTubeRetriever
+from ..retrievers.duckduckgo import DuckDuckGoRetriever
+from ..retrievers.tavily import TavilyRetriever
 
 logger = logging.getLogger("content_engine.research")
 
@@ -59,13 +62,79 @@ def _deduplicate(items: list[ResearchItemCreate], threshold: float = 0.85) -> li
     return list(seen.values())
 
 
+def _build_retriever_map() -> dict[RetrieverType, type[BaseRetriever]]:
+    """Build the active retriever map based on configured API keys.
+
+    Cascade logic for web search:
+      1. Premium: Serper (if SERPER_API_KEY set) — highest quality
+      2. Mid-tier: Tavily (if TAVILY_API_KEY set) — free tier, good quality
+      3. Free: DuckDuckGo (always available) — no API key needed
+
+    RSS (TRUSTED_SOURCE) is always active.
+    YouTube (TREND) is active only if YOUTUBE_API_KEY is set.
+    """
+    if _settings.serper_api_key:
+        web_retriever = SemanticRetriever
+        keyword_retriever = KeywordRetriever
+        practitioner_retriever = PractitionerRetriever
+        logger.debug("Research tier: Premium (Serper)")
+    elif _settings.tavily_api_key:
+        web_retriever = TavilyRetriever
+        keyword_retriever = TavilyRetriever
+        practitioner_retriever = TavilyRetriever
+        logger.debug("Research tier: Mid-tier (Tavily)")
+    else:
+        web_retriever = DuckDuckGoRetriever
+        keyword_retriever = DuckDuckGoRetriever
+        practitioner_retriever = DuckDuckGoRetriever
+        logger.debug("Research tier: Free (DuckDuckGo)")
+
+    retriever_map: dict[RetrieverType, type[BaseRetriever]] = {
+        RetrieverType.TRUSTED_SOURCE: RSSRetriever,
+        RetrieverType.SEMANTIC: web_retriever,
+        RetrieverType.KEYWORD: keyword_retriever,
+        RetrieverType.PRACTITIONER: practitioner_retriever,
+    }
+    if _settings.youtube_api_key:
+        retriever_map[RetrieverType.TREND] = YouTubeRetriever
+
+    return retriever_map
+
+
+# Module-level map for external callers that need to enumerate retriever types.
+# The actual runtime map is built dynamically per-request via _build_retriever_map().
 RETRIEVER_MAP: dict[RetrieverType, type[BaseRetriever]] = {
     RetrieverType.TRUSTED_SOURCE: RSSRetriever,
     RetrieverType.SEMANTIC: SemanticRetriever,
     RetrieverType.KEYWORD: KeywordRetriever,
     RetrieverType.PRACTITIONER: PractitionerRetriever,
     RetrieverType.TREND: YouTubeRetriever,
+    RetrieverType.DUCKDUCKGO: DuckDuckGoRetriever,
+    RetrieverType.TAVILY: TavilyRetriever,
 }
+
+
+def get_research_tier() -> dict:
+    """Return the active research tier and which retrievers are enabled.
+
+    Used by the system config API to display tier status in the dashboard.
+    """
+    if _settings.serper_api_key:
+        tier = "premium"
+        active = ["Serper (Google Search)", "RSS", "YouTube" if _settings.youtube_api_key else None]
+    elif _settings.tavily_api_key:
+        tier = "tavily"
+        active = ["Tavily", "RSS", "YouTube" if _settings.youtube_api_key else None]
+    else:
+        tier = "free"
+        active = ["DuckDuckGo", "RSS"]
+    return {
+        "tier": tier,
+        "active_retrievers": [r for r in active if r],
+        "serper": bool(_settings.serper_api_key),
+        "tavily": bool(_settings.tavily_api_key),
+        "youtube": bool(_settings.youtube_api_key),
+    }
 
 
 async def _embed_and_dedup(
@@ -235,14 +304,17 @@ async def run_research(brand_id: str, request: TriggerRequest) -> ResearchRunRes
         "max_items": request.max_items_per_retriever,
     }
 
-    # Select which retrievers to run
-    retriever_types = request.retrievers or list(RETRIEVER_MAP.keys())
+    # Build the dynamic retriever map based on currently configured API keys
+    active_map = _build_retriever_map()
+
+    # Select which retrievers to run (default: all active ones)
+    retriever_types = request.retrievers or list(active_map.keys())
 
     # Run retrievers in parallel
     retrievers = [
-        RETRIEVER_MAP[rt](brand_id, run_id)
+        active_map[rt](brand_id, run_id)
         for rt in retriever_types
-        if rt in RETRIEVER_MAP
+        if rt in active_map
     ]
     # P6.7: Gmail and X retrievers (string-keyed, not in RetrieverType enum yet)
     from ..retrievers.gmail import GmailRetriever

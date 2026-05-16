@@ -57,6 +57,10 @@ app.include_router(images_router)
 from .api.routes_postiz import router as postiz_router
 app.include_router(postiz_router)  # prefix="/social" already declared in routes_postiz.py
 
+# Brand voice auto-discovery from website URLs and social profiles
+from .api.routes_brand_discovery import router as brand_discovery_router
+app.include_router(brand_discovery_router)
+
 
 @app.on_event("shutdown")
 async def _close_shared_clients() -> None:
