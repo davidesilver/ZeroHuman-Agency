@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html
+  data-composition-variables='[
+    {"id":"slide_urls",          "type":"string",  "label":"Slide URLs (JSON array)",   "default":"[]"},
+    {"id":"brand_name",          "type":"string",  "label":"Brand Name",                "default":"Brand"},
+    {"id":"duration_per_slide",  "type":"number",  "label":"Seconds per slide",         "default":2.5},
+    {"id":"transition_type",     "type":"string",  "label":"Transition (slide|fade|zoom)","default":"slide"},
+    {"id":"accent_color",        "type":"color",   "label":"Accent Color",              "default":"#6366f1"},
+    {"id":"caption",             "type":"string",  "label":"Caption text (optional)",   "default":""}
+  ]'
+>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; }
+
+    #root {
+      width: 1080px;
+      height: 1920px;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+
+    .slide-track {
+      position: absolute;
+      top: 0; left: 0;
+      display: flex;
+      height: 100%;
+      will-change: transform;
+    }
+
+    .slide {
+      width: 1080px;
+      height: 1920px;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Slide number dot indicators */
+    .dots {
+      position: absolute;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      z-index: 10;
+    }
+    .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.3);
+      transition: background 0.3s;
+    }
+    .dot.active { background: #fff; }
+
+    /* Brand watermark */
+    .watermark {
+      position: absolute;
+      top: 60px; right: 60px;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: rgba(255,255,255,.8);
+      letter-spacing: -0.5px;
+      z-index: 10;
+      text-shadow: 0 2px 8px rgba(0,0,0,.5);
+    }
+
+    /* Caption bar at bottom */
+    .caption-bar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,.7) 40%);
+      padding: 80px 60px 60px;
+      z-index: 10;
+    }
+    .caption-text {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 36px;
+      font-weight: 600;
+      color: #fff;
+      line-height: 1.4;
+      text-shadow: 0 2px 8px rgba(0,0,0,.5);
+    }
+
+    /* Progress bar */
+    .progress-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 6px;
+      background: rgba(255,255,255,.2);
+      z-index: 20;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+    }
+
+    /* Zoom transition overlay */
+    .zoom-slide { transform-origin: center; }
+  </style>
+</head>
+<body>
+  <div id="root"
+    data-composition-id="root"
+    data-width="1080"
+    data-height="1920"
+    data-fps="30">
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="slide-track" id="track"></div>
+
+    <div class="dots" id="dots"></div>
+    <div class="watermark" id="watermark"></div>
+
+    <div class="caption-bar" id="captionBar" style="display:none">
+      <div class="caption-text" id="captionText"></div>
+    </div>
+  </div>
+
+  <script>
+    const vars = window.__hyperframes.getVariables();
+
+    const accent = vars.accent_color || '#6366f1';
+    document.getElementById('progressFill').style.background = accent;
+
+    let urls = [];
+    try { urls = JSON.parse(vars.slide_urls || '[]'); } catch {}
+    if (!urls.length) urls = [''];
+
+    const dps = parseFloat(vars.duration_per_slide) || 2.5;
+    const FPS = 30;
+    const framesPerSlide = Math.round(dps * FPS);
+    const totalFrames = urls.length * framesPerSlide;
+    const transition = vars.transition_type || 'slide';
+
+    // Set composition duration dynamically
+    document.getElementById('root').dataset.duration = (totalFrames / FPS).toFixed(2);
+
+    // Brand watermark
+    document.getElementById('watermark').textContent = vars.brand_name || '';
+
+    // Caption
+    if (vars.caption && vars.caption.trim()) {
+      document.getElementById('captionBar').style.display = '';
+      document.getElementById('captionText').textContent = vars.caption;
+    }
+
+    // Build slides
+    const track = document.getElementById('track');
+    const dotsEl = document.getElementById('dots');
+
+    urls.forEach((url, i) => {
+      const slide = document.createElement('div');
+      slide.className = 'slide';
+      slide.id = `slide${i}`;
+      if (url && url.trim()) {
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = `Slide ${i + 1}`;
+        slide.appendChild(img);
+      } else {
+        slide.style.background = `hsl(${i * 40}, 60%, 15%)`;
+      }
+      track.appendChild(slide);
+
+      const dot = document.createElement('div');
+      dot.className = 'dot' + (i === 0 ? ' active' : '');
+      dot.id = `dot${i}`;
+      dotsEl.appendChild(dot);
+    });
+
+    const timeline = window.__hyperframes.getTimeline();
+
+    timeline.onFrame(frame => {
+      const t = frame / totalFrames;
+      document.getElementById('progressFill').style.width = (t * 100) + '%';
+
+      const slideIdx = Math.min(Math.floor(frame / framesPerSlide), urls.length - 1);
+      const frameInSlide = frame - slideIdx * framesPerSlide;
+      const tInSlide = frameInSlide / framesPerSlide; // 0..1 within current slide
+
+      // Update dots
+      urls.forEach((_, i) => {
+        document.getElementById(`dot${i}`)?.classList.toggle('active', i === slideIdx);
+      });
+
+      if (transition === 'slide') {
+        // Smooth slide transition — blend between current and next
+        const blendZone = 0.15; // last 15% of slide duration
+        let offset = slideIdx;
+        if (tInSlide > 1 - blendZone && slideIdx < urls.length - 1) {
+          const blend = (tInSlide - (1 - blendZone)) / blendZone;
+          offset = slideIdx + blend;
+        }
+        track.style.transform = `translateX(${-offset * 1080}px)`;
+
+      } else if (transition === 'fade') {
+        // Show only current slide, fade via opacity on the track
+        track.style.transform = `translateX(${-slideIdx * 1080}px)`;
+        const blendZone = 0.2;
+        let opacity = 1;
+        if (tInSlide > 1 - blendZone && slideIdx < urls.length - 1) {
+          opacity = 1 - (tInSlide - (1 - blendZone)) / blendZone;
+        } else if (tInSlide < blendZone && slideIdx > 0) {
+          opacity = tInSlide / blendZone;
+        }
+        track.style.opacity = opacity;
+
+      } else if (transition === 'zoom') {
+        track.style.transform = `translateX(${-slideIdx * 1080}px)`;
+        const slide = document.getElementById(`slide${slideIdx}`);
+        if (slide) {
+          const scale = 1 + tInSlide * 0.06; // subtle 6% zoom
+          slide.style.transform = `scale(${scale})`;
+        }
+      }
+    });
+  </script>
+</body>
+</html>

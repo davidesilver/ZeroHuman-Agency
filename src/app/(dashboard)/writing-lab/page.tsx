@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { KPICard } from '@/components/dashboard/kpi-card'
 import { cn } from '@/lib/utils'
-import { Loader2, Sparkles } from 'lucide-react'
+import { Loader2, Sparkles, Video } from 'lucide-react'
 
-const CONTENT_TYPES = ['Newsletter', 'Social', 'Blog', 'LinkedIn'] as const
+const CONTENT_TYPES = ['Newsletter', 'Social', 'Blog', 'LinkedIn', 'Video Script'] as const
 
 interface Round {
   id: string
@@ -50,6 +50,8 @@ export default function WritingLabPage() {
   const [topic, setTopic] = useState('')
   const [godReview, setGodReview] = useState<GodReview | null>(null)
   const [godLoading, setGodLoading] = useState(false)
+  const [talkingHeadLoading, setTalkingHeadLoading] = useState(false)
+  const [talkingHeadVideoId, setTalkingHeadVideoId] = useState<string | null>(null)
 
   const startSession = useCallback(async () => {
     if (!topic.trim()) return
@@ -126,6 +128,33 @@ export default function WritingLabPage() {
     } catch {}
     setGodLoading(false)
   }, [session, currentRound, contentType])
+
+  const generateTalkingHead = useCallback(async () => {
+    const script = session?.current_champion || currentRound?.champion_text
+    if (!script) return
+    setTalkingHeadLoading(true)
+    try {
+      const avatarsRes = await fetch('/api/video/heygen/avatars')
+      const avatars = avatarsRes.ok ? await avatarsRes.json() : []
+      const avatarId = avatars[0]?.avatar_id ?? ''
+      if (!avatarId) { alert('No Heygen avatars found. Configure your Heygen API key in Settings.'); return }
+      const res = await fetch('/api/video/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          script,
+          avatar_id: avatarId,
+          title: `${session?.topic ?? 'Script'} — Talking Head`,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setTalkingHeadVideoId(data.video_id)
+      }
+    } finally {
+      setTalkingHeadLoading(false)
+    }
+  }, [session, currentRound])
 
   // Fetch latest GOD review on mount
   useEffect(() => {
@@ -345,6 +374,38 @@ export default function WritingLabPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Talking-head CTA — shown when content type is Video Script and champion exists */}
+      {contentType === 'Video Script' && (session?.current_champion || currentRound?.champion_text) && (
+        <Card>
+          <CardContent className="pt-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Generate talking-head video</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Send the champion script to Heygen and render a branded avatar video.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {talkingHeadVideoId && (
+                <a href="/videos" className="text-xs text-muted-foreground hover:underline">
+                  View in Videos →
+                </a>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={generateTalkingHead}
+                disabled={talkingHeadLoading || !!talkingHeadVideoId}
+              >
+                {talkingHeadLoading
+                  ? <Loader2 className="size-4 mr-1 animate-spin" />
+                  : <Video className="size-4 mr-1" />}
+                {talkingHeadVideoId ? 'Queued ✓' : 'Generate talking-head'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Session Stats */}
       <div className="grid grid-cols-3 gap-4">

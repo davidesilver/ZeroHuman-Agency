@@ -21,6 +21,12 @@ from ..services.video_renderer import (
     get_video_status,
     list_videos,
 )
+from ..services.heygen_client import (
+    HeygenError,
+    generate_talking_head,
+    list_avatars,
+    poll_heygen_status,
+)
 from ..db import get_db
 
 _logger = logging.getLogger("content_engine.video")
@@ -85,3 +91,52 @@ async def list_templates(request: Request):
         .execute()
     )
     return result.data or []
+
+
+# ── Heygen talking-head ────────────────────────────────────────────────────
+
+class TalkingHeadRequest(BaseModel):
+    script: str
+    avatar_id: str
+    voice_id: Optional[str] = None
+    title: Optional[str] = None
+
+
+@router.get("/heygen/avatars")
+async def get_heygen_avatars(request: Request):
+    brand_id = _brand_id(request)
+    try:
+        return list_avatars(brand_id)
+    except HeygenError as exc:
+        raise HTTPException(422, str(exc))
+
+
+@router.post("/generate", status_code=202)
+async def generate_video(body: TalkingHeadRequest, request: Request):
+    """Start a Heygen talking-head render (async, returns 202 Accepted)."""
+    brand_id = _brand_id(request)
+    if not body.script.strip():
+        raise HTTPException(400, "script is required")
+    if not body.avatar_id.strip():
+        raise HTTPException(400, "avatar_id is required")
+    try:
+        video_id = generate_talking_head(
+            brand_id,
+            body.script.strip(),
+            body.avatar_id.strip(),
+            voice_id=body.voice_id,
+            title=body.title,
+        )
+    except HeygenError as exc:
+        raise HTTPException(422, str(exc))
+    return {"video_id": video_id, "status": "accepted"}
+
+
+@router.post("/{video_id}/poll-heygen")
+async def poll_heygen(video_id: str, request: Request):
+    """Manually poll Heygen status for a talking-head video."""
+    brand_id = _brand_id(request)
+    try:
+        return poll_heygen_status(brand_id, video_id)
+    except HeygenError as exc:
+        raise HTTPException(404, str(exc))
