@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html
+  data-composition-variables='[
+    {"id":"brand_name",       "type":"string",  "label":"Brand Name",          "default":"Brand"},
+    {"id":"week_start",       "type":"string",  "label":"Week Start (ISO)",     "default":"2025-01-06"},
+    {"id":"total_posts",      "type":"number",  "label":"Total Posts",          "default":0},
+    {"id":"total_reach",      "type":"number",  "label":"Total Reach",          "default":0},
+    {"id":"total_engagement", "type":"number",  "label":"Total Engagement",     "default":0},
+    {"id":"top_post_title",   "type":"string",  "label":"Top Post Title",       "default":""},
+    {"id":"top_post_metric",  "type":"string",  "label":"Top Post Metric",      "default":""},
+    {"id":"accent_color",     "type":"color",   "label":"Accent Color",         "default":"#6366f1"},
+    {"id":"logo_url",         "type":"string",  "label":"Logo URL",             "default":""}
+  ]'
+>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f0f13; font-family: 'Inter', system-ui, sans-serif; color: #fff; }
+
+    #root {
+      width: 1920px;
+      height: 1080px;
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, #0f0f13 0%, #1a1a2e 100%);
+    }
+
+    /* Background grid */
+    .grid-bg {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 80px 80px;
+    }
+
+    /* Accent glow */
+    .glow {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.25;
+    }
+    .glow-1 { width: 600px; height: 600px; top: -150px; left: -100px; }
+    .glow-2 { width: 400px; height: 400px; bottom: -100px; right: 200px; }
+
+    /* Header */
+    .header {
+      position: absolute;
+      top: 80px; left: 120px; right: 120px;
+      display: flex; align-items: center; justify-content: space-between;
+      opacity: 0;
+    }
+    .logo-area { display: flex; align-items: center; gap: 24px; }
+    .logo-img { width: 64px; height: 64px; border-radius: 12px; object-fit: contain; }
+    .brand-name { font-size: 36px; font-weight: 700; letter-spacing: -0.5px; }
+    .week-label {
+      font-size: 24px; font-weight: 400; opacity: 0.5;
+      background: rgba(255,255,255,.07);
+      padding: 10px 20px; border-radius: 100px;
+    }
+
+    /* Hero title */
+    .hero {
+      position: absolute;
+      top: 220px; left: 120px;
+      opacity: 0;
+    }
+    .hero-eyebrow { font-size: 20px; letter-spacing: 4px; text-transform: uppercase; opacity: 0.4; margin-bottom: 16px; }
+    .hero-title { font-size: 96px; font-weight: 800; letter-spacing: -3px; line-height: 1; }
+
+    /* Stats grid */
+    .stats {
+      position: absolute;
+      bottom: 160px; left: 120px; right: 120px;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px;
+    }
+    .stat-card {
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 24px;
+      padding: 48px 48px 44px;
+      opacity: 0;
+      transform: translateY(40px);
+    }
+    .stat-label { font-size: 20px; opacity: 0.45; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 2px; }
+    .stat-value { font-size: 72px; font-weight: 800; letter-spacing: -2px; line-height: 1; }
+    .stat-sub { font-size: 18px; opacity: 0.35; margin-top: 8px; }
+
+    /* Top post banner */
+    .top-post {
+      position: absolute;
+      top: 440px; right: 120px;
+      width: 640px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 24px;
+      padding: 40px;
+      opacity: 0;
+      transform: translateX(40px);
+    }
+    .top-post-eyebrow { font-size: 16px; letter-spacing: 3px; text-transform: uppercase; opacity: 0.4; margin-bottom: 16px; }
+    .top-post-title { font-size: 28px; font-weight: 600; line-height: 1.4; margin-bottom: 16px; }
+    .top-post-metric { font-size: 20px; opacity: 0.5; }
+
+    /* Progress bar */
+    .progress-bar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 4px;
+      background: rgba(255,255,255,.08);
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      transform-origin: left;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"
+    data-composition-id="root"
+    data-width="1920"
+    data-height="1080"
+    data-fps="30"
+    data-duration="10">
+
+    <div class="grid-bg"></div>
+    <div class="glow glow-1" id="glow1"></div>
+    <div class="glow glow-2" id="glow2"></div>
+
+    <div class="header" id="header">
+      <div class="logo-area">
+        <img class="logo-img" id="logoImg" src="" alt="" />
+        <span class="brand-name" id="brandName"></span>
+      </div>
+      <div class="week-label" id="weekLabel"></div>
+    </div>
+
+    <div class="hero" id="hero">
+      <div class="hero-eyebrow">Weekly Recap</div>
+      <div class="hero-title" id="heroTitle">Performance<br>Overview</div>
+    </div>
+
+    <div class="stats" id="stats">
+      <div class="stat-card" id="card0">
+        <div class="stat-label">Posts Published</div>
+        <div class="stat-value" id="statPosts">0</div>
+        <div class="stat-sub">this week</div>
+      </div>
+      <div class="stat-card" id="card1">
+        <div class="stat-label">Total Reach</div>
+        <div class="stat-value" id="statReach">0</div>
+        <div class="stat-sub">unique accounts</div>
+      </div>
+      <div class="stat-card" id="card2">
+        <div class="stat-label">Engagement</div>
+        <div class="stat-value" id="statEngagement">0</div>
+        <div class="stat-sub">interactions</div>
+      </div>
+    </div>
+
+    <div class="top-post" id="topPost">
+      <div class="top-post-eyebrow">Top Performing Post</div>
+      <div class="top-post-title" id="topPostTitle"></div>
+      <div class="top-post-metric" id="topPostMetric"></div>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+  </div>
+
+  <script>
+    const vars = window.__hyperframes.getVariables();
+
+    // Apply brand accent color
+    const accent = vars.accent_color || '#6366f1';
+    document.getElementById('glow1').style.background = accent;
+    document.getElementById('glow2').style.background = accent;
+    document.getElementById('progressFill').style.background = accent;
+
+    // Populate text
+    document.getElementById('brandName').textContent = vars.brand_name || 'Brand';
+    document.getElementById('heroTitle').innerHTML = (vars.brand_name || 'Brand') + '<br>Weekly Recap';
+
+    const weekStart = vars.week_start ? new Date(vars.week_start) : new Date();
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    document.getElementById('weekLabel').textContent = `${fmt(weekStart)} – ${fmt(weekEnd)}`;
+
+    // Logo
+    if (vars.logo_url) {
+      document.getElementById('logoImg').src = vars.logo_url;
+    } else {
+      document.getElementById('logoImg').style.display = 'none';
+    }
+
+    // Stats counters (will animate via timeline)
+    const targetPosts = parseInt(vars.total_posts) || 0;
+    const targetReach = parseInt(vars.total_reach) || 0;
+    const targetEngagement = parseInt(vars.total_engagement) || 0;
+
+    document.getElementById('statPosts').dataset.target = targetPosts;
+    document.getElementById('statReach').dataset.target = targetReach;
+    document.getElementById('statEngagement').dataset.target = targetEngagement;
+
+    // Top post
+    document.getElementById('topPostTitle').textContent = vars.top_post_title || '—';
+    document.getElementById('topPostMetric').textContent = vars.top_post_metric || '';
+
+    // Helper to format large numbers
+    function fmt_num(n) {
+      if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+      if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+      return n.toString();
+    }
+
+    // Animation timeline using CSS transitions + requestAnimationFrame via HyperFrames timeline
+    const timeline = window.__hyperframes.getTimeline();
+    const FPS = 30;
+    const DURATION = 10 * FPS; // 10 seconds at 30fps
+
+    timeline.onFrame(frame => {
+      const t = frame / DURATION;
+
+      // Progress bar
+      document.getElementById('progressFill').style.width = (t * 100) + '%';
+
+      // Header fades in at frame 10
+      if (frame >= 10) {
+        const hT = Math.min((frame - 10) / 20, 1);
+        document.getElementById('header').style.opacity = hT;
+        document.getElementById('header').style.transform = `translateY(${(1 - hT) * -20}px)`;
+      }
+
+      // Hero text at frame 20
+      if (frame >= 20) {
+        const hT = Math.min((frame - 20) / 20, 1);
+        document.getElementById('hero').style.opacity = hT;
+        document.getElementById('hero').style.transform = `translateX(${(1 - hT) * -30}px)`;
+      }
+
+      // Top post at frame 40
+      if (frame >= 40) {
+        const pT = Math.min((frame - 40) / 25, 1);
+        document.getElementById('topPost').style.opacity = pT;
+        document.getElementById('topPost').style.transform = `translateX(${(1 - pT) * 40}px)`;
+      }
+
+      // Stat cards staggered from frame 60
+      [[0, 60], [1, 70], [2, 80]].forEach(([i, startFrame]) => {
+        if (frame >= startFrame) {
+          const cT = Math.min((frame - startFrame) / 20, 1);
+          const card = document.getElementById(`card${i}`);
+          card.style.opacity = cT;
+          card.style.transform = `translateY(${(1 - cT) * 40}px)`;
+        }
+      });
+
+      // Counter animation: starts at frame 80, counts up to target by frame 240
+      if (frame >= 80) {
+        const cT = Math.min((frame - 80) / 160, 1);
+        const eased = cT < 0.5 ? 2 * cT * cT : -1 + (4 - 2 * cT) * cT;
+        document.getElementById('statPosts').textContent = fmt_num(Math.round(targetPosts * eased));
+        document.getElementById('statReach').textContent = fmt_num(Math.round(targetReach * eased));
+        document.getElementById('statEngagement').textContent = fmt_num(Math.round(targetEngagement * eased));
+      }
+    });
+  </script>
+</body>
+</html>

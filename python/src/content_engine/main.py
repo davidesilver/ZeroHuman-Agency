@@ -73,6 +73,10 @@ app.include_router(llm_providers_router)
 from .api.routes_research import router as research_ext_router
 app.include_router(research_ext_router)
 
+# Phase 10: HyperFrames video rendering
+from .api.routes_video import router as video_router
+app.include_router(video_router)
+
 
 @app.on_event("shutdown")
 async def _close_shared_clients() -> None:
