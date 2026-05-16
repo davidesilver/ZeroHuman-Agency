@@ -71,6 +71,63 @@ X-Scheduler-Secret: <your-scheduler-secret>
 | `/api/research/stats` | GET | Supabase |
 | `/api/content/from-url` | POST | Supabase (manual URL insert) |
 
+### Deep research
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/research/deep` | POST | → FastAPI (202 Accepted) |
+| `/api/research/deep` | GET | → FastAPI (list jobs) |
+| `/api/research/deep/:id/status` | GET | → FastAPI |
+| `/api/research/deep/:id/results` | GET | → FastAPI |
+
+### Competitor monitoring
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/research/competitor` | POST | → FastAPI (202 Accepted) |
+| `/api/research/competitor/snapshots` | GET | → FastAPI |
+
+### Video generation
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/video/templates` | GET | → FastAPI |
+| `/api/video/render` | POST | → FastAPI (202 Accepted) |
+| `/api/video/jobs/:id` | GET | → FastAPI |
+| `/api/video/heygen/generate` | POST | → FastAPI |
+| `/api/video/heygen/status/:id` | GET | → FastAPI |
+
+### Email marketing (Brevo)
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/email-marketing/contacts` | POST | → FastAPI |
+| `/api/email-marketing/lists` | GET, POST | → FastAPI |
+| `/api/email-marketing/campaigns` | GET, POST | → FastAPI |
+| `/api/email-marketing/campaigns/:id/send` | POST | → FastAPI |
+| `/api/email-marketing/automations` | GET, POST | → FastAPI |
+
+### LLM providers
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/llm/providers` | GET | → FastAPI |
+| `/api/llm/providers/metrics` | GET | → FastAPI (`?window=24h\|7d\|30d`) |
+
+### Feature flags
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/feature-flags` | GET, POST | → FastAPI |
+
+### Internal / brand secrets
+
+| Route | Method | Source |
+|---|---|---|
+| `/api/internal/brand-secrets` | POST | → FastAPI (set encrypted secret) |
+| `/api/internal/brand-secrets` | GET | → FastAPI (check key existence only) |
+| `/api/internal/brand-secrets` | DELETE | → FastAPI |
+
 ### Content and drafts
 
 | Route | Method | Source |
@@ -245,6 +302,65 @@ Base URL: `PYTHON_BACKEND_URL` (default: `http://localhost:8000`)
 | `/api/scheduler/publish-scheduled` | POST | Scheduler secret |
 | `/api/auth/cache-invalidate` | POST | Scheduler secret |
 
+### Deep research
+
+| Route | Method | Auth |
+|---|---|---|
+| `/research/deep` | POST | JWT |
+| `/research/deep` | GET | JWT |
+| `/research/deep/{id}/status` | GET | JWT |
+| `/research/deep/{id}/results` | GET | JWT |
+
+### Competitor monitoring
+
+| Route | Method | Auth |
+|---|---|---|
+| `/research/competitor` | POST | JWT |
+| `/research/competitor/snapshots` | GET | JWT |
+
+### Email marketing (Brevo)
+
+| Route | Method | Auth |
+|---|---|---|
+| `/email-marketing/contacts` | POST | JWT |
+| `/email-marketing/lists` | GET, POST | JWT |
+| `/email-marketing/campaigns` | GET, POST | JWT |
+| `/email-marketing/campaigns/{id}/send` | POST | JWT |
+| `/email-marketing/automations` | GET, POST | JWT |
+| `/email-marketing/webhook` | POST | Brevo HMAC signature |
+
+### LLM provider hub
+
+| Route | Method | Auth |
+|---|---|---|
+| `/llm/providers` | GET | JWT |
+| `/llm/providers/metrics` | GET | JWT |
+
+### Feature flags
+
+| Route | Method | Auth |
+|---|---|---|
+| `/feature-flags` | GET | JWT |
+| `/feature-flags` | POST | JWT |
+
+### Brand secrets (internal)
+
+| Route | Method | Auth |
+|---|---|---|
+| `/internal/brand-secrets` | POST | JWT |
+| `/internal/brand-secrets` | GET | JWT |
+| `/internal/brand-secrets` | DELETE | JWT |
+
+### Video
+
+| Route | Method | Auth |
+|---|---|---|
+| `/video/templates` | GET | JWT |
+| `/video/render` | POST | JWT |
+| `/video/jobs/{id}` | GET | JWT |
+| `/video/heygen/generate` | POST | JWT |
+| `/video/heygen/status/{id}` | GET | JWT |
+
 ---
 
 ## Example requests
@@ -303,4 +419,49 @@ curl -X POST http://localhost:8000/images/generate \
 ```bash
 curl -X POST http://localhost:8000/api/scheduler/daily-pipeline \
   -H "X-Scheduler-Secret: <scheduler-secret>"
+```
+
+**Start a deep research job:**
+
+```bash
+curl -X POST http://localhost:8000/research/deep \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "AI trends in B2B SaaS 2026", "depth": 3}'
+# → 202 Accepted, {"job_id": "<uuid>"}
+```
+
+**Capture competitor snapshots:**
+
+```bash
+curl -X POST http://localhost:8000/research/competitor \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"urls": ["https://competitor.com/blog", "https://competitor.com/pricing"]}'
+```
+
+**Set a brand secret (Brevo API key):**
+
+```bash
+curl -X POST http://localhost:8000/internal/brand-secrets \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"provider": "brevo", "key_name": "api_key", "value": "xkeysib-..."}'
+```
+
+**Read LLM provider metrics (last 7 days):**
+
+```bash
+curl "http://localhost:8000/llm/providers/metrics?window=7d" \
+  -H "Authorization: Bearer <token>"
+```
+
+**Render a HyperFrames video:**
+
+```bash
+curl -X POST http://localhost:8000/video/render \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"template_id": "<uuid>", "variables": {"headline": "Q2 Recap"}}'
+# → 202 Accepted, {"job_id": "<uuid>"}
 ```

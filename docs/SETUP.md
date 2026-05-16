@@ -26,11 +26,16 @@ This guide gets you from zero to a running local stack. Every section is marked 
 |---|---|
 | Search API (e.g. Serper) | Web research retriever |
 | YouTube Data API | YouTube trend retriever |
-| Resend | Newsletter email delivery |
+| Resend | Transactional newsletter email |
 | Replicate / OpenAI / OpenRouter / Anthropic | Image generation backends |
 | Postiz (self-hosted or cloud) | Social publishing and scheduling |
 | Firecrawl | Premium content extraction (falls back to trafilatura without it) |
 | Telegram bot | Alert channel for pipeline events |
+| Brevo | Email marketing: contacts, campaigns, automations |
+| local-deep-research (Docker) | Multi-source async research jobs (port 5000) |
+| HyperFrames | Motion graphics / video composition CLI |
+| Heygen | AI talking-head video generation (API key via brand secrets) |
+| OpenClaw | Alternative LLM provider for A/B traffic split |
 
 ---
 
@@ -117,12 +122,17 @@ supabase link --project-ref YOUR_PROJECT_REF
 supabase db push
 ```
 
-This applies all 30 migrations in [`supabase/migrations/`](../supabase/migrations/), which creates:
+This applies all 42 migrations in [`supabase/migrations/`](../supabase/migrations/), which creates:
 
 - Tenant tables: `brands`, `users`, `brand_members`
 - Content pipeline: `research_items`, `scores`, `content_drafts`, `newsletters`
 - Agent system: `agent_configs`, `agent_skills`
 - Observability: `api_costs`, `pipeline_health`, `llm_fallback_log`
+- Feature flags and brand secrets: `feature_flags`, `brand_integrations`
+- Email marketing: `brevo_contacts`, `brevo_campaigns`, `email_automations`
+- Research extensions: `deep_research_jobs`, `competitor_snapshots`
+- Video pipeline: `video_templates`, `videos`, `heygen_usage`
+- LLM telemetry: `llm_provider_metrics`
 - Enums, SQL helper functions, RLS policies, and views
 
 If you see an error like `relation does not exist`, make sure you are pushing from a clean database. Run `supabase migration list` to verify all migrations are applied.
@@ -304,8 +314,17 @@ All of these can be added to `.env.local` at any time. The platform degrades gra
 | `SERPER_API_KEY` | [Serper](https://serper.dev) | serper.dev → API Keys | Google Search results for the research pipeline |
 | `YOUTUBE_API_KEY` | [Google Cloud](https://console.cloud.google.com) | Enable YouTube Data API v3 → Credentials | YouTube trend retriever |
 | `FIRECRAWL_API_KEY` | [Firecrawl](https://firecrawl.dev) | firecrawl.dev → Dashboard | Premium web scraping (falls back to `trafilatura` if absent) |
+| `DEEP_RESEARCH_URL` | local-deep-research Docker | `http://localhost:5000` | Async multi-source research sidecar |
 
-### Email / Newsletter
+### Email marketing (Brevo)
+
+Brevo API keys are stored **encrypted per brand** in `brand_integrations` — not as env vars. Set them via **Settings → Audience** in the dashboard. The following env var is only for the webhook secret:
+
+| Key | Purpose |
+|---|---|
+| `BREVO_WEBHOOK_SECRET` | HMAC-SHA256 signature verification for Brevo webhooks |
+
+### Email / Newsletter (Resend)
 
 | Key | Service | Get it at | Purpose |
 |---|---|---|---|
@@ -321,8 +340,30 @@ All of these can be added to `.env.local` at any time. The platform degrades gra
 |---|---|---|
 | `ANTHROPIC_API_KEY` | [Anthropic](https://console.anthropic.com) | Preferred — used for Claude models |
 | `OPENROUTER_API_KEY` | [OpenRouter](https://openrouter.ai) | Fallback; also enables 100+ third-party models |
+| `OPENCLAW_API_URL` | OpenClaw instance | `http://localhost:11434` for local; or remote endpoint |
+| `OPENCLAW_DEFAULT_MODEL` | — | Default model name for OpenClaw provider |
+| `OPENCLAW_TRAFFIC_SPLIT` | — | 0.0–1.0 fraction of calls routed to OpenClaw (default `0.0`) |
 
-At least one must be set. If both are set, Anthropic is tried first and OpenRouter is the automatic fallback. Fallback events are logged in `llm_fallback_log`.
+At least one of Anthropic or OpenRouter must be set. Fallback events are logged in `llm_fallback_log`. LLM telemetry is written to `llm_provider_metrics` regardless of which provider is used.
+
+### Brand secrets encryption
+
+```bash
+# Generate a key (keep this secret — loss means encrypted data is unrecoverable)
+BRAND_SECRETS_ENCRYPTION_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+```
+
+This key encrypts all per-brand API secrets (Brevo, Heygen, HyperFrames, OpenClaw) stored in `brand_integrations`. Must be the same across all backend instances.
+
+### Video (HyperFrames + Heygen)
+
+HyperFrames and Heygen API keys are stored per-brand in `brand_integrations` (encrypted). Set them via **Settings → Integrations** in the dashboard. The following env vars control the video pipeline globally:
+
+| Key | Purpose | Default |
+|---|---|---|
+| `VIDEO_STORAGE_BUCKET` | Supabase Storage bucket for rendered videos | `videos` |
+| `HYPERFRAMES_BIN` | Path to HyperFrames CLI binary | `hyperframes` (must be on PATH) |
+| `HEYGEN_MONTHLY_QUOTA` | Per-brand monthly video generation cap | `10` |
 
 ### Alerts
 
@@ -332,6 +373,47 @@ At least one must be set. If both are set, Anthropic is tried first and OpenRout
 | `TELEGRAM_CHAT_ID` | Send a message to your bot, then get the chat ID from [@userinfobot](https://t.me/userinfobot) |
 
 When both are set, the backend sends alerts for pipeline errors and daily summaries.
+
+---
+
+## 10. Optional: local-deep-research sidecar
+
+Run the research sidecar alongside the backend to enable async multi-source research jobs.
+
+```bash
+# Pull and start
+docker pull ghcr.io/LearningCircuit/local-deep-research:latest
+docker run -d -p 5000:5000 --name ldr ghcr.io/LearningCircuit/local-deep-research:latest
+
+# Add to .env.local
+DEEP_RESEARCH_URL=http://localhost:5000
+```
+
+Then enable the feature flag for each brand:
+
+```sql
+INSERT INTO feature_flags (brand_id, key, value)
+VALUES ('<brand-id>', 'deep_research_enabled', true);
+```
+
+---
+
+## 11. Optional: Agency agents
+
+Install community agent collections from the bundled submodule:
+
+```bash
+# Install default categories (marketing, paid-media, design, sales, product)
+bash scripts/install-agents.sh
+
+# Install specific categories
+bash scripts/install-agents.sh --categories marketing,sales
+
+# Install all available categories
+bash scripts/install-agents.sh --all
+```
+
+Agents are installed to `agents/`. See [`docs/AGENTS.md`](AGENTS.md) for the full catalogue and usage notes.
 
 ---
 
@@ -346,3 +428,9 @@ When both are set, the backend sends alerts for pipeline errors and daily summar
 | CORS errors in browser | `ALLOWED_ORIGINS` missing the frontend URL | Add `http://localhost:3000` to `ALLOWED_ORIGINS` |
 | `type "vector" does not exist` | pgvector not in search_path | This is fixed in migration 001; ensure you are on the latest code before pushing |
 | Backend cannot connect to Supabase | Missing URL or keys in Python env | The Python backend reads from `../.env.local` relative to `python/`; verify the path |
+| `Feature not enabled for this brand` | Feature flag is OFF | Insert the flag via SQL or the feature-flags API endpoint |
+| Deep research jobs stay `pending` | local-deep-research sidecar not running | Start the Docker container and verify `DEEP_RESEARCH_URL` |
+| Brevo sync fails with `401` | Brevo API key not set or wrong | Set it via **Settings → Audience** → save API key |
+| `BRAND_SECRETS_ENCRYPTION_KEY not configured` | Missing env var | Generate the key and add to `.env.local` (see section 9) |
+| Video jobs stay `pending` | HyperFrames CLI not on PATH | Install HyperFrames and verify `hyperframes --version` works |
+| `Scrapling not installed, using httpx fallback` | scrapling optional dep missing | `cd python && uv sync` (scrapling is in pyproject.toml) |
