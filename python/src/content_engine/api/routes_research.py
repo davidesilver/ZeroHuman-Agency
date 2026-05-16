@@ -20,6 +20,7 @@ from pydantic import BaseModel
 
 from ..retrievers.deep_research import (
     DeepResearchError,
+    generate_ideas,
     get_results,
     get_status,
     start_job,
@@ -102,6 +103,25 @@ async def get_deep_research_results(job_id: str, request: Request):
     if data["status"] != "completed":
         raise HTTPException(409, f"Job is not completed yet (status: {data['status']})")
     return data
+
+
+class GenerateIdeasRequest(BaseModel):
+    n: int = 5
+
+
+@router.post("/deep/{job_id}/generate-ideas")
+async def generate_ideas_from_job(
+    job_id: str, request: Request, body: GenerateIdeasRequest = GenerateIdeasRequest()
+):
+    """Extract n content ideas from a completed deep research job and insert them as research_items."""
+    brand_id = _brand_id(request)
+    if not 1 <= body.n <= 20:
+        raise HTTPException(400, "n must be between 1 and 20")
+    try:
+        items = generate_ideas(job_id, brand_id, n=body.n)
+    except DeepResearchError as exc:
+        raise HTTPException(409, str(exc))
+    return {"created": len(items), "items": items}
 
 
 # ── Competitor monitoring ─────────────────────────────────────────────────

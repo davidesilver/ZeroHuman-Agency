@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, Search, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
+import { Loader2, Search, ChevronDown, ChevronUp, ExternalLink, Sparkles } from 'lucide-react'
 
 interface Job {
   id: string
@@ -33,6 +33,8 @@ export default function DeepResearchPage() {
   const [submitting, setSubmitting] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [results, setResults] = useState<Record<string, any>>({})
+  const [generatingIdeas, setGeneratingIdeas] = useState<Record<string, boolean>>({})
+  const [ideaResults, setIdeaResults] = useState<Record<string, { created: number; items: any[] }>>({})
 
   const loadJobs = useCallback(async () => {
     const res = await fetch('/api/research/deep')
@@ -72,6 +74,23 @@ export default function DeepResearchPage() {
       setResults(r => ({ ...r, [jobId]: data }))
     }
     setExpandedId(jobId)
+  }
+
+  async function generateIdeas(jobId: string) {
+    setGeneratingIdeas(g => ({ ...g, [jobId]: true }))
+    try {
+      const res = await fetch(`/api/research/deep/${jobId}/generate-ideas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ n: 5 }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setIdeaResults(r => ({ ...r, [jobId]: data }))
+      }
+    } finally {
+      setGeneratingIdeas(g => ({ ...g, [jobId]: false }))
+    }
   }
 
   return (
@@ -164,7 +183,7 @@ export default function DeepResearchPage() {
                 )}
               </div>
               {expandedId === job.id && results[job.id] && (
-                <div className="border-t bg-muted/30 p-4">
+                <div className="border-t bg-muted/30 p-4 space-y-4">
                   <div className="prose prose-sm max-w-none">
                     <pre className="whitespace-pre-wrap text-xs leading-relaxed max-h-96 overflow-y-auto">
                       {typeof results[job.id].result === 'string'
@@ -173,7 +192,7 @@ export default function DeepResearchPage() {
                     </pre>
                   </div>
                   {results[job.id].sources?.length > 0 && (
-                    <div className="mt-3 space-y-1">
+                    <div className="space-y-1">
                       <p className="text-xs font-medium text-muted-foreground">Sources ({results[job.id].sources.length})</p>
                       {results[job.id].sources.slice(0, 10).map((s: any, i: number) => (
                         <div key={i} className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -185,6 +204,35 @@ export default function DeepResearchPage() {
                       ))}
                     </div>
                   )}
+                  {/* Generate ideas handoff */}
+                  <div className="pt-2 border-t">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => generateIdeas(job.id)}
+                      disabled={generatingIdeas[job.id]}
+                    >
+                      {generatingIdeas[job.id]
+                        ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                        : <Sparkles className="h-3 w-3 mr-1" />}
+                      Generate content ideas
+                    </Button>
+                    {ideaResults[job.id] && (
+                      <div className="mt-3 space-y-2">
+                        <p className="text-xs text-muted-foreground">
+                          {ideaResults[job.id].created} ideas added to Research pipeline
+                        </p>
+                        {ideaResults[job.id].items.map((item: any, i: number) => (
+                          <div key={i} className="rounded border bg-background p-2">
+                            <p className="text-xs font-medium">{item.title}</p>
+                            {item.summary && (
+                              <p className="text-xs text-muted-foreground mt-0.5">{item.summary}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </Card>
