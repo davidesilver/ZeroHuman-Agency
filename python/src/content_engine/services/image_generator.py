@@ -62,11 +62,12 @@ async def create_image_job(
     """
     db = get_db()
 
-    # Validate draft exists (fail fast)
+    # Validate draft exists AND belongs to caller's brand (prevent cross-tenant IDOR)
     draft = (
         db.table("content_drafts")
         .select("id")
         .eq("id", draft_id)
+        .eq("brand_id", brand_id)
         .single()
         .execute()
         .data
@@ -115,17 +116,17 @@ async def create_image_job(
     return {"id": gen_id, "status": "pending"}
 
 
-async def get_image_job(gen_id: str) -> dict:
-    """Poll endpoint: return current status of a generation job."""
+async def get_image_job(gen_id: str, brand_id: str | None = None) -> dict:
+    """Poll endpoint: return current status of a generation job.
+
+    When ``brand_id`` is provided, the job must belong to that brand
+    (prevents cross-tenant IDOR via guessed job UUIDs).
+    """
     db = get_db()
-    row = (
-        db.table("image_generations")
-        .select("*")
-        .eq("id", gen_id)
-        .single()
-        .execute()
-        .data
-    )
+    query = db.table("image_generations").select("*").eq("id", gen_id)
+    if brand_id is not None:
+        query = query.eq("brand_id", brand_id)
+    row = query.single().execute().data
     if not row:
         raise ValueError(f"Job {gen_id} not found")
     return {

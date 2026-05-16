@@ -102,16 +102,31 @@ async def _scrape_url(url: str) -> tuple[str, str | None]:
 
 
 def _is_safe_url(url: str) -> bool:
+    """Validate URL against SSRF (private/loopback/link-local/reserved IPs).
+
+    Resolves the hostname and checks every returned address. Hard-blocks
+    cloud metadata hosts. Note: DNS rebinding between this check and the
+    actual fetch is still possible; for stronger guarantees use a pinned-IP
+    transport, but trafilatura.fetch_url does not expose a resolver hook.
+    """
+    from ..utils.url_safety import UnsafeURLError, assert_safe_public_url
+
     try:
         parsed = urlparse(url)
-        if parsed.scheme not in ("https", "http"):
+        host = (parsed.hostname or "").lower()
+        # Hard-block cloud metadata (some may not be in is_link_local checks)
+        metadata_hosts = {
+            "metadata.google.internal",
+            "metadata",
+            "169.254.169.254",
+            "fd00:ec2::254",
+        }
+        if host in metadata_hosts:
             return False
-        hostname = parsed.hostname or ""
-        # Block localhost and common private ranges by hostname pattern
-        blocked = ("localhost", "127.", "192.168.", "10.", "172.16.", "::1")
-        if any(hostname.startswith(b) for b in blocked):
-            return False
+        assert_safe_public_url(url, allow_http=True)
         return True
+    except UnsafeURLError:
+        return False
     except Exception:
         return False
 
