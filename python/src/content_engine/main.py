@@ -69,6 +69,10 @@ app.include_router(internal_router)
 from .api.routes_llm_providers import router as llm_providers_router
 app.include_router(llm_providers_router)
 
+# Phases 7+9: Deep research + competitor monitoring
+from .api.routes_research import router as research_ext_router
+app.include_router(research_ext_router)
+
 
 @app.on_event("shutdown")
 async def _close_shared_clients() -> None:

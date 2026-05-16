@@ -15,6 +15,7 @@ dependencies = [
     "pydantic-settings>=2.13.1",
     "resend>=2.0.0",
     "cryptography>=43.0.0",
+    "scrapling>=0.2.0",
     "supabase>=2.28.3",
     "uvicorn>=0.44.0",
     "pypdf>=4.0.0",
