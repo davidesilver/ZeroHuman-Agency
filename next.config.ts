@@ -39,6 +39,11 @@ const nextConfig: NextConfig = {
   // P10 audit: shave bytes + drop the X-Powered-By: Next.js fingerprint.
   compress: true,
   poweredByHeader: false,
+  // Silence Turbopack workspace-root warning when running from a git worktree
+  // that shares a parent with the main checkout (both have package-lock.json).
+  turbopack: {
+    root: __dirname,
+  },
   async headers() {
     return [
       {

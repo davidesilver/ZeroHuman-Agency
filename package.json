@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently --names \"next,api\" --prefix-colors \"cyan,yellow\" \"next dev\" \"npm run dev:api\"",
+    "dev:next": "next dev",
+    "dev:api": "cd python && uv run uvicorn src.content_engine.main:app --reload --port 8000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -29,6 +31,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "tailwindcss": "^4",
