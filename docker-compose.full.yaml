@@ -1,0 +1,129 @@
+version: "3.8"
+# ZeroHuman-Agency — Full Stack Docker Compose
+#
+# Quick start:
+#   1. Run ./setup.sh to generate .env.local
+#   2. docker compose -f docker-compose.full.yaml up -d
+#   3. Open http://localhost:3000
+#
+# Optional profiles:
+#   social — Postiz self-hosted stack (LinkedIn, X, Instagram, etc.)
+#     docker compose -f docker-compose.full.yaml --profile social up -d
+
+services:
+
+  # ── Python Backend ─────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./python
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    environment:
+      # Override backend URL for intra-container comms (frontend → backend)
+      ALLOWED_ORIGINS: "http://localhost:3000,http://frontend:3000"
+      DEBUG: "false"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    networks: [app]
+
+  # ── Next.js Frontend ───────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    environment:
+      PYTHON_BACKEND_URL: "http://backend:8000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    networks: [app]
+
+  # ── Postiz Social Publishing Stack (optional profile: social) ───────────────
+  postiz-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    profiles: [social]
+    networks: [postiz]
+
+  postiz-temporal:
+    image: temporalio/auto-setup:1.25
+    restart: unless-stopped
+    profiles: [social]
+    environment:
+      DB: postgresql
+      POSTGRES_USER: ${SUPABASE_DB_USER:-postgres}
+      POSTGRES_PWD: ${SUPABASE_DB_PASSWORD:-}
+      POSTGRES_SEEDS: ${SUPABASE_DB_HOST:-db.supabase.co}
+      DB_PORT: ${SUPABASE_DB_PORT:-5432}
+      POSTGRES_DB: ${SUPABASE_DB_NAME:-postgres}
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sql.yaml
+      TEMPORAL_BROADCAST_ADDRESS: postiz-temporal
+    networks: [postiz]
+
+  postiz-temporal-ui:
+    image: temporalio/ui:2.34.0
+    restart: unless-stopped
+    profiles: [social]
+    environment:
+      TEMPORAL_HOST: postiz-temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:4200
+    ports:
+      - "8233:8080"
+    networks: [postiz]
+    depends_on: [postiz-temporal]
+
+  postiz-app:
+    image: ghcr.io/gitroomhq/postiz-app:latest
+    restart: unless-stopped
+    profiles: [social]
+    env_file:
+      - ./postiz/.env.postiz
+    environment:
+      DATABASE_URL: "${POSTIZ_DATABASE_URL:-postgresql://postgres:@db.supabase.co:5432/postgres?schema=postiz}"
+      REDIS_URL: "redis://postiz-redis:6379"
+      FRONTEND_URL: "http://localhost:4200"
+      NEXT_PUBLIC_BACKEND_URL: "http://localhost:3001"
+      BACKEND_INTERNAL_URL: "http://localhost:3000"
+      STORAGE_PROVIDER: local
+      UPLOAD_DIRECTORY: /uploads
+      NEXT_PUBLIC_UPLOAD_STATIC_DIRECTORY: /uploads
+      DISABLE_REGISTRATION: "true"
+      API_LIMIT: "300"
+    volumes:
+      - postiz-uploads:/uploads
+    ports:
+      - "4200:4200"
+      - "3001:3000"
+    networks: [postiz, app]
+    depends_on: [postiz-redis, postiz-temporal]
+
+volumes:
+  postiz-uploads:
+
+networks:
+  app:
+    driver: bridge
+  postiz:
+    driver: bridge

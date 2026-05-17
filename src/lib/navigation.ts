@@ -13,6 +13,7 @@ import {
   Building,
   Settings,
   Brain,
+  Rocket,
 } from 'lucide-react'
 
 export const navigationItems = [
@@ -33,4 +34,5 @@ export const navigationItems = [
   { label: 'API Costs', href: '/costi-api', icon: DollarSign },
   { label: 'Brands', href: '/brands', icon: Building },
   { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Setup Wizard', href: '/setup', icon: Rocket },
 ] as const

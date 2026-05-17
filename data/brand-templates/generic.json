@@ -1,0 +1,29 @@
+{
+  "id": "generic",
+  "name": "Generic Starter",
+  "description": "A neutral starting point for any brand — customize everything",
+  "emoji": "✨",
+  "tone_rules": [
+    { "statement": "Write clearly and authentically — sound like a real person, not a press release", "confidence": 0.8 },
+    { "statement": "Be consistent: pick a voice (formal/casual, expert/peer) and stick to it", "confidence": 0.8 },
+    { "statement": "Prioritize substance over style — something interesting said plainly beats something boring said elegantly", "confidence": 0.8 }
+  ],
+  "principles": [
+    { "statement": "Every piece of content should answer: what does the reader gain from this?", "confidence": 0.85 },
+    { "statement": "Be generous with your expertise — educate before you sell", "confidence": 0.85 },
+    { "statement": "Consistency of posting matters more than perfection of each post", "confidence": 0.8 }
+  ],
+  "gold_examples": [
+    { "statement": "Here's something we learned the hard way — and how you can avoid it.", "confidence": 0.8 }
+  ],
+  "discard_examples": [
+    { "statement": "We are excited to announce our revolutionary new product that will change the industry forever!", "confidence": 0.9 }
+  ],
+  "suggested_topics": ["industry trends", "best practices", "case studies", "behind the scenes", "how-to guides"],
+  "suggested_scoring_weights": {
+    "applicability": 0.30,
+    "credibility": 0.30,
+    "alignment": 0.25,
+    "trend_prediction": 0.15
+  }
+}

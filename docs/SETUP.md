@@ -60,7 +60,7 @@ brew install supabase/tap/supabase
 # Link to your project
 supabase link --project-ref YOUR_PROJECT_REF
 
-# Apply all migrations (001-030)
+# Apply all migrations (001-033)
 supabase db push
 ```
 
@@ -117,7 +117,7 @@ supabase link --project-ref YOUR_PROJECT_REF
 supabase db push
 ```
 
-This applies all 30 migrations in [`supabase/migrations/`](../supabase/migrations/), which creates:
+This applies all 33 migrations in [`supabase/migrations/`](../supabase/migrations/), which creates:
 
 - Tenant tables: `brands`, `users`, `brand_members`
 - Content pipeline: `research_items`, `scores`, `content_drafts`, `newsletters`
@@ -267,7 +267,74 @@ For full details see [`docs/POSTIZ_SATELLITE.md`](POSTIZ_SATELLITE.md).
 
 ---
 
-## 8. Optional: Image generation
+## 8. Optional: Per-brand credential vault
+
+The credential vault lets each brand use its own API keys for research (Serper, Tavily), publishing (Postiz), and content enrichment (Firecrawl) without sharing a single global key.
+
+Credentials are Fernet-encrypted before being stored in the database. Migration 033 creates the `brand_service_credentials` table and its RLS policies.
+
+**1. Generate a Fernet encryption key:**
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Add the output to `.env.local`:
+
+```bash
+BRAND_SECRETS_ENCRYPTION_KEY=<output-from-command-above>
+```
+
+**2. Ensure migration 033 is applied** (it runs automatically with `supabase db push`).
+
+**3. Store credentials via the API:**
+
+```bash
+# Set brand-specific Serper key
+curl -X PUT http://localhost:8082/api/brands/credentials/serper \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"credentials": {"api_key": "sk-serper-xxxx"}}'
+
+# Supported services: serper · tavily · firecrawl · postiz · x_twitter · youtube · telegram
+```
+
+Vault credentials take priority over global `.env.local` values for the matching brand.
+
+---
+
+## 9. Optional: PrintingPress CLI binaries (token savings)
+
+[PrintingPress](https://printingpress.dev) generates thin Go CLI wrappers around external APIs. When a CLI binary is present, the research pipeline and enrichment services use it instead of making raw API calls, reducing context-window usage by ~35× per tool call.
+
+**Install the CLIs you need:**
+
+```bash
+# Core research tools
+go install github.com/printingpress/serper@latest
+go install github.com/printingpress/tavily@latest
+go install github.com/printingpress/youtube@latest
+
+# Content enrichment
+go install github.com/printingpress/firecrawl@latest
+
+# Social
+go install github.com/printingpress/x-twitter@latest
+```
+
+Binaries land in `~/go/bin/`. The backend auto-detects them at startup; no configuration required. Each retriever falls back to direct HTTP if the binary is absent.
+
+**Override the binary path per service** (useful for pinning a version):
+
+```bash
+PP_SERPER_BIN=/usr/local/bin/serper-v2
+PP_TAVILY_BIN=/opt/bin/tavily
+# PP_YOUTUBE_BIN, PP_FIRECRAWL_BIN, PP_X_TWITTER_BIN, PP_POSTIZ_BIN
+```
+
+---
+
+## 10. Optional: Image generation
 
 Set in `.env.local`:
 
@@ -293,7 +360,7 @@ Per-brand overrides are set in **Settings → Brand Context → Image Generation
 
 ---
 
-## 9. Optional: Other API integrations
+## 11. Optional: Other API integrations
 
 All of these can be added to `.env.local` at any time. The platform degrades gracefully when they are absent.
 

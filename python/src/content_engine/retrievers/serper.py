@@ -1,16 +1,33 @@
-"""Serper-based retrievers: Semantic, Keyword, Practitioner."""
+"""Serper-based retrievers: Semantic, Keyword, Practitioner.
+
+CLI path (PrintingPress serper):
+    Install:  npm install -g @printingpress/serper  (or per printingpress.dev docs)
+    Binary:   serper  (or override via PP_SERPER_BIN env var)
+    Command:  serper search "<query>" --num 10 --type news --time w --lang en
+    Output:   JSON array of result objects with fields: title, link/url, snippet/description, source
+    Cache:    SQLite local — identical queries within the cache window skip network round-trip.
+"""
 
 from __future__ import annotations
 
+import logging
+import os
 from datetime import datetime, timezone
+from typing import Any
 
 import httpx
 
 from ..config import settings
 from ..models import ResearchItemCreate, RetrieverType, SourceType
+from ..utils.cli_runner import CLINotFoundError, run_cli
 from .base import BaseRetriever
 
+logger = logging.getLogger(__name__)
+
 SERPER_URL = "https://google.serper.dev/search"
+
+_CLI_BINARY_ENV = "PP_SERPER_BIN"
+_CLI_BINARY_DEFAULT = "serper"
 
 
 async def _serper_search(
@@ -23,7 +40,22 @@ async def _serper_search(
 ) -> list[dict]:
     if not settings.serper_api_key:
         return []
-    payload = {
+
+    binary = os.environ.get(_CLI_BINARY_ENV, _CLI_BINARY_DEFAULT)
+    args = ["search", query, "--num", str(num), "--time", time_period, "--lang", language]
+    if search_type == "news":
+        args += ["--type", "news"]
+
+    try:
+        raw = await run_cli(binary, args, env_extra={"SERPER_API_KEY": settings.serper_api_key})
+        return _normalize_serper_results(raw)
+    except CLINotFoundError:
+        logger.debug("Serper CLI not found — using API directly")
+    except Exception as exc:
+        logger.warning("Serper CLI failed (%s) — using API", exc)
+
+    # Fallback: direct Serper API
+    payload: dict[str, Any] = {
         "q": query,
         "num": num,
         "tbs": f"qdr:{time_period}",
@@ -39,8 +71,27 @@ async def _serper_search(
         )
         resp.raise_for_status()
         data = resp.json()
-    results = data.get("organic", []) or data.get("news", [])
-    return results
+    return data.get("organic", []) or data.get("news", [])
+
+
+def _normalize_serper_results(raw: Any) -> list[dict]:
+    """Normalize CLI output to the same shape as the Serper API response."""
+    if isinstance(raw, dict):
+        raw = raw.get("organic", []) or raw.get("news", []) or raw.get("results", [])
+    if not isinstance(raw, list):
+        return []
+    normalized: list[dict] = []
+    for r in raw:
+        if not isinstance(r, dict):
+            continue
+        # CLI may use different field names — normalize to API shape
+        normalized.append({
+            "title": r.get("title", ""),
+            "link": r.get("link") or r.get("url", ""),
+            "snippet": r.get("snippet") or r.get("description", ""),
+            "source": r.get("source") or r.get("domain", ""),
+        })
+    return normalized
 
 
 class SemanticRetriever(BaseRetriever):

@@ -1,0 +1,33 @@
+{
+  "id": "tech-saas",
+  "name": "Tech / SaaS",
+  "description": "Software products, developer tools, B2B platforms",
+  "emoji": "💻",
+  "tone_rules": [
+    { "statement": "Write clearly and directly — no marketing fluff or vague promises", "confidence": 0.9 },
+    { "statement": "Use active voice and concrete numbers whenever possible", "confidence": 0.9 },
+    { "statement": "Explain complex concepts with simple analogies, not jargon", "confidence": 0.85 },
+    { "statement": "Be confident but not arrogant — let results speak", "confidence": 0.85 }
+  ],
+  "principles": [
+    { "statement": "Lead with the customer's problem, not the product's features", "confidence": 0.9 },
+    { "statement": "Show don't tell: use case studies, metrics, and real examples", "confidence": 0.9 },
+    { "statement": "Respect the reader's time — get to the point in the first sentence", "confidence": 0.85 },
+    { "statement": "Build trust through transparency: share failures and lessons learned", "confidence": 0.8 }
+  ],
+  "gold_examples": [
+    { "statement": "We cut our deployment time from 4 hours to 8 minutes. Here's exactly how.", "confidence": 0.9 },
+    { "statement": "Most security tools protect you from hackers. Ours protects you from your own team's mistakes.", "confidence": 0.85 }
+  ],
+  "discard_examples": [
+    { "statement": "Our revolutionary AI-powered solution leverages cutting-edge synergies to transform your workflow paradigm.", "confidence": 0.95 },
+    { "statement": "We're passionate about delivering world-class enterprise solutions that scale!", "confidence": 0.9 }
+  ],
+  "suggested_topics": ["developer productivity", "SaaS metrics", "product-led growth", "engineering culture", "API design"],
+  "suggested_scoring_weights": {
+    "credibility": 0.35,
+    "applicability": 0.30,
+    "alignment": 0.25,
+    "trend_prediction": 0.10
+  }
+}
