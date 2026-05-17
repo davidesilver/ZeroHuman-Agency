@@ -290,7 +290,7 @@ export default function NewsletterEditPage() {
       {/* Actions */}
       <div className="flex items-center gap-2">
         {draft.status === 'draft' && (
-          <Button onClick={handleApprove} size="sm" className="gap-1.5 bg-green-600 hover:bg-green-700 text-white">
+          <Button onClick={handleApprove} size="sm" className="gap-1.5 bg-[var(--status-success)] hover:bg-[var(--status-success)]/90 text-[var(--canvas)]">
             <Send className="size-3.5" /> Approve for sending
           </Button>
         )}

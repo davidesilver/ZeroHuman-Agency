@@ -48,23 +48,23 @@ const IDENTITY_KINDS: IdentityKind[] = ['tone_rule', 'principle', 'gold_example'
 const KIND_META: Record<IdentityKind, { label: string; headerClass: string; badgeClass: string }> = {
   tone_rule: {
     label: 'Tone Rules',
-    headerClass: 'bg-indigo-50 border-indigo-100',
-    badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    headerClass: 'bg-[var(--surface-2)] border-hairline',
+    badgeClass: 'bg-[var(--surface-3)] text-ink-muted border-hairline',
   },
   principle: {
     label: 'Principles',
-    headerClass: 'bg-green-50 border-green-100',
-    badgeClass: 'bg-green-50 text-green-700 border-green-200',
+    headerClass: 'bg-[var(--status-success)]/5 border-[var(--status-success)]/20',
+    badgeClass: 'status-success-soft border-[var(--status-success)]/30',
   },
   gold_example: {
     label: 'Gold Examples',
-    headerClass: 'bg-emerald-50 border-emerald-100',
-    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    headerClass: 'bg-[var(--brand-primary)]/5 border-[var(--brand-primary)]/20',
+    badgeClass: 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border-[var(--brand-primary)]/30',
   },
   discard_example: {
     label: 'Discard Examples',
-    headerClass: 'bg-red-50 border-red-100',
-    badgeClass: 'bg-red-50 text-red-700 border-red-200',
+    headerClass: 'bg-[var(--status-error)]/5 border-[var(--status-error)]/20',
+    badgeClass: 'status-error-soft border-[var(--status-error)]/30',
   },
 }
 
@@ -509,7 +509,7 @@ function RssFeedsCard({ brandId }: { brandId: string }) {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Rss className="size-4 text-orange-600" />
+            <Rss className="size-4 text-[var(--brand-primary)]" />
             RSS Feed Sources
           </CardTitle>
           <Badge variant="secondary" className="text-[10px]">{feeds.length}</Badge>
@@ -534,7 +534,7 @@ function RssFeedsCard({ brandId }: { brandId: string }) {
                     key={feed.url}
                     className="flex items-center gap-2 py-2 border-b border-border last:border-0 group"
                   >
-                    <Rss className="size-3.5 text-orange-500 shrink-0" />
+                    <Rss className="size-3.5 text-[var(--brand-primary)] shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{feed.name}</p>
                       <p className="text-[11px] text-muted-foreground truncate">{feed.url}</p>
@@ -734,7 +734,7 @@ export default function BrandContextPage() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Sparkles className="size-4 text-violet-600" />
+                    <Sparkles className="size-4 text-[var(--brand-primary)]" />
                     AI Context Ingest
                   </CardTitle>
                   <span className="text-[11px] text-muted-foreground">

@@ -100,7 +100,7 @@ export default function BrandAssetsPage() {
 
       <AssetUploadCard brandId={activeBrand.id} onUploaded={refresh} />
 
-      {loading && <p className="text-sm text-gray-500">Loading…</p>}
+      {loading && <p className="text-sm text-ink-subtle">Loading…</p>}
       {loadError && (
         <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-md px-3 py-2">
           {loadError}
@@ -109,7 +109,7 @@ export default function BrandAssetsPage() {
 
       {Object.entries(grouped).map(([kind, list]) => (
         <section key={kind} className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-600">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-subtle">
             {kind.replace(/_/g,' ')}
           </h2>
           <div className="grid grid-cols-3 gap-3">
@@ -117,19 +117,19 @@ export default function BrandAssetsPage() {
               <div key={a.id} className="border rounded p-3 space-y-2">
                 {a.mime_type.startsWith('image/') && signedUrls[a.id]
                   ? <img src={signedUrls[a.id]} alt={a.label ?? a.kind}
-                         className="w-full h-32 object-contain bg-gray-50 rounded"/>
-                  : <div className="w-full h-32 bg-gray-50 rounded flex items-center justify-center text-gray-400">
+                         className="w-full h-32 object-contain bg-[var(--surface-1)] rounded"/>
+                  : <div className="w-full h-32 bg-[var(--surface-1)] rounded flex items-center justify-center text-ink-tertiary">
                       {a.mime_type === 'application/pdf' ? <FileText size={32}/> : <ImgIcon size={32}/>}
                     </div>}
                 <div className="text-xs">
                   <div className="font-medium truncate">{a.label || '—'}</div>
-                  <div className="text-gray-500">{(a.bytes/1024).toFixed(0)} KB {a.width_px ? `· ${a.width_px}×${a.height_px}` : ''}</div>
+                  <div className="text-ink-subtle">{(a.bytes/1024).toFixed(0)} KB {a.width_px ? `· ${a.width_px}×${a.height_px}` : ''}</div>
                 </div>
                 {a.kind === 'palette' && (
                   <PaletteEditor brandId={activeBrand.id} assetId={a.id} initial={a.palette_hex ?? []}/>
                 )}
                 <button onClick={() => remove(a.id)}
-                        className="text-xs text-red-600 inline-flex items-center gap-1">
+                        className="text-xs text-[var(--status-error)] inline-flex items-center gap-1">
                   <Trash2 size={12}/> Delete
                 </button>
               </div>

@@ -25,7 +25,7 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const LEGEND = [
   { label: 'Newsletter', color: 'bg-staging-bg', type: 'newsletter' },
   { label: 'Social', color: 'bg-brand-primary', type: 'post' },
-  { label: 'Blog/Video', color: 'bg-purple-500', type: 'blog' },
+  { label: 'Blog/Video', color: 'bg-[var(--surface-4)]', type: 'blog' },
   { label: 'Sponsorship', color: 'bg-brand-accent', type: 'sponsorship' },
 ]
 
@@ -54,8 +54,8 @@ function getEventColor(type: string): string {
     post: 'bg-brand-primary',
     linkedin: 'bg-brand-primary',
     social: 'bg-brand-primary',
-    blog: 'bg-purple-500',
-    video: 'bg-purple-500',
+    blog: 'bg-[var(--surface-4)]',
+    video: 'bg-[var(--surface-4)]',
     sponsorship: 'bg-brand-accent',
   }
   return map[type] || 'bg-brand-primary'

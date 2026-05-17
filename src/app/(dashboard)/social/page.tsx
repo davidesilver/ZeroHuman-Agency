@@ -18,14 +18,14 @@ interface SocialPost {
 
 function platformColor(platform: string): string {
   const map: Record<string, string> = {
-    linkedin: 'bg-blue-600 text-white',
-    x: 'bg-gray-900 text-white',
-    twitter: 'bg-gray-900 text-white',
-    instagram: 'bg-pink-600 text-white',
-    facebook: 'bg-indigo-600 text-white',
-    tiktok: 'bg-purple-600 text-white',
+    linkedin: 'bg-[var(--status-info)] text-white',
+    x: 'bg-[var(--surface-4)] text-ink',
+    twitter: 'bg-[var(--surface-4)] text-ink',
+    instagram: 'bg-[var(--brand-primary)] text-[var(--canvas)]',
+    facebook: 'bg-[var(--status-info)] text-white',
+    tiktok: 'bg-[var(--surface-3)] text-ink',
   }
-  return map[platform] || 'bg-gray-500 text-white'
+  return map[platform] || 'bg-[var(--surface-2)] text-ink-muted'
 }
 
 export default function SocialPage() {

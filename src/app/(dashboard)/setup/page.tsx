@@ -310,21 +310,21 @@ function StepLlm({
       )}
 
       {!loading && !hasLlm && (
-        <div className="flex gap-2 p-3 rounded-md bg-amber-50 border border-amber-200 text-sm text-amber-800">
+        <div className="flex gap-2 p-3 rounded-md status-warning-soft border border-[var(--status-warning)]/30 text-sm">
           <AlertCircle className="size-4 shrink-0 mt-0.5" />
           <div>
             <p className="font-medium">No LLM configured</p>
             <p className="text-xs mt-0.5">
-              Add <code className="font-mono bg-amber-100 px-1 rounded">ANTHROPIC_API_KEY</code> or{' '}
-              <code className="font-mono bg-amber-100 px-1 rounded">OPENROUTER_API_KEY</code> to your{' '}
-              <code className="font-mono bg-amber-100 px-1 rounded">.env.local</code> and restart the server.
+              Add <code className="font-mono bg-[var(--surface-2)] px-1 rounded">ANTHROPIC_API_KEY</code> or{' '}
+              <code className="font-mono bg-[var(--surface-2)] px-1 rounded">OPENROUTER_API_KEY</code> to your{' '}
+              <code className="font-mono bg-[var(--surface-2)] px-1 rounded">.env.local</code> and restart the server.
             </p>
           </div>
         </div>
       )}
 
       {!loading && hasLlm && (
-        <div className="flex gap-2 p-3 rounded-md bg-green-50 border border-green-200 text-sm text-green-800">
+        <div className="flex gap-2 p-3 rounded-md status-success-soft border border-[var(--status-success)]/30 text-sm">
           <Check className="size-4 shrink-0 mt-0.5" />
           <span>LLM provider is configured and ready.</span>
         </div>
@@ -348,7 +348,7 @@ function ProviderRow({ label, active }: { label: string; active: boolean }) {
     <div className="flex items-center justify-between p-3 rounded-md border">
       <span className="text-sm font-medium">{label}</span>
       {active ? (
-        <Badge className="bg-green-100 text-green-700 border-0 text-xs">Configured</Badge>
+        <Badge className="status-success-soft border-0 text-xs">Configured</Badge>
       ) : (
         <Badge variant="outline" className="text-muted-foreground text-xs">Not set</Badge>
       )}
@@ -503,9 +503,9 @@ function StepVoice({
 // ── Step 4: Research ───────────────────────────────────────────────────────────
 
 const TIER_META = {
-  premium: { label: 'Premium', badge: 'bg-purple-100 text-purple-700', desc: 'Serper + YouTube + RSS. Highest quality and volume.' },
-  tavily:  { label: 'Tavily',  badge: 'bg-blue-100 text-blue-700',   desc: 'Tavily Search + RSS. 1,000 searches/month free.' },
-  free:    { label: 'Free',    badge: 'bg-amber-100 text-amber-700', desc: 'DuckDuckGo + RSS. Zero cost, works out of the box.' },
+  premium: { label: 'Premium', badge: 'bg-[var(--brand-primary)]/15 text-[var(--brand-primary)]', desc: 'Serper + YouTube + RSS. Highest quality and volume.' },
+  tavily:  { label: 'Tavily',  badge: 'status-info-soft',   desc: 'Tavily Search + RSS. 1,000 searches/month free.' },
+  free:    { label: 'Free',    badge: 'status-warning-soft', desc: 'DuckDuckGo + RSS. Zero cost, works out of the box.' },
 }
 
 function StepResearch({
@@ -599,7 +599,7 @@ function StepDone({
         {items.map(({ label, done, detail }) => (
           <div key={label} className="flex items-start gap-3 p-3 rounded-md border">
             {done ? (
-              <CheckCircle2 className="size-4 text-green-600 mt-0.5 shrink-0" />
+              <CheckCircle2 className="size-4 text-[var(--status-success)] mt-0.5 shrink-0" />
             ) : (
               <Circle className="size-4 text-muted-foreground mt-0.5 shrink-0" />
             )}
