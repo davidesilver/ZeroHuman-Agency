@@ -44,6 +44,12 @@ from ..services.postiz_publisher import publish_now as publish_to_postiz, schedu
 from ..services.feedback_loop import record_social_metrics, update_feedback_bonus
 from ..services.postiz_analytics import pull_daily_metrics, run_daily_analytics_cycle
 from ..services.scheduler import daily_research_pipeline, publish_scheduled_posts
+from ..services.credential_vault import (
+    get_credentials,
+    set_credentials,
+    delete_credentials,
+    list_configured_services,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -1340,6 +1346,67 @@ async def api_memory_upload_source(request: Request):
             "candidates": candidates,
             "count": len(candidates),
         },
+    }
+
+
+# ── Credential Vault ──────────────────────────────────────────────────────────
+
+_ALLOWED_SERVICES = {
+    "postiz", "serper", "tavily", "youtube", "firecrawl",
+    "x", "resend", "openrouter", "brevo",
+}
+
+
+class CredentialPayload(BaseModel):
+    credentials: dict
+
+
+@router.get("/brands/credentials")
+async def api_list_credentials(request: Request):
+    """List service names with credentials configured for the authenticated brand."""
+    brand_id = _get_brand_id(request)
+    services = await list_configured_services(brand_id)
+    return {"brand_id": brand_id, "configured_services": services}
+
+
+@router.put("/brands/credentials/{service_name}")
+async def api_set_credentials(service_name: str, payload: CredentialPayload, request: Request):
+    """Store (or update) encrypted credentials for a service.
+
+    The credential dict format per service:
+        postiz:    {"api_key": "...", "base_url": "http://..."}
+        serper:    {"api_key": "..."}
+        tavily:    {"api_key": "..."}
+        youtube:   {"api_key": "..."}
+        firecrawl: {"api_key": "..."}
+        x:         {"bearer_token": "..."}
+        resend:    {"api_key": "..."}
+        openrouter: {"api_key": "..."}
+    """
+    if service_name not in _ALLOWED_SERVICES:
+        raise HTTPException(400, f"Unknown service '{service_name}'. Allowed: {sorted(_ALLOWED_SERVICES)}")
+    brand_id = _get_brand_id(request)
+    await set_credentials(brand_id, service_name, payload.credentials)
+    return {"ok": True, "service": service_name}
+
+
+@router.delete("/brands/credentials/{service_name}")
+async def api_delete_credentials(service_name: str, request: Request):
+    """Delete credentials for a service from the vault."""
+    brand_id = _get_brand_id(request)
+    await delete_credentials(brand_id, service_name)
+    return {"ok": True, "service": service_name}
+
+
+@router.get("/brands/credentials/{service_name}/status")
+async def api_credential_status(service_name: str, request: Request):
+    """Check whether credentials exist for a service (does NOT return the values)."""
+    brand_id = _get_brand_id(request)
+    creds = await get_credentials(brand_id, service_name)
+    return {
+        "service": service_name,
+        "configured": creds is not None,
+        "fields": list(creds.keys()) if creds else [],
     }
 
 
