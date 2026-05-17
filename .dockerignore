@@ -1,0 +1,14 @@
+.git
+.next
+node_modules
+.env.local
+.env*.local
+*.md
+plans/
+docs/
+.claude/
+python/
+postiz/
+docker-compose*.yaml
+Dockerfile*
+setup.sh

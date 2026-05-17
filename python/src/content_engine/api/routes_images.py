@@ -52,10 +52,10 @@ async def carousel(body: CarouselBody, request: Request):
 
 @router.get("/jobs/{job_id}")
 async def get_job(job_id: str, request: Request):
-    """Poll endpoint for async image generation jobs."""
-    _get_brand_id(request)  # ensure authenticated
+    """Poll endpoint for async image generation jobs (brand-scoped)."""
+    brand_id = _get_brand_id(request)
     try:
-        return await get_image_job(job_id)
+        return await get_image_job(job_id, brand_id=brand_id)
     except ValueError as e:
         raise HTTPException(404, str(e))
 

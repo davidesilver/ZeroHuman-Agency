@@ -1,0 +1,33 @@
+{
+  "id": "food-restaurant",
+  "name": "Food & Restaurant",
+  "description": "Restaurants, food brands, culinary creators, food delivery",
+  "emoji": "🍽️",
+  "tone_rules": [
+    { "statement": "Write with warmth and sensory richness — make people taste the words", "confidence": 0.9 },
+    { "statement": "Use evocative, specific language: not 'good pasta' but 'handmade tagliatelle with 48-hour ragù'", "confidence": 0.9 },
+    { "statement": "Balance passion with approachability — speak like a knowledgeable friend, not a Michelin critic", "confidence": 0.85 },
+    { "statement": "Be authentic about provenance and process — people want the story behind the dish", "confidence": 0.85 }
+  ],
+  "principles": [
+    { "statement": "Every post should make the reader hungry or curious — or both", "confidence": 0.9 },
+    { "statement": "Share the craft: recipes, techniques, supplier stories, kitchen moments", "confidence": 0.9 },
+    { "statement": "Celebrate the people behind the food — chefs, farmers, producers", "confidence": 0.85 },
+    { "statement": "Seasonality and locality are values, not just trends — reflect them consistently", "confidence": 0.8 }
+  ],
+  "gold_examples": [
+    { "statement": "This carbonara has three ingredients and zero cream. The creaminess comes from patience and technique.", "confidence": 0.9 },
+    { "statement": "Our tomatoes travel 12 kilometers from farm to plate. That's not a marketing claim — it's our sourcing policy.", "confidence": 0.85 }
+  ],
+  "discard_examples": [
+    { "statement": "Come in and enjoy our wide selection of delicious food items at competitive prices!", "confidence": 0.95 },
+    { "statement": "We are passionate about providing an unforgettable dining experience for the whole family.", "confidence": 0.9 }
+  ],
+  "suggested_topics": ["seasonal ingredients", "cooking techniques", "food provenance", "restaurant culture", "Italian cuisine"],
+  "suggested_scoring_weights": {
+    "applicability": 0.35,
+    "alignment": 0.30,
+    "credibility": 0.20,
+    "trend_prediction": 0.15
+  }
+}

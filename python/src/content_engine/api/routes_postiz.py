@@ -32,16 +32,46 @@ async def postiz_health():
 
 # ── Integrations ─────────────────────────────────────────────────────────────
 
+def _owned_postiz_integration_ids(brand_id: str) -> set[str]:
+    """Return the set of Postiz integration IDs registered to this brand."""
+    db = get_db()
+    rows = (
+        db.table("brand_social_integrations")
+        .select("postiz_integration_id")
+        .eq("brand_id", brand_id)
+        .execute()
+        .data
+        or []
+    )
+    return {
+        r["postiz_integration_id"]
+        for r in rows
+        if r.get("postiz_integration_id")
+    }
+
+
 @router.get("/integrations")
 async def list_integrations(request: Request):
-    """Proxy to Postiz integrations list. Useful for discovering available channels."""
-    _get_brand_id(request)  # auth guard
+    """List Postiz integrations owned by the caller's brand.
+
+    Filters the shared Postiz response down to integration IDs registered
+    in ``brand_social_integrations`` for this brand — otherwise this endpoint
+    leaks every tenant's integration list.
+    """
+    brand_id = _get_brand_id(request)
     try:
         client = PostizClient()
         data = await client.list_integrations()
-        return {"success": True, "data": data}
     except Exception as e:
         raise HTTPException(502, f"Postiz error: {e}")
+
+    owned = _owned_postiz_integration_ids(brand_id)
+    items = data if isinstance(data, list) else (data or {}).get("integrations") or []
+    filtered = [
+        i for i in items
+        if isinstance(i, dict) and str(i.get("id") or "") in owned
+    ]
+    return {"success": True, "data": filtered}
 
 
 # ── Analytics ────────────────────────────────────────────────────────────────
@@ -53,6 +83,8 @@ async def get_analytics(
     days: int = 7,
 ):
     brand_id = _get_brand_id(request)
+    if integration_id not in _owned_postiz_integration_ids(brand_id):
+        raise HTTPException(404, "integration not found")
     try:
         client = PostizClient()
         data = await client.get_platform_analytics(integration_id, days=days)

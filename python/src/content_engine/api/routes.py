@@ -14,13 +14,19 @@ _SCHEDULER_SECRET = os.environ.get("SCHEDULER_SECRET", "")
 
 
 async def _require_scheduler_secret(request: Request) -> None:
-    """C-06: Guard scheduler endpoints with a shared secret."""
+    """C-06: Guard scheduler endpoints with a shared secret. Fail closed."""
     if not _SCHEDULER_SECRET:
-        # Allow in local dev if env var is not set (but log a warning)
-        _logger.warning("SCHEDULER_SECRET not set — scheduler endpoints are unprotected!")
-        return
+        _logger.error(
+            "SCHEDULER_SECRET not set — refusing to run scheduler endpoint",
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Scheduler is not configured (SCHEDULER_SECRET unset)",
+        )
     provided = request.headers.get("X-Scheduler-Secret", "")
-    if not provided or provided != _SCHEDULER_SECRET:
+    # Constant-time comparison to avoid trivial timing leak on the secret.
+    import hmac as _hmac
+    if not provided or not _hmac.compare_digest(provided, _SCHEDULER_SECRET):
         raise HTTPException(403, "Invalid or missing scheduler secret")
 
 from pydantic import BaseModel
@@ -742,7 +748,23 @@ class MetricsRequest(BaseModel):
 
 
 @router.post("/analytics/metrics")
-async def api_record_metrics(req: MetricsRequest):
+async def api_record_metrics(req: MetricsRequest, request: Request):
+    brand_id = _get_brand_id(request)
+    # Confirm the draft belongs to this brand before recording metrics, otherwise
+    # any authenticated user could overwrite another tenant's metrics row
+    # (the feedback loop trains its scoring engine on those numbers).
+    db = get_db()
+    draft = (
+        db.table("content_drafts")
+        .select("id")
+        .eq("id", req.draft_id)
+        .eq("brand_id", brand_id)
+        .single()
+        .execute()
+        .data
+    )
+    if not draft:
+        raise HTTPException(404, "draft not found")
     result = await record_social_metrics(
         req.draft_id, req.platform,
         impressions=req.impressions, clicks=req.clicks,
@@ -1167,6 +1189,7 @@ async def api_memory_discover(payload: MemoryDiscoverRequest, request: Request):
 
     from ..memory.consolidation.extractor import extract_facts_from_text
     from ..memory.consolidation.verifier import verify
+    from ..utils.url_safety import UnsafeURLError, assert_safe_public_url
 
     # Resolve brand_id: JWT default, or body override validated against membership
     jwt_brand_id = _get_brand_id(request)
@@ -1179,14 +1202,16 @@ async def api_memory_discover(payload: MemoryDiscoverRequest, request: Request):
         brand_id = jwt_brand_id
 
     url = payload.url.strip()
-    if not url.startswith(("http://", "https://")):
-        raise HTTPException(400, "url must start with http:// or https://")
+    try:
+        assert_safe_public_url(url, allow_http=True)
+    except UnsafeURLError as exc:
+        raise HTTPException(400, f"unsafe url: {exc}")
 
-    # Fetch the URL
+    # Fetch the URL (no redirects: each hop would need re-validation)
     try:
         async with httpx.AsyncClient(
             timeout=15.0,
-            follow_redirects=True,
+            follow_redirects=False,
             headers={"User-Agent": "Mozilla/5.0"},
         ) as client:
             resp = await client.get(url)
