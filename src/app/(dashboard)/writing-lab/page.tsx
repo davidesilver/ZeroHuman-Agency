@@ -160,7 +160,7 @@ export default function WritingLabPage() {
     },
     {
       name: 'Creative',
-      color: 'bg-purple-500',
+      color: 'bg-[var(--surface-4)]',
       feedback: godReview?.creative_feedback,
       extra: godReview?.creative_suggestions?.length
         ? `${godReview.creative_suggestions.length} suggestions`
@@ -312,8 +312,8 @@ export default function WritingLabPage() {
                 variant={godReview.final_verdict === 'pass' ? 'default' : 'outline'}
                 className={cn(
                   'text-[10px]',
-                  godReview.final_verdict === 'pass' && 'bg-green-600',
-                  godReview.final_verdict === 'reject' && 'bg-red-600 text-white'
+                  godReview.final_verdict === 'pass' && 'bg-[var(--status-success)] text-[var(--canvas)]',
+                  godReview.final_verdict === 'reject' && 'bg-[var(--status-error)] text-white'
                 )}
               >
                 {godReview.final_verdict.toUpperCase()}

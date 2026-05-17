@@ -105,16 +105,16 @@ function StatusBadge({ configured, label }: { configured: boolean | null; label?
     return <Badge variant="outline" className="text-[10px] text-muted-foreground">Loading…</Badge>
   }
   if (configured) {
-    return <Badge className="text-[10px] bg-green-600 hover:bg-green-600">{label || 'Configured'}</Badge>
+    return <Badge className="text-[10px] bg-[var(--status-success)] hover:bg-[var(--status-success)] text-[var(--canvas)]">{label || 'Configured'}</Badge>
   }
-  return <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-600/40">Not set</Badge>
+  return <Badge variant="outline" className="text-[10px] text-[var(--status-warning)] border-[var(--status-warning)]/40">Not set</Badge>
 }
 
 function PostizModeBadge({ mode }: { mode: string }) {
   const map: Record<string, { label: string; cls: string }> = {
     disabled:    { label: 'Disabled',    cls: 'text-muted-foreground border-muted-foreground/40' },
-    self_hosted: { label: 'Self-hosted', cls: 'bg-blue-600 text-white border-blue-600' },
-    cloud:       { label: 'Cloud',       cls: 'bg-indigo-600 text-white border-indigo-600' },
+    self_hosted: { label: 'Self-hosted', cls: 'bg-[var(--brand-primary)] text-[var(--canvas)] border-[var(--brand-primary)]' },
+    cloud:       { label: 'Cloud',       cls: 'bg-[var(--surface-3)] text-ink border-hairline' },
   }
   const m = map[mode] ?? map.disabled
   return <Badge variant="outline" className={`text-[10px] ${m.cls}`}>{m.label}</Badge>
@@ -148,7 +148,7 @@ function MonoValue({ value, fallback = '…', placeholder }: {
   placeholder?: string
 }) {
   if (value == null || value === '') {
-    if (placeholder) return <span className="text-sm text-amber-600">{placeholder}</span>
+    if (placeholder) return <span className="text-sm text-[var(--status-warning)]">{placeholder}</span>
     return <span className="animate-pulse text-sm text-muted-foreground">{fallback}</span>
   }
   return <span className="text-sm font-mono text-muted-foreground">{value}</span>
@@ -197,10 +197,10 @@ function HealthOverview({ cfg }: { cfg: SystemConfig | null }) {
 
   const tile = (ok: boolean, label: string, sub: string) => (
     <div className={`rounded-md border px-3 py-2 ${
-      ok ? 'border-green-600/30 bg-green-600/5' : 'border-amber-600/30 bg-amber-600/5'
+      ok ? 'border-[var(--status-success)]/30 bg-[var(--status-success)]/5' : 'border-[var(--status-warning)]/30 bg-[var(--status-warning)]/5'
     }`}>
       <div className="flex items-center gap-1.5">
-        <span className={`size-1.5 rounded-full ${ok ? 'bg-green-600' : 'bg-amber-500'}`} />
+        <span className={`size-1.5 rounded-full ${ok ? 'bg-[var(--status-success)]' : 'bg-[var(--status-warning)]'}`} />
         <span className="text-xs font-medium">{label}</span>
       </div>
       <div className="text-[11px] text-muted-foreground mt-0.5">{sub}</div>
@@ -239,12 +239,12 @@ function HealthOverview({ cfg }: { cfg: SystemConfig | null }) {
 
 function ProviderDot({ provider }: { provider: string }) {
   const map: Record<string, string> = {
-    anthropic:  'bg-orange-500',
-    openai:     'bg-emerald-500',
-    openrouter: 'bg-violet-500',
-    google:     'bg-sky-500',
+    anthropic:  'bg-[var(--brand-primary)]',
+    openai:     'bg-[var(--status-success)]',
+    openrouter: 'bg-[var(--status-info)]',
+    google:     'bg-[var(--status-info)]',
   }
-  const cls = map[provider] ?? 'bg-muted-foreground'
+  const cls = map[provider] ?? 'bg-ink-tertiary'
   return <span className={`size-1.5 rounded-full ${cls} shrink-0`} title={provider} />
 }
 
@@ -254,8 +254,8 @@ function ModelChip({ model, kind = 'fallback' }: { model: ModelRef; kind?: 'prim
     <span
       className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-mono ${
         isPrimary
-          ? 'bg-green-600/10 text-green-700 dark:text-green-400 border border-green-600/30'
-          : 'bg-secondary text-muted-foreground border border-border'
+          ? 'bg-[var(--status-success)]/10 text-[var(--status-success)] border border-[var(--status-success)]/30'
+          : 'bg-[var(--surface-2)] text-ink-muted border border-hairline'
       }`}
       title={`${model.provider} · ${model.cost_tier}`}
     >
@@ -289,7 +289,7 @@ function LLMRoutingMatrix({ routing }: { routing: LLMRouting | null }) {
           <CardTitle className="text-sm flex items-center gap-2">
             <Brain className="size-4 text-muted-foreground" />
             Agent Model Routing
-            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-600/40">
+            <Badge variant="outline" className="text-[10px] text-[var(--status-warning)] border-[var(--status-warning)]/40">
               Backend offline
             </Badge>
           </CardTitle>
@@ -632,10 +632,10 @@ export default function SettingsPage() {
             {cfg && (
               <div className={`mb-3 px-3 py-2 rounded-md text-xs flex items-center gap-2 ${
                 cfg.research_tier === 'premium'
-                  ? 'bg-green-50 border border-green-200 text-green-800'
+                  ? 'status-success-soft border border-[var(--status-success)]/30'
                   : cfg.research_tier === 'tavily'
-                    ? 'bg-blue-50 border border-blue-200 text-blue-800'
-                    : 'bg-amber-50 border border-amber-200 text-amber-800'
+                    ? 'status-info-soft border border-[var(--status-info)]/30'
+                    : 'status-warning-soft border border-[var(--status-warning)]/30'
               }`}>
                 <span className="font-medium">
                   {cfg.research_tier === 'premium' && '✓ Premium tier active — Serper (Google Search)'}
@@ -656,7 +656,7 @@ export default function SettingsPage() {
               <StatusBadge configured={cfg?.api_keys.tavily ?? null} />
             </Row>
             <Row label="DuckDuckGo" hint="always active — no API key needed">
-              <Badge className="text-[10px] bg-green-600 hover:bg-green-600">Active</Badge>
+              <Badge className="text-[10px] bg-[var(--status-success)] hover:bg-[var(--status-success)] text-[var(--canvas)]">Active</Badge>
             </Row>
             <Row label="YouTube Data API v3" envKey="YOUTUBE_API_KEY" hint="trend retriever">
               <StatusBadge configured={cfg?.api_keys.youtube ?? null} />

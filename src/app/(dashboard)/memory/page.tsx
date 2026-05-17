@@ -77,19 +77,19 @@ interface EpisodicEvent {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TIER_COLORS: Record<MemoryTier, string> = {
-  core: 'bg-purple-100 text-purple-800 border-purple-200',
-  persistent: 'bg-blue-100 text-blue-800 border-blue-200',
-  standard: 'bg-gray-100 text-gray-700 border-gray-200',
-  transient: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  core: 'bg-[var(--brand-primary)]/15 text-[var(--brand-primary)] border-[var(--brand-primary)]/30',
+  persistent: 'status-info-soft border-[var(--status-info)]/30',
+  standard: 'bg-[var(--surface-2)] text-ink-muted border-hairline',
+  transient: 'status-warning-soft border-[var(--status-warning)]/30',
 }
 
 const KIND_COLORS: Record<MemoryKind, string> = {
-  tone_rule: 'bg-indigo-50 text-indigo-700',
-  principle: 'bg-green-50 text-green-700',
-  gold_example: 'bg-emerald-50 text-emerald-700',
-  discard_example: 'bg-red-50 text-red-700',
-  brand_fact: 'bg-sky-50 text-sky-700',
-  audience_insight: 'bg-orange-50 text-orange-700',
+  tone_rule: 'bg-[var(--surface-3)] text-ink-muted',
+  principle: 'status-success-soft',
+  gold_example: 'status-success-soft',
+  discard_example: 'status-error-soft',
+  brand_fact: 'status-info-soft',
+  audience_insight: 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]',
 }
 
 const TIER_OPTIONS: MemoryTier[] = ['core', 'persistent', 'standard', 'transient']
@@ -296,7 +296,7 @@ function FactRow({
             </span>
           )}
           {isExpiringSoon && (
-            <span className="text-[10px] text-amber-600 flex items-center gap-0.5">
+            <span className="text-[10px] text-[var(--status-warning)] flex items-center gap-0.5">
               <AlertTriangle className="size-3" /> expiring
             </span>
           )}

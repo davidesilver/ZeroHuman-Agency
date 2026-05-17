@@ -149,7 +149,7 @@ export default function ImageGenerationSettingsPage() {
         <textarea value={template} onChange={e => setTemplate(e.target.value)}
                   placeholder="{brand} editorial image: {subject}. Style: {style}. {palette}"
                   rows={3} className="mt-1 block w-full border rounded px-2 py-1 font-mono text-xs"/>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-ink-subtle">
           Placeholders: {'{brand}'} {'{subject}'} {'{style}'} {'{palette}'}
         </span>
       </label>
@@ -166,7 +166,7 @@ export default function ImageGenerationSettingsPage() {
       </div>
 
       {testUrl && <img src={testUrl} alt="Test" className="mt-4 max-w-sm border rounded"/>}
-      {testErr && <p className="text-sm text-red-600">{testErr}</p>}
+      {testErr && <p className="text-sm text-[var(--status-error)]">{testErr}</p>}
 
       {stats && (
         <div className="border rounded p-4 space-y-3 mt-6">
@@ -190,9 +190,9 @@ export default function ImageGenerationSettingsPage() {
                 {stats.recent_jobs.map((job) => (
                   <div key={job.id} className="flex items-center gap-2 text-xs border-b last:border-0 pb-1">
                     <span className={`inline-block w-2 h-2 rounded-full ${
-                      job.status === 'succeeded' ? 'bg-green-500' :
-                      job.status === 'failed' ? 'bg-red-500' :
-                      job.status === 'running' ? 'bg-amber-500' : 'bg-gray-400'
+                      job.status === 'succeeded' ? 'bg-[var(--status-success)]' :
+                      job.status === 'failed' ? 'bg-[var(--status-error)]' :
+                      job.status === 'running' ? 'bg-[var(--status-warning)]' : 'bg-ink-tertiary'
                     }`} />
                     <span className="font-mono text-[10px] text-muted-foreground">{job.id.slice(0,8)}</span>
                     <span className="capitalize">{job.status}</span>

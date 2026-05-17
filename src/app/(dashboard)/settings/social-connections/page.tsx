@@ -60,7 +60,7 @@ function PlatformCard({
 
   return (
     <div className={`rounded-lg border p-4 space-y-3 ${
-      isConnected ? 'border-green-200 bg-green-50/30' : 'border-border'
+      isConnected ? 'border-[var(--status-success)]/30 bg-[var(--status-success)]/5' : 'border-hairline'
     }`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -68,7 +68,7 @@ function PlatformCard({
           <span className="font-medium text-sm">{plat.label}</span>
         </div>
         {isConnected && (
-          <span className="text-[10px] font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+          <span className="status-success-soft text-[10px] font-medium px-2 py-0.5 rounded-full">
             Connected
           </span>
         )}
@@ -115,7 +115,7 @@ function PlatformCard({
         {existing && (
           <button
             onClick={() => onRemove(plat.key)}
-            className="px-2 py-1.5 rounded border text-xs inline-flex items-center gap-1 text-red-600 hover:bg-red-50"
+            className="px-2 py-1.5 rounded border border-hairline text-xs inline-flex items-center gap-1 text-[var(--status-error)] hover:bg-[var(--status-error)]/10"
           >
             <Trash2 size={12}/>
           </button>
@@ -182,7 +182,7 @@ export default function SocialConnectionsPage() {
     <div className="p-6 space-y-6 max-w-3xl">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold">Social Connections</h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-ink-subtle">
           Connect social platforms via Postiz. OAuth is handled by Postiz — you only
           need to paste the integration IDs here.
         </p>
@@ -191,9 +191,9 @@ export default function SocialConnectionsPage() {
       {/* Health Status */}
       {health && (
         <div className={`flex items-center gap-2 text-sm rounded-lg border px-3 py-2 ${
-          health.status === 'ok' ? 'bg-green-50 border-green-200 text-green-700' :
-          health.status === 'disabled' ? 'bg-gray-50 border-gray-200 text-gray-600' :
-          'bg-red-50 border-red-200 text-red-700'
+          health.status === 'ok' ? 'status-success-soft border-[var(--status-success)]/30' :
+          health.status === 'disabled' ? 'bg-[var(--surface-1)] border-hairline text-ink-subtle' :
+          'status-error-soft border-[var(--status-error)]/30'
         }`}>
           {health.status === 'ok' ? <Globe size={16}/> :
            health.status === 'disabled' ? <Server size={16}/> : <AlertCircle size={16}/>}
@@ -208,7 +208,7 @@ export default function SocialConnectionsPage() {
       )}
 
       {health?.status === 'disabled' && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+        <div className="rounded-lg border border-[var(--status-warning)]/30 status-warning-soft p-4 text-sm">
           <p className="font-medium">Social publishing is disabled</p>
           <p className="mt-1">
             Set <code className="bg-white px-1 rounded">POSTIZ_MODE=self_hosted</code> or{' '}

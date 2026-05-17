@@ -200,7 +200,7 @@ export default function NewsletterPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-2 text-xs text-green-600"
+                        className="h-7 px-2 text-xs text-[var(--status-success)]"
                         onClick={() => handleApprove(nl.id)}
                         title="Approve"
                       >
