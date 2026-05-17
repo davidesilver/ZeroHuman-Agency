@@ -160,6 +160,13 @@ else
   MISSING_TOOLS+=("Python 3.11+ (https://python.org)")
 fi
 
+if command -v uv &>/dev/null; then
+  ok "uv found"
+else
+  warn "uv not found — required for manual setup (install: pip install uv or brew install uv)"
+  MISSING_TOOLS+=("uv (https://docs.astral.sh/uv/)")
+fi
+
 if command -v supabase &>/dev/null; then
   ok "Supabase CLI found"
   HAS_SUPABASE_CLI=true
@@ -304,6 +311,7 @@ if [[ -f ".env.local" ]]; then
 fi
 
 SCHEDULER_SECRET=$(openssl rand -hex 32 2>/dev/null || python3 -c "import secrets; print(secrets.token_hex(32))")
+BRAND_SECRETS_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null || echo "")
 
 if [[ "$USE_DOCKER" == "true" ]]; then
   BACKEND_URL="http://backend:8000"
@@ -354,10 +362,14 @@ POSTIZ_API_KEY=${POSTIZ_KEY}
 
 # ── Scheduler ──────────────────────────────────────────────────
 SCHEDULER_BRAND_ID=
+
+# ── Brand Secrets Encryption ──────────────────────────────────
+BRAND_SECRETS_ENCRYPTION_KEY=${BRAND_SECRETS_KEY}
 EOF
 
 ok ".env.local generated"
 ok "SCHEDULER_SECRET auto-generated"
+[[ -n "$BRAND_SECRETS_KEY" ]] && ok "BRAND_SECRETS_ENCRYPTION_KEY auto-generated (Fernet)" || warn "cryptography not installed — generate BRAND_SECRETS_ENCRYPTION_KEY manually later"
 
 # ── Step 7: Migrations ────────────────────────────────────────────────────────
 step "Step 7/7 — Applying database migrations"

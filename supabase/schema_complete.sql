@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Content Engine - Complete Database Schema
 -- ============================================================================
--- This file contains the complete database schema from migrations 001-030
+-- This file contains the complete database schema from migrations 001-033
 -- Use this for a fresh database setup or reference
 -- ============================================================================
 
@@ -566,6 +566,73 @@ CREATE POLICY "Users can update their own brands" ON public.brands
 
 -- Similar policies for other tables would go here
 -- (Full implementation depends on specific business logic)
+
+-- ============================================================================
+-- MIGRATION 031: RESEARCH RETRIEVER ENUM EXPANSION
+-- ============================================================================
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_enum
+    WHERE enumlabel = 'duckduckgo'
+      AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'retriever_type')
+  ) THEN
+    ALTER TYPE public.retriever_type ADD VALUE 'duckduckgo';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_enum
+    WHERE enumlabel = 'tavily'
+      AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'retriever_type')
+  ) THEN
+    ALTER TYPE public.retriever_type ADD VALUE 'tavily';
+  END IF;
+END
+$$;
+
+-- ============================================================================
+-- MIGRATION 032: BRAND DISCOVERY URLS
+-- ============================================================================
+
+ALTER TABLE public.brands
+  ADD COLUMN IF NOT EXISTS discovery_urls text[] DEFAULT '{}';
+
+-- ============================================================================
+-- MIGRATION 033: BRAND SERVICE CREDENTIALS
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.brand_service_credentials (
+  id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  brand_id        uuid        NOT NULL REFERENCES public.brands(id) ON DELETE CASCADE,
+  service_name    text        NOT NULL,
+  encrypted_creds text        NOT NULL,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (brand_id, service_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bsc_brand
+  ON public.brand_service_credentials (brand_id);
+
+ALTER TABLE public.brand_service_credentials ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY bsc_select ON public.brand_service_credentials
+  FOR SELECT USING (public.user_has_brand(brand_id));
+CREATE POLICY bsc_insert ON public.brand_service_credentials
+  FOR INSERT WITH CHECK (public.user_has_brand(brand_id));
+CREATE POLICY bsc_update ON public.brand_service_credentials
+  FOR UPDATE USING (public.user_has_brand(brand_id))
+             WITH CHECK (public.user_has_brand(brand_id));
+CREATE POLICY bsc_delete ON public.brand_service_credentials
+  FOR DELETE USING (public.user_has_brand(brand_id));
+
+CREATE OR REPLACE FUNCTION public.touch_bsc_updated_at()
+RETURNS trigger AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_bsc_touch
+  BEFORE UPDATE ON public.brand_service_credentials
+  FOR EACH ROW EXECUTE FUNCTION public.touch_bsc_updated_at();
 
 -- ============================================================================
 -- END OF SCHEMA
