@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import logging
+import os
 from typing import Sequence
 from urllib.parse import urlparse
 
@@ -20,6 +21,7 @@ import httpx
 
 from ..config import settings
 from ..db import get_db
+from ..utils.cli_runner import CLINotFoundError, run_cli
 
 logger = logging.getLogger("content_engine.enrichment")
 
@@ -56,6 +58,40 @@ def _is_safe_url(url: str) -> bool:
     except Exception:
         return False
 
+_BLOCKED_HOSTNAMES = {"localhost", "ip6-localhost", "ip6-loopback"}
+
+
+def _validate_url_for_fetch(url: str) -> None:
+    """Strict URL validation: HTTPS only, no private IPs or reserved hostnames.
+
+    Raises ValueError for any URL that fails validation so callers can catch it.
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception as e:
+        raise ValueError(f"Invalid URL: {url}") from e
+
+    if parsed.scheme != "https":
+        raise ValueError(f"Only HTTPS URLs are allowed, got scheme: {parsed.scheme!r}")
+
+    hostname = (parsed.hostname or "").lower()
+    if not hostname:
+        raise ValueError("URL has no hostname")
+
+    if hostname in _BLOCKED_HOSTNAMES:
+        raise ValueError(f"Hostname {hostname!r} is not allowed")
+
+    try:
+        addr = ipaddress.ip_address(hostname)
+        for network in _PRIVATE_NETWORKS:
+            if addr in network:
+                raise ValueError(f"URL {url!r} resolves to private/reserved IP: {addr}")
+    except ValueError as exc:
+        if "private" in str(exc) or "reserved" in str(exc):
+            raise
+        # hostname is not a numeric IP — OK
+
+
 # Max summary length to store (avoid bloating DB)
 MAX_SUMMARY_LENGTH = 3000
 
@@ -88,15 +124,38 @@ async def _extract_with_trafilatura(url: str) -> str | None:
 
 
 async def _extract_with_firecrawl(url: str, api_key: str) -> str | None:
-    """Extract article text using Firecrawl API."""
+    """Extract article text using Firecrawl CLI (cached) or API.
+
+    CLI path (PrintingPress firecrawl):
+        Install:  npm install -g @printingpress/firecrawl  (or per printingpress.dev docs)
+        Binary:   firecrawl  (or override via PP_FIRECRAWL_BIN env var)
+        Command:  firecrawl scrape "<url>" --format markdown
+        Output:   {"url": "...", "markdown": "...", "title": "..."}
+        Cache:    SQLite local — URLs scraped within 24 h skip network round-trip.
+    """
+    binary = os.environ.get("PP_FIRECRAWL_BIN", "firecrawl")
+    try:
+        data = await run_cli(
+            binary,
+            ["scrape", url, "--format", "markdown"],
+            env_extra={"FIRECRAWL_API_KEY": api_key},
+        )
+        if isinstance(data, dict):
+            return data.get("markdown") or data.get("content") or None
+        if isinstance(data, list) and data:
+            first = data[0]
+            return first.get("markdown") or first.get("content") or None
+    except CLINotFoundError:
+        logger.debug("Firecrawl CLI not found — using API directly")
+    except Exception as exc:
+        logger.warning("Firecrawl CLI failed for %s (%s) — using API", url, exc)
+
+    # Fallback: direct Firecrawl API
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 "https://api.firecrawl.dev/v1/scrape",
-                json={
-                    "url": url,
-                    "formats": ["markdown"],
-                },
+                json={"url": url, "formats": ["markdown"]},
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
@@ -106,7 +165,7 @@ async def _extract_with_firecrawl(url: str, api_key: str) -> str | None:
             data = resp.json()
             return data.get("data", {}).get("markdown", None)
     except Exception as e:
-        logger.warning("Firecrawl failed for %s: %s", url, e)
+        logger.warning("Firecrawl API failed for %s: %s", url, e)
         return None
 
 

@@ -25,13 +25,15 @@ The platform is a two-application system around one shared database. It is not a
 │  pg_cron jobs         │     │  Agent system             │
 │  Storage (assets)     │     │  Scheduler endpoints      │
 │  Edge functions       │     │  Publishing bridge        │
-└──────────────────────┘     └─────────────┬─────────────┘
-                                            │ HTTP (optional)
-                              ┌─────────────▼─────────────┐
-                              │   Postiz Satellite         │
-                              │  Social OAuth + scheduling │
-                              │  (Docker or cloud)         │
-                              └───────────────────────────┘
+│  brand_service_creds  │     │  Credential vault (Fernet)│
+└──────────────────────┘     └──────┬──────────┬──────────┘
+                                    │ subprocess│ HTTP (optional)
+                         ┌──────────▼──────┐  ┌▼────────────────┐
+                         │  CLI Binaries   │  │ Postiz Satellite │
+                         │  (PrintingPress)│  │ Social OAuth +   │
+                         │  serper · tavily│  │ scheduling       │
+                         │  firecrawl · yt │  │ (Docker/cloud)   │
+                         └─────────────────┘  └─────────────────┘
 ```
 
 ---
@@ -64,10 +66,12 @@ The proxy helper (`src/lib/api-helpers.ts`) forwards the Supabase session token 
 - Scheduled jobs: daily research, publish queued posts
 - Agent config and skills CRUD (reads from DB with 5-min TTL cache)
 - Observability: cost tracking, pipeline health heartbeats, LLM fallback logs
+- CLI runner (`utils/cli_runner.py`): subprocess wrapper for PrintingPress binaries; each retriever tries the CLI first and falls back to direct HTTP if the binary is absent
+- Credential vault (`services/credential_vault.py`): Fernet-encrypted per-brand API keys stored in `brand_service_credentials`; vault credentials override global env vars at call time
 
 ### Database (`supabase/migrations/`)
 
-- 29 migrations; migration files are the canonical schema source of truth
+- 33 migrations; migration files are the canonical schema source of truth
 - Row Level Security on every tenant-scoped table — isolation enforced at DB layer
 - `pgvector` for semantic deduplication and memory retrieval
 - `pg_cron` for analytics sync jobs
@@ -136,6 +140,7 @@ A working tenant setup requires three things to exist:
 | SSRF protection | Media URLs validated against scheme allowlist + private-IP blocklist before forwarding to Postiz |
 | Request correlation | `X-Request-ID` generated per request; forwarded to backend; included in responses |
 | Secret masking | API keys masked in all log output (`***xxxx` pattern) |
+| Per-brand credential vault | API keys Fernet-encrypted at rest; injected into subprocess env at runtime; never logged or returned via API |
 
 ---
 
@@ -180,8 +185,8 @@ Supporting tables: `api_costs`, `pipeline_health`, `llm_fallback_log`, `audit_tr
 | `python/src/content_engine/scoring/` | Scoring engine |
 | `python/src/content_engine/services/` | Postiz client/publisher, newsletter, scheduler, image gen, feedback loop |
 | `python/src/content_engine/monitoring/` | Pipeline health and LLM fallback monitoring |
-| `python/src/content_engine/utils/` | LLM client, cost tracker, rate limiter, SSRF guard, JSON parser |
+| `python/src/content_engine/utils/` | LLM client, cost tracker, rate limiter, SSRF guard, JSON parser, CLI runner |
 | `python/src/content_engine/config/` | Pydantic settings (all from environment) |
-| `supabase/migrations/` | Schema source of truth (001–029) |
+| `supabase/migrations/` | Schema source of truth (001–033) |
 | `supabase/functions/` | Supabase Edge Functions (analytics sync) |
 | `docs/` | Extended documentation |

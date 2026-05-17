@@ -10,18 +10,33 @@ Endpoints used:
   DELETE /public/v1/posts/:id
   GET  /public/v1/analytics/:integration
   GET  /public/v1/analytics/post/:postId
+
+CLI path for read-only analytics (PrintingPress postiz):
+  Generate from your self-hosted instance: printing-press http://localhost:3001/api-json
+  Binary:   postiz  (or override via PP_POSTIZ_BIN env var)
+  Commands: postiz analytics post <postId>
+            postiz analytics integration <integrationId> --days 7
+  Cache:    SQLite local — analytics polled within 1 h skip network round-trip.
+
+Write operations (create_post, delete_post) always use direct HTTP with
+retry+idempotency keys — CLI caching is counterproductive for writes.
 """
 from __future__ import annotations
+
+import logging
+import os
+import random
 from typing import Optional
 import asyncio
-import logging
-import random
 
 import httpx
 
 from ..config import settings
+from ..utils.cli_runner import CLINotFoundError, run_cli
 
 _logger = logging.getLogger("content_engine.postiz_client")
+_CLI_BINARY_ENV = "PP_POSTIZ_BIN"
+_CLI_BINARY_DEFAULT = "postiz"
 
 _RETRYABLE_STATUS = {408, 429, 500, 502, 503, 504}
 _MAX_ATTEMPTS = 3
@@ -210,7 +225,28 @@ class PostizClient:
     async def get_platform_analytics(
         self, integration_id: str, days: int = 7,
     ) -> dict:
-        """Pull aggregate analytics for an integration."""
+        """Pull aggregate analytics for an integration.
+
+        Tries the local Postiz CLI first (SQLite cache avoids repeat network
+        calls for the same integration/day window). Falls back to direct HTTP.
+        """
+        binary = os.environ.get(_CLI_BINARY_ENV, _CLI_BINARY_DEFAULT)
+        try:
+            data = await run_cli(
+                binary,
+                ["analytics", "integration", integration_id, "--days", str(days)],
+                env_extra={
+                    "POSTIZ_API_KEY": self.api_key,
+                    "POSTIZ_BASE_URL": self.api_url,
+                },
+            )
+            if isinstance(data, dict) and data:
+                return data
+        except CLINotFoundError:
+            _logger.debug("Postiz CLI not found — using API for platform analytics")
+        except Exception as exc:
+            _logger.warning("Postiz CLI analytics failed (%s) — using API", exc)
+
         self._check_config()
         c = await get_shared_client()
         r = await c.get(
@@ -223,7 +259,27 @@ class PostizClient:
         return r.json()
 
     async def get_post_analytics(self, post_id: str) -> dict:
-        """Pull analytics for a single post."""
+        """Pull analytics for a single post.
+
+        Tries the local Postiz CLI first (cached). Falls back to direct HTTP.
+        """
+        binary = os.environ.get(_CLI_BINARY_ENV, _CLI_BINARY_DEFAULT)
+        try:
+            data = await run_cli(
+                binary,
+                ["analytics", "post", post_id],
+                env_extra={
+                    "POSTIZ_API_KEY": self.api_key,
+                    "POSTIZ_BASE_URL": self.api_url,
+                },
+            )
+            if isinstance(data, dict) and data:
+                return data
+        except CLINotFoundError:
+            _logger.debug("Postiz CLI not found — using API for post analytics")
+        except Exception as exc:
+            _logger.warning("Postiz CLI post analytics failed (%s) — using API", exc)
+
         self._check_config()
         c = await get_shared_client()
         r = await c.get(

@@ -237,6 +237,50 @@ Base URL: `PYTHON_BACKEND_URL` (default: `http://localhost:8000`)
 | `/api/llm/fallback-log` | GET | JWT |
 | `/api/llm/fallback-monitor/reset` | POST | Scheduler secret |
 
+### Credential vault
+
+Per-brand encrypted API keys. Values are write-only — GET endpoints return service names and status only, never the raw credentials.
+
+| Route | Method | Auth | Description |
+|---|---|---|---|
+| `/api/brands/credentials` | GET | JWT | List all services with stored credentials for the active brand |
+| `/api/brands/credentials/{service_name}` | PUT | JWT | Set (or replace) credentials for a service |
+| `/api/brands/credentials/{service_name}` | DELETE | JWT | Remove credentials for a service |
+| `/api/brands/credentials/{service_name}/status` | GET | JWT | Check whether credentials are configured (no values returned) |
+
+**Supported service names:** `serper`, `tavily`, `firecrawl`, `postiz`, `x_twitter`, `youtube`, `telegram`
+
+**Credential shape** (passed in the `credentials` field):
+
+| Service | Fields |
+|---|---|
+| `serper` | `api_key` |
+| `tavily` | `api_key` |
+| `firecrawl` | `api_key` |
+| `postiz` | `api_key`, `base_url` |
+| `x_twitter` | `bearer_token` |
+| `youtube` | `api_key` |
+| `telegram` | `bot_token`, `chat_id` |
+
+**Example — set brand-specific Serper key:**
+
+```bash
+curl -X PUT http://localhost:8082/api/brands/credentials/serper \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"credentials": {"api_key": "sk-serper-xxxx"}}'
+```
+
+**Example — check status:**
+
+```bash
+curl http://localhost:8082/api/brands/credentials/serper/status \
+  -H "Authorization: Bearer <token>"
+# → {"success": true, "data": {"service": "serper", "configured": true}}
+```
+
+---
+
 ### Scheduler (protected endpoints)
 
 | Route | Method | Auth |

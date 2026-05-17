@@ -35,6 +35,9 @@ This document lists all database migrations that build up the complete Content E
 | 028 | `028_brand_social_integrations.sql` | Social platform integrations | - |
 | 029 | `029_content_drafts_metadata.sql` | Enhanced content draft metadata | - |
 | 030 | `030_audit_indexes_and_search_path.sql` | Final audit indexes and search path configuration | - |
+| 031 | `031_research_retriever_enum_expansion.sql` | Research retriever enum expansion | - |
+| 032 | `032_brand_discovery_urls.sql` | Brand discovery URL tracking | - |
+| 033 | `033_brand_service_credentials.sql` | Per-brand API credential vault (encrypted, RLS) | - |
 
 ## Complete Schema
 
@@ -80,6 +83,8 @@ done
 - **022** depends on **001** (modifies brands cascade)
 - **023-029** all depend on **001** (modify brands or add brand-related tables)
 - **030** depends on all previous migrations (adds final indexes)
+- **031-032** depend on **001** (extend brand-related enums and tables)
+- **033** depends on **001** (adds credential vault with FK to brands)
 
 ## Rollback Strategy
 
