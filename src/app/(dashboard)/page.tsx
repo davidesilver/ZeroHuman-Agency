@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import Link from 'next/link'
 
 import { Activity } from 'lucide-react'
 
@@ -186,8 +187,31 @@ async function PipelineCard() {
   )
 }
 
+const SEVERITY_ICON: Record<string, string> = {
+  success: '✅',
+  warning: '⚠️',
+  error: '🔴',
+  info: '🔵',
+}
+
+const ENTITY_PATHS: Record<string, string> = {
+  newsletter: '/newsletter',
+  draft: '/content',
+  research_item: '/research',
+}
+
+function relativeTime(ts: string): string {
+  const diff = Date.now() - new Date(ts).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+
 async function ActivityCard() {
-  const activities = await loadActivity(10)
+  const activities = await loadActivity(50)
   return (
     <Card>
       <CardHeader>
@@ -202,30 +226,44 @@ async function ActivityCard() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Time</TableHead>
-                <TableHead>Type</TableHead>
+                <TableHead>When</TableHead>
+                <TableHead>Event</TableHead>
                 <TableHead>Detail</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {activities.map((a) => (
-                <TableRow key={`${a.type}-${a.timestamp}-${a.message}`}>
-                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                    {a.timestamp
-                      ? new Date(a.timestamp).toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
-                      : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-[10px]">
-                      {a.type.toUpperCase()}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm">{a.message}</TableCell>
-                </TableRow>
-              ))}
+              {activities.map((a) => {
+                const icon = SEVERITY_ICON[a.severity ?? 'info'] ?? '🔵'
+                const entityPath =
+                  a.entityType && a.entityId && ENTITY_PATHS[a.entityType]
+                    ? `${ENTITY_PATHS[a.entityType]}/${a.entityId}`
+                    : null
+                return (
+                  <TableRow key={`${a.type}-${a.timestamp}-${a.message}`}>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {a.timestamp ? relativeTime(a.timestamp) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <span className="mr-1">{icon}</span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {a.type.replace(/_/g, ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {entityPath ? (
+                        <Link
+                          href={entityPath}
+                          className="hover:underline text-primary"
+                        >
+                          {a.message}
+                        </Link>
+                      ) : (
+                        a.message
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         )}

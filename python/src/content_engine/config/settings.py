@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     newsletter_from_name: str = "Content Engine"
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
+    telegram_webhook_secret: str = ""
+    dashboard_url: str = "http://localhost:3000"
 
     # Scoring
     scoring_model: str = "google/gemma-4-150b:free"

@@ -22,7 +22,7 @@ from ..config import settings
 from ..db import get_db
 from ..utils.llm_client import call_llm_with_json, call_llm
 from ..memory.retrieval import recall as memory_recall
-from ..services.alerting import send_telegram_alert
+from ..services.notification import emit_event
 
 logger = logging.getLogger("content_engine.newsletter_generator")
 
@@ -434,19 +434,22 @@ async def generate_newsletter(brand_id: str) -> dict:
     except Exception as exc:
         logger.warning("Failed to log memory_event for newsletter %s: %s", newsletter_id, exc)
 
-    # Telegram alert
-    alert_msg = (
-        f"*Newsletter Draft Generated*\n\n"
-        f"*Title:* {nl_title}\n"
-        f"*Edition:* #{edition_number} — Layout: {layout}\n"
-        f"*Brand:* {brand_name}\n"
-        f"*Sections:* {len(nl_sections)}\n"
-        f"*Subject A:* {subject_a}\n"
-        f"*Subject B:* {subject_b or '(none)'}\n"
-        f"*Status:* draft → /newsletter/{newsletter_id}"
-    )
     try:
-        await send_telegram_alert(alert_msg)
+        await emit_event(
+            event_type="newsletter_draft_generated",
+            title=f"Newsletter Draft: {nl_title}",
+            severity="info",
+            brand_id=brand_id,
+            detail={
+                "edition": edition_number,
+                "layout": layout,
+                "sections": len(nl_sections),
+                "subject_a": subject_a,
+                "subject_b": subject_b or "",
+            },
+            entity_type="newsletter",
+            entity_id=newsletter_id,
+        )
     except Exception:
         pass
 

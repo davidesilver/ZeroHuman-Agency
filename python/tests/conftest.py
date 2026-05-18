@@ -2,6 +2,7 @@
   - `from content_engine.xxx import ...`     works (some older tests)
   - `from src.content_engine.xxx import ...` works (some newer tests)
 """
+import os
 import sys
 from pathlib import Path
 
@@ -12,3 +13,6 @@ for p in (_src, _root):
     s = str(p)
     if s not in sys.path:
         sys.path.insert(0, s)
+
+# Provide required env vars so Settings() can be instantiated without a real .env
+os.environ.setdefault("NEXT_PUBLIC_SUPABASE_URL", "http://localhost:54321")

@@ -53,6 +53,9 @@ export interface DashboardActivity {
   type: string
   message: string
   timestamp: string
+  severity?: 'info' | 'success' | 'warning' | 'error'
+  entityType?: string | null
+  entityId?: string | null
 }
 
 export const loadStats = cache(async (): Promise<DashboardStats> => {
@@ -106,11 +109,33 @@ export const loadCosts = cache(async (): Promise<DashboardCosts> => {
 })
 
 export const loadActivity = cache(
-  async (limit = 10): Promise<DashboardActivity[]> => {
+  async (limit = 50): Promise<DashboardActivity[]> => {
     const { auth } = await requireAuth()
     if (!auth) return []
 
     const supabase = await createClient()
+
+    // Primary source: notification_events (populated by NotificationService)
+    const { data: notifEvents } = await supabase
+      .from('notification_events')
+      .select('event_type, severity, title, entity_type, entity_id, created_at')
+      .eq('brand_id', auth.brandId)
+      .neq('event_type', 'daily_digest_sent')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (notifEvents && notifEvents.length > 0) {
+      return notifEvents.map((e) => ({
+        type: e.event_type as string,
+        message: e.title as string,
+        timestamp: e.created_at as string,
+        severity: (e.severity as DashboardActivity['severity']) ?? 'info',
+        entityType: e.entity_type as string | null,
+        entityId: e.entity_id as string | null,
+      }))
+    }
+
+    // Fallback: legacy sources when notification_events is empty
     const [{ data: runs }, { data: drafts }] = await Promise.all([
       supabase
         .from('research_runs')
@@ -132,6 +157,7 @@ export const loadActivity = cache(
         type: 'research',
         message: `Research run ${r.status} — ${r.items_found ?? 0} items`,
         timestamp: r.started_at as string,
+        severity: 'info',
       })
     }
     for (const d of drafts ?? []) {
@@ -139,6 +165,7 @@ export const loadActivity = cache(
         type: 'draft',
         message: `${d.platform ?? 'draft'} · ${d.title ?? '(untitled)'} → ${d.status}`,
         timestamp: d.updated_at as string,
+        severity: 'info',
       })
     }
 

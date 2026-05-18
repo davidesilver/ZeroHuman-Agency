@@ -855,23 +855,14 @@ async def _send_fallback_alert(
 ) -> None:
     """Send alert about fallback occurrence."""
     try:
-        from ..services.alerting import send_telegram_alert
+        from ..services.notification import emit_event
 
-        if is_emergency:
-            message = (
-                f"🚨 *EMERGENCY FALLBACK*\n\n"
-                f"Anthropic API ({model}) failed and system fell back to OpenRouter.\n\n"
-                f"**Error:** {error}\n\n"
-                f"Check Anthropic API status and consider investigating the root cause."
-            )
-        else:
-            message = (
-                f"⚠️ *Fallback Detected*\n\n"
-                f"Model {model} failed, system fell back to next option.\n\n"
-                f"**Error:** {error}"
-            )
-
-        await send_telegram_alert(message)
+        await emit_event(
+            event_type="llm_fallback",
+            title="EMERGENCY FALLBACK" if is_emergency else "LLM Fallback Detected",
+            severity="error" if is_emergency else "warning",
+            detail={"model": model, "error": error, "emergency": is_emergency},
+        )
         logger.info("Fallback alert sent: emergency=%s model=%s", is_emergency, model)
     except Exception as e:
         # Don't fail the main pipeline if alerting fails

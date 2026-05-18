@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     nextjs_url: str = "http://localhost:3000"  # URL of the Next.js app for internal render calls
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
+    telegram_webhook_secret: str = ""  # X-Telegram-Bot-Api-Secret-Token
+    dashboard_url: str = "http://localhost:3000"  # Base URL for deep links in Telegram alerts
 
     # Scoring
     scoring_model: str = "google/gemma-4-150b:free"

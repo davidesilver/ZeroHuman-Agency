@@ -129,30 +129,29 @@ class FallbackMonitor:
     def _send_alert(self) -> None:
         """Send alert about high fallback rate."""
         try:
-            from ..services.alerting import send_telegram_alert
+            from ..services.notification import emit_event
 
             fallback_percentage = self._get_fallback_percentage()
 
-            message = (
-                f"⚠️ *High Fallback Rate Detected*\n\n"
-                f"**Fallback Rate:** {fallback_percentage:.1f}% (threshold: {settings.fallback_alert_threshold}%)\n\n"
-                f"**Stats Today:**\n"
-                f"- Total calls: {self._total_calls}\n"
-                f"- Fallbacks: {self._fallback_count}\n"
-                f"- Emergencies: {self._emergency_count}\n\n"
-                f"This may indicate provider instability or configuration issues."
-            )
-
-            # Send alert asynchronously (fire and forget)
             import asyncio
 
             async def send_async():
                 try:
-                    await send_telegram_alert(message)
+                    await emit_event(
+                        event_type="high_fallback_rate",
+                        title=f"High Fallback Rate: {fallback_percentage:.1f}%",
+                        severity="warning",
+                        detail={
+                            "fallback_rate_pct": round(fallback_percentage, 1),
+                            "threshold_pct": settings.fallback_alert_threshold,
+                            "total_calls": self._total_calls,
+                            "fallbacks": self._fallback_count,
+                            "emergencies": self._emergency_count,
+                        },
+                    )
                 except Exception as e:
                     logger.error("Failed to send fallback alert: %s", e)
 
-            # Run in existing event loop or create new one
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
@@ -160,14 +159,13 @@ class FallbackMonitor:
                 else:
                     loop.run_until_complete(send_async())
             except RuntimeError:
-                # No event loop, create one
                 asyncio.run(send_async())
 
             logger.warning(
                 "Fallback alert sent - rate: %.1f%%, total_calls: %d, fallbacks: %d",
                 fallback_percentage,
                 self._total_calls,
-                self._fallback_count
+                self._fallback_count,
             )
         except Exception as e:
             logger.error("Failed to send fallback alert: %s", e)
