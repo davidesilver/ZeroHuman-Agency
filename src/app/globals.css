@@ -4,6 +4,35 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * ──────────────────────────────────────────────────────────────────────────
+ *  ZEROHUMAN DESIGN SYSTEM — Linear.app blueprint + Coral brand accent
+ * ──────────────────────────────────────────────────────────────────────────
+ *
+ *  Primary reference:  Linear.app (canvas, surface ladder, typography,
+ *                      sidebar, hairlines, no-shadow elevation)
+ *  Secondary:          Sentry (lime keyword chips → coral, uppercase
+ *                      eyebrows with positive tracking)
+ *  Tertiary:           YouTube Studio (sidebar group organization,
+ *                      content card metadata layout)
+ *
+ *  Brand palette (replaces Linear's lavender-blue):
+ *    Obsidian   #050505  — deeper than Linear's #010102, brand canvas
+ *    Ivory      #FFFFF0  — ink, primary text
+ *    Coral      #FF7F50  — UNIQUE chromatic accent (mark, CTA, focus)
+ *    Charcoal   #36454F  — secondary surface accent (sparingly)
+ *    Silver     #C0C0C0  — muted ink, secondary text
+ *
+ *  Rules (from Linear's Don'ts):
+ *    - No light mode
+ *    - Coral used ONLY for: brand mark, primary CTA, focus, active state
+ *    - No second chromatic accent (status colors are utility, not accent)
+ *    - No drop shadows on dark — depth via surface ladder
+ *    - No pill-rounded CTAs (8px rounded-md max)
+ *    - No true #000000 — obsidian #050505 has a tone
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -11,7 +40,7 @@
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
 
-  /* shadcn semantic colors */
+  /* shadcn semantic mapping */
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -29,7 +58,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* shadcn sidebar */
+  /* Sidebar tokens (Linear-style dark nav) */
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -39,117 +68,327 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* Charts — Chromatic Grid */
+  /* Linear surface ladder (4-step, replaces shadow elevation) */
+  --color-canvas: var(--canvas);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-4: var(--surface-4);
+
+  /* Ink hierarchy (Linear's 4-tier text scale) */
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-ink-tertiary: var(--ink-tertiary);
+
+  /* Hairline borders (Linear's 3-tier border scale) */
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-hairline-tertiary: var(--hairline-tertiary);
+
+  /* Brand (Coral replaces Linear's lavender) */
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-hover: var(--brand-primary-hover);
+  --color-brand-primary-focus: var(--brand-primary-focus);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-accent: var(--brand-accent);
+
+  /* Status (semantic only — never decorative) */
+  --color-status-success: var(--status-success);
+  --color-status-warning: var(--status-warning);
+  --color-status-error: var(--status-error);
+  --color-status-info: var(--status-info);
+
+  /* Charts */
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
 
-  /* Brand colors */
-  --color-brand-primary: var(--brand-primary);
-  --color-brand-primary-hover: var(--brand-primary-hover);
-  --color-brand-secondary: var(--brand-secondary);
-  --color-brand-accent: var(--brand-accent);
-
-  /* Status colors */
-  --color-status-success: var(--status-success);
-  --color-status-warning: var(--status-warning);
-  --color-status-error: var(--status-error);
-  --color-status-info: var(--status-info);
-
   /* Staging bar */
   --color-staging-bg: var(--staging-bg);
   --color-staging-text: var(--staging-text);
 
-  /* Content category colors */
+  /* Platform / category colors (utility tokens, not accent) */
   --color-cat-finanza: var(--cat-finanza);
   --color-cat-prodotto: var(--cat-prodotto);
   --color-cat-marketing: var(--cat-marketing);
   --color-cat-tech: var(--cat-tech);
   --color-cat-business: var(--cat-business);
 
-  /* Radius */
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Radius — Linear scale (xs 4, sm 6, md 8, lg 12, xl 16, xxl 24) */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-3xl: 32px;
+  --radius-4xl: 40px;
+
+  /* Spacing extras for section rhythm (Linear: 96px between sections) */
+  --spacing-section: 96px;
 }
 
+/*
+ * ──────────────────────────────────────────────────────────────────────────
+ *  TOKEN DEFINITIONS — Linear values, ZeroHuman recolor
+ * ──────────────────────────────────────────────────────────────────────────
+ */
 :root {
-  /* shadcn base — mapped to Chromatic Grid */
-  --background: #FFFFFF;
-  --foreground: #111827;
-  --card: #FFFFFF;
-  --card-foreground: #111827;
-  --popover: #FFFFFF;
-  --popover-foreground: #111827;
-  --primary: #3B82F6;
-  --primary-foreground: #FFFFFF;
-  --secondary: #F3F4F6;
-  --secondary-foreground: #111827;
-  --muted: #F9FAFB;
-  --muted-foreground: #6B7280;
-  --accent: #F3F4F6;
-  --accent-foreground: #111827;
-  --destructive: #EF4444;
-  --border: #E5E7EB;
-  --input: #E5E7EB;
-  --ring: #3B82F6;
-  --radius: 0.5rem;
+  /* ── Canvas & surface ladder (Linear exact, deepened for ZeroHuman) ── */
+  --canvas: #050505;             /* Obsidian — deeper than Linear's #010102 */
+  --surface-1: #0f1011;          /* Linear surface-1 — cards, panels */
+  --surface-2: #141516;          /* Linear surface-2 — featured cards, hover */
+  --surface-3: #18191a;          /* Linear surface-3 — sub-nav, dropdowns */
+  --surface-4: #191a1b;          /* Linear surface-4 — deepest lift */
 
-  /* Charts — Chromatic Grid */
-  --chart-1: #3B82F6;
-  --chart-2: #10B981;
-  --chart-3: #8B5CF6;
-  --chart-4: #F59E0B;
-  --chart-5: #EF4444;
+  --background: var(--canvas);
+  --foreground: var(--ink);
 
-  /* Sidebar — dark theme */
-  --sidebar: #1F2937;
-  --sidebar-foreground: #FFFFFF;
-  --sidebar-primary: #3B82F6;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #374151;
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: #374151;
-  --sidebar-ring: #3B82F6;
+  /* ── Ink hierarchy (Linear 4-tier, ivory-tinted for ZeroHuman) ── */
+  --ink: #f7f8f8;                /* Linear ink — headlines, body */
+  --ink-muted: #d0d6e0;          /* Linear ink-muted — meta info */
+  --ink-subtle: #8a8f98;         /* Linear ink-subtle — eyebrows, deselected */
+  --ink-tertiary: #62666d;       /* Linear ink-tertiary — disabled */
 
-  /* Brand */
-  --brand-primary: #3B82F6;
-  --brand-primary-hover: #2563EB;
-  --brand-secondary: #10B981;
-  --brand-accent: #F59E0B;
+  /* ── Hairlines (Linear 3-tier) ── */
+  --hairline: #23252a;           /* Linear hairline — default 1px border */
+  --hairline-strong: #34343a;    /* Linear hairline-strong — input focus */
+  --hairline-tertiary: #3e3e44;  /* Linear hairline-tertiary — nested */
 
-  /* Status */
-  --status-success: #10B981;
-  --status-warning: #F59E0B;
-  --status-error: #EF4444;
-  --status-info: #3B82F6;
+  /* ── Brand: Coral replaces Linear lavender ── */
+  --brand-primary: #FF7F50;          /* Coral — primary accent */
+  --brand-primary-hover: #FF9670;    /* Lighter coral — hover */
+  --brand-primary-focus: #F26B3A;    /* Deeper coral — pressed/focus */
+  --brand-secondary: #36454F;        /* Charcoal — secondary surface accent */
+  --brand-accent: #C0C0C0;           /* Silver — tertiary text accent */
 
-  /* Staging bar */
-  --staging-bg: #10B981;
-  --staging-text: #FFFFFF;
+  /* ── shadcn semantic mapping (Linear pattern) ── */
+  /* CTA: Linear uses lavender as primary — we use Coral */
+  --primary: var(--brand-primary);
+  --primary-foreground: #050505;     /* Dark text on coral (high contrast) */
 
-  /* Content categories */
-  --cat-finanza: #EF4444;
-  --cat-prodotto: #3B82F6;
-  --cat-marketing: #10B981;
-  --cat-tech: #8B5CF6;
-  --cat-business: #F59E0B;
+  /* Card: surface-1 with hairline border (Linear pricing-card spec) */
+  --card: var(--surface-1);
+  --card-foreground: var(--ink);
+
+  /* Popover: surface-3 (Linear sub-nav spec) */
+  --popover: var(--surface-3);
+  --popover-foreground: var(--ink);
+
+  /* Secondary: surface-2 (Linear button-secondary uses surface-1, but
+     for shadcn distinction we use surface-2 as the "secondary fill") */
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--ink);
+
+  /* Muted (backgrounds for less-emphasized content) */
+  --muted: var(--surface-1);
+  --muted-foreground: var(--ink-subtle);
+
+  /* Accent (hover surfaces) */
+  --accent: var(--surface-2);
+  --accent-foreground: var(--ink);
+
+  /* Destructive (Linear has no destructive on marketing; we add semantic red) */
+  --destructive: #ff6161;
+
+  /* Borders */
+  --border: var(--hairline);
+  --input: var(--hairline);
+  --ring: var(--brand-primary-focus);
+
+  /* ── Sidebar (deeper canvas, Linear pattern) ── */
+  --sidebar: var(--canvas);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--brand-primary);
+  --sidebar-primary-foreground: #050505;
+  --sidebar-accent: var(--surface-1);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--brand-primary);
+
+  /* ── Status (Linear has only success; we add the full set as utility) ── */
+  --status-success: #27a644;     /* Linear's semantic-success */
+  --status-warning: #ffc533;
+  --status-error: #ff6161;
+  --status-info: #5e6ad2;        /* Linear's lavender, kept as info accent */
+
+  /* ── Charts (Linear in-product palette: red, orange, yellow, green, blue) ── */
+  --chart-1: #FF7F50;            /* Coral */
+  --chart-2: #27a644;            /* Linear green */
+  --chart-3: #5e6ad2;            /* Linear lavender */
+  --chart-4: #ffc533;            /* Yellow */
+  --chart-5: #fa7faa;            /* Sentry pink */
+
+  /* ── Staging bar (Coral signature) ── */
+  --staging-bg: var(--brand-primary);
+  --staging-text: #050505;
+
+  /* ── Content categories ── */
+  --cat-finanza: #ff6161;
+  --cat-prodotto: #5e6ad2;
+  --cat-marketing: #27a644;
+  --cat-tech: #fa7faa;
+  --cat-business: #ffc533;
 }
 
+/*
+ * ──────────────────────────────────────────────────────────────────────────
+ *  BASE LAYER — Linear typography principles applied to Inter
+ * ──────────────────────────────────────────────────────────────────────────
+ *
+ *  Linear principles:
+ *    - Aggressive negative tracking on display (-3.0px at 80px ≈ -4%)
+ *    - Display weight 600, body weight 400 (never 700+)
+ *    - Eyebrow uses POSITIVE tracking (+0.4px) — contrast with display
+ *    - Single voice from display to body
+ *    - Font: Inter as Linear Display substitute (Linear's recommendation)
+ * ──────────────────────────────────────────────────────────────────────────
+ */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    @apply font-sans antialiased;
+    /* Inter feature settings for technical precision */
+    font-feature-settings: "calt", "kern", "liga", "ss01", "cv11";
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   body {
     @apply bg-background text-foreground;
+    /* Linear body: 16px, weight 400, line-height 1.50, tracking -0.05px */
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: -0.05px;
   }
-  html {
-    @apply font-sans;
+
+  /* Display scale — Linear-exact mapping, capped at 56px for app context */
+  h1 {
+    font-size: 40px;       /* Linear display-md */
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -1.0px;
   }
+  h2 {
+    font-size: 28px;       /* Linear headline */
+    font-weight: 600;
+    line-height: 1.20;
+    letter-spacing: -0.6px;
+  }
+  h3 {
+    font-size: 22px;       /* Linear card-title */
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: -0.4px;
+  }
+  h4 {
+    font-size: 20px;       /* Linear subhead */
+    font-weight: 500;
+    line-height: 1.40;
+    letter-spacing: -0.2px;
+  }
+
+  /* Selection (Coral tint instead of Linear's lavender) */
+  ::selection {
+    background: rgba(255, 127, 80, 0.25);
+    color: var(--ink);
+  }
+
+  /* Scrollbar — minimal, Linear-style */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--hairline);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--hairline-strong);
+  }
+
+  /* Focus ring — Linear spec: 2px outline at 50% opacity */
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--brand-primary-focus) 50%, transparent);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * ──────────────────────────────────────────────────────────────────────────
+ *  UTILITY LAYER — Linear/Sentry signature components
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+@layer utilities {
+
+  /* ── Surface ladder utilities ── */
+  .surface-canvas { background-color: var(--canvas); }
+  .surface-1 { background-color: var(--surface-1); }
+  .surface-2 { background-color: var(--surface-2); }
+  .surface-3 { background-color: var(--surface-3); }
+  .surface-4 { background-color: var(--surface-4); }
+
+  /* ── Hairline utilities ── */
+  .border-hairline { border-color: var(--hairline); }
+  .border-hairline-strong { border-color: var(--hairline-strong); }
+  .border-hairline-tertiary { border-color: var(--hairline-tertiary); }
+
+  /* ── Eyebrow (Linear/Sentry signature: uppercase + positive tracking) ── */
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0.15em;        /* Linear eyebrow: +0.4px, scaled */
+    text-transform: uppercase;
+    color: var(--ink-subtle);
+  }
+
+  /* ── Coral keyword chip (Sentry lime-chip pattern, Coral recolor) ── */
+  /* Wrap a single word inside a heading with this to create syntax highlight */
+  .chip-coral {
+    background: var(--brand-primary);
+    color: var(--canvas);
+    padding: 0 0.4em;
+    border-radius: 4px;            /* Linear xs radius */
+    /* Inherits surrounding heading typography */
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
+  /* ── Status soft backgrounds (15% opacity tint, status text color) ── */
+  .status-success-soft { background: rgba(39, 166, 68, 0.15); color: var(--status-success); }
+  .status-warning-soft { background: rgba(255, 197, 51, 0.15); color: var(--status-warning); }
+  .status-error-soft { background: rgba(255, 97, 97, 0.15); color: var(--status-error); }
+  .status-info-soft { background: rgba(94, 106, 210, 0.15); color: var(--status-info); }
+
+  /* ── Platform soft badges ── */
+  .platform-linkedin { background: rgba(10, 102, 194, 0.15); color: #57c1ff; }
+  .platform-x { background: rgba(255, 255, 240, 0.08); color: var(--ink); }
+  .platform-instagram { background: rgba(228, 64, 95, 0.15); color: #E4405F; }
+  .platform-facebook { background: rgba(24, 119, 242, 0.15); color: #57c1ff; }
+  .platform-tiktok { background: rgba(167, 139, 250, 0.15); color: #a78bfa; }
+  .platform-blog { background: rgba(39, 166, 68, 0.15); color: var(--status-success); }
+  .platform-email { background: rgba(255, 197, 51, 0.15); color: var(--status-warning); }
+
+  /* ── Coral focus glow (used on hero CTA only, Sentry level-3 pattern) ── */
+  .glow-coral {
+    box-shadow: 0 0 0 0 rgba(255, 127, 80, 0),
+                0 0 24px rgba(255, 127, 80, 0.18);
+  }
+
+  /* ── Section rhythm (Linear: 96px between major sections) ── */
+  .section-gap { padding-top: 96px; padding-bottom: 96px; }
+  .section-gap-sm { padding-top: 48px; padding-bottom: 48px; }
 }

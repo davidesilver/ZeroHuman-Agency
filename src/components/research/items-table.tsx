@@ -39,10 +39,10 @@ interface ItemsTableProps {
 
 function scoreColor(score: number | null): string {
   if (score === null) return 'text-muted-foreground'
-  if (score >= 8) return 'text-green-600'
+  if (score >= 8) return 'text-status-success'
   if (score >= 6) return 'text-brand-primary'
   if (score >= 4) return 'text-brand-accent'
-  return 'text-red-500'
+  return 'text-status-error'
 }
 
 function statusBadgeVariant(status: string) {
@@ -145,7 +145,7 @@ export function ItemsTable({ items, onAction, isLoading }: ItemsTableProps) {
                     onClick={() => onAction(item.id, 'approved')}
                     title="Approve"
                   >
-                    <Check className="size-3 text-green-600" />
+                    <Check className="size-3 text-status-success" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -161,7 +161,7 @@ export function ItemsTable({ items, onAction, isLoading }: ItemsTableProps) {
                     onClick={() => onAction(item.id, 'rejected')}
                     title="Reject"
                   >
-                    <X className="size-3 text-red-500" />
+                    <X className="size-3 text-status-error" />
                   </Button>
                 </div>
               </TableCell>

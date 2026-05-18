@@ -7,6 +7,20 @@ import { URLBar } from '@/components/layout/url-bar'
 import { APISpendRow } from '@/components/layout/api-spend-row'
 import { BrandProvider } from '@/lib/brand-context'
 
+/**
+ * Dashboard shell — Linear app layout.
+ *
+ * Structure:
+ *   ┌─ StagingBar (coral, 28px)  ──────────────────────┐
+ *   ├─────────┬──────────────────────────────────────┤
+ *   │ Sidebar │ Top context bar (URL + API spend)    │
+ *   │ 240px   ├──────────────────────────────────────┤
+ *   │ canvas  │ Main content (canvas bg, padded)     │
+ *   └─────────┴──────────────────────────────────────┘
+ *
+ * Canvas everywhere — sidebar and main share #050505.
+ * Hairline border between sidebar and main creates the only divider.
+ */
 export default async function DashboardLayout({
   children,
 }: {
@@ -23,25 +37,21 @@ export default async function DashboardLayout({
 
   return (
     <BrandProvider>
-      <div className="h-screen flex flex-col overflow-hidden">
-        {/* Staging bar — full width at the very top */}
+      <div className="h-screen flex flex-col overflow-hidden bg-background">
         <StagingBar />
 
-        {/* Below: sidebar + main content */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar — fixed width */}
           <Sidebar logoutAction={logout} />
 
-          {/* Main content area */}
           <main className="flex-1 flex flex-col overflow-hidden">
-            {/* URL bar + API spend row */}
-            <div className="space-y-2 p-4 pb-0">
+            {/* Top context bar — URL input + API spend pills */}
+            <div className="border-b border-hairline px-6 py-3 space-y-2 shrink-0">
               <URLBar />
               <APISpendRow />
             </div>
 
-            {/* Page content */}
-            <div className="flex-1 overflow-y-auto p-4">
+            {/* Page content — generous padding (Linear: section rhythm) */}
+            <div className="flex-1 overflow-y-auto px-6 py-6">
               {children}
             </div>
           </main>

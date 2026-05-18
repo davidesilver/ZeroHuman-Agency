@@ -30,7 +30,7 @@ export function PaletteEditor({
             />
             <span className="text-xs font-mono">{c}</span>
             <button onClick={() => setColors(colors.filter((_, j) => j !== i))}
-                    className="text-gray-400 hover:text-red-600"><Trash2 size={12}/></button>
+                    className="text-ink-disabled hover:text-status-error"><Trash2 size={12}/></button>
           </div>
         ))}
         <button onClick={() => setColors([...colors, '#888888'])}
@@ -39,7 +39,7 @@ export function PaletteEditor({
         </button>
       </div>
       <button onClick={save} disabled={saving}
-              className="px-3 py-1 rounded bg-black text-white text-xs inline-flex items-center gap-1 disabled:opacity-50">
+              className="px-3 py-1 rounded bg-primary text-primary-foreground text-xs inline-flex items-center gap-1 disabled:opacity-50">
         <Save size={12}/> {saving ? 'Saving…' : 'Save palette'}
       </button>
     </div>

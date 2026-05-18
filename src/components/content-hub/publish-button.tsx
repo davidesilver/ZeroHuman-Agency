@@ -102,8 +102,8 @@ export function PublishButton({ draftId, onPublished }: PublishButtonProps) {
             onClick={() => togglePlatform(intg.platform)}
             className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
               selected.has(intg.platform)
-                ? 'bg-black text-white border-black'
-                : 'bg-white text-muted-foreground border-gray-200 hover:border-gray-400'
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-surface-card text-muted-foreground border-hairline hover:border-hairline-strong'
             }`}
             title={intg.postiz_channel_name || intg.platform}
           >
@@ -116,7 +116,7 @@ export function PublishButton({ draftId, onPublished }: PublishButtonProps) {
         <button
           onClick={handlePublish}
           disabled={loading || selected.size === 0}
-          className="px-3 py-1.5 rounded bg-brand-primary text-white text-xs inline-flex items-center gap-1.5 disabled:opacity-50"
+          className="px-3 py-1.5 rounded bg-brand-primary text-[#050505] text-xs inline-flex items-center gap-1.5 disabled:opacity-50"
         >
           {loading ? <Loader2 size={12} className="animate-spin" /> :
            success ? <Check size={12} /> : <Send size={12} />}
@@ -128,7 +128,7 @@ export function PublishButton({ draftId, onPublished }: PublishButtonProps) {
       </div>
 
       {error && (
-        <div className="flex items-center gap-1 text-[10px] text-red-600">
+        <div className="flex items-center gap-1 text-[10px] text-status-error">
           <AlertCircle size={10} />
           {error}
         </div>
