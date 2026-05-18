@@ -262,7 +262,7 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
             f["statement"] for f in _discard_facts
         ) + "\n</discard_examples>"
 
-    from ..services.alerting import send_telegram_alert
+    from ..services.notification import emit_event
 
     async def _fail(step: str, error: Exception) -> dict:
         """Mark draft as failed, alert via Telegram, and return error info."""
@@ -273,8 +273,15 @@ async def run_god_mode(brand_id: str, draft_id: str) -> dict:
             "god_mode_result": error_info,
         }).eq("id", draft_id).execute()
 
-        # Fire and forget Telegram alert
-        await send_telegram_alert(f"Failed drafting `{draft_id}` at step `{step}`.\nError: `{error}`")
+        await emit_event(
+            event_type="god_mode_failed",
+            title=f"GOD Mode failed at step '{step}'",
+            severity="error",
+            brand_id=brand_id,
+            detail={"draft_id": draft_id, "step": step, "error": str(error)},
+            entity_type="draft",
+            entity_id=draft_id,
+        )
 
         return {
             "draft_id": draft_id,

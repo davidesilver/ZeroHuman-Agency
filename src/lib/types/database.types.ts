@@ -1405,6 +1405,42 @@ export type Database = {
           },
         ]
       }
+      notification_events: {
+        Row: {
+          id: string
+          brand_id: string | null
+          event_type: string
+          severity: string
+          title: string
+          detail: Json
+          entity_type: string | null
+          entity_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          brand_id?: string | null
+          event_type: string
+          severity?: string
+          title?: string
+          detail?: Json
+          entity_type?: string | null
+          entity_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          brand_id?: string | null
+          event_type?: string
+          severity?: string
+          title?: string
+          detail?: Json
+          entity_type?: string | null
+          entity_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       newsletter_events: {
         Row: {
           created_at: string

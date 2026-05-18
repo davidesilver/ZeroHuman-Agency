@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from ...db import get_db
-from ...services.alerting import send_telegram_alert
+from ...services.notification import emit_event
 from ..stores import semantic as sem_store
 from .extractor import extract_facts_from_text
 from .verifier import verify
@@ -231,11 +231,17 @@ async def _is_duplicate(brand_id: str, statement: str, kind: str | None) -> bool
 
 
 async def _send_consolidation_alert(report: ConsolidationReport) -> None:
-    """Send Telegram alert — P2.T hook.  Never fails the main pipeline."""
+    """Emit consolidation event — never fails the main pipeline."""
     try:
-        await send_telegram_alert(report.telegram_summary())
+        await emit_event(
+            event_type="memory_consolidation",
+            title="Memory consolidation completed",
+            severity="info",
+            brand_id=report.brand_id,
+            detail={"summary": report.telegram_summary()},
+        )
     except Exception as e:
-        logger.warning("consolidation: Telegram alert failed: %s", e)
+        logger.warning("consolidation: notification failed: %s", e)
 
 
 async def _log_consolidation_event(report: ConsolidationReport) -> None:

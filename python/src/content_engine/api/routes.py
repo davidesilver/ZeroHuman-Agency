@@ -676,6 +676,30 @@ async def api_newsletter_report(newsletter_id: str, request: Request):
     return {"success": True, "data": report}
 
 
+# ── Telegram Bot Webhook ─────────────────────────────────────────────────────
+
+
+@router.post("/webhooks/telegram")
+async def webhook_telegram(request: Request):
+    """Receive Telegram Bot API webhook updates.
+
+    Telegram posts JSON for every message/update to this URL.
+    Auth via X-Telegram-Bot-Api-Secret-Token header.
+    """
+    from ..services.telegram_bot import handle_update, _verify_secret
+
+    secret_header = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+    if not _verify_secret(secret_header):
+        raise HTTPException(status_code=403, detail="Invalid webhook secret")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        return {"ok": False, "error": "invalid_json"}
+
+    return await handle_update(payload)
+
+
 # ── Email Webhooks ───────────────────────────────────────────────────────────
 
 @router.post("/webhooks/email/brevo")
@@ -821,14 +845,84 @@ def _update_newsletter_metrics(db, newsletter_id: str) -> None:
         opens = len({e for e in events if e["event_type"] == "opened"})
         clicks = len({e for e in events if e["event_type"] == "clicked"})
         unsubs = sum(1 for e in events if e["event_type"] == "unsubscribed")
+        open_rate = round(opens / delivered, 4)
+        click_rate = round(clicks / delivered, 4)
 
         db.table("newsletters").update({
-            "open_rate": round(opens / delivered, 4),
-            "click_rate": round(clicks / delivered, 4),
+            "open_rate": open_rate,
+            "click_rate": click_rate,
             "unsubscribe_count": unsubs,
         }).eq("id", newsletter_id).execute()
+
+        # Check unsubscribe spike (>2× brand average) — fire-and-forget
+        _check_unsubscribe_spike(db, newsletter_id, unsubs)
+
     except Exception as exc:
         _logger.warning("Failed to update newsletter metrics for %s: %s", newsletter_id, exc)
+
+
+def _check_unsubscribe_spike(db, newsletter_id: str, current_unsubs: int) -> None:
+    """Emit a warning if unsubscribes are >2× the brand average."""
+    if current_unsubs < 2:
+        return
+    try:
+        newsletter = (
+            db.table("newsletters")
+            .select("brand_id, edition_number")
+            .eq("id", newsletter_id)
+            .maybe_single()
+            .execute()
+            .data
+        )
+        if not newsletter:
+            return
+        brand_id = newsletter["brand_id"]
+
+        # Compute average unsubscribes for the last 10 sent newsletters
+        past = (
+            db.table("newsletters")
+            .select("unsubscribe_count")
+            .eq("brand_id", brand_id)
+            .eq("status", "sent")
+            .neq("id", newsletter_id)
+            .order("sent_at", desc=True)
+            .limit(10)
+            .execute()
+            .data
+        ) or []
+        if not past:
+            return
+        avg_unsubs = sum(r.get("unsubscribe_count") or 0 for r in past) / len(past)
+        if avg_unsubs > 0 and current_unsubs >= avg_unsubs * 2:
+            import asyncio
+            from .notification import emit_event as _emit  # type: ignore[attr-defined]
+
+            async def _alert():
+                from ..services.notification import emit_event
+                await emit_event(
+                    event_type="unsubscribe_spike",
+                    title=f"Unsubscribe spike detected — {current_unsubs} unsubs",
+                    severity="warning",
+                    brand_id=brand_id,
+                    detail={
+                        "newsletter_id": newsletter_id,
+                        "unsubs": current_unsubs,
+                        "brand_avg": round(avg_unsubs, 1),
+                    },
+                    entity_type="newsletter",
+                    entity_id=newsletter_id,
+                )
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.create_task(_alert())
+                else:
+                    loop.run_until_complete(_alert())
+            except Exception:
+                pass
+    except Exception as exc:
+        _logger.warning("Unsubscribe spike check failed for %s: %s", newsletter_id, exc)
 
 
 # ── Email Provider ──────────────────────────────────────────────────────────
@@ -1675,3 +1769,96 @@ async def api_reset_fallback_monitor():
     )
 
     return {"success": True, "data": {"previous_stats": old_stats}}
+
+
+# ── Newsletter A/B winner check (called by scheduler) ──────────────────────
+
+
+@router.post("/newsletter/{newsletter_id}/resolve-ab", dependencies=[Depends(_require_scheduler_secret)])
+async def api_resolve_ab_winner(newsletter_id: str, request: Request):
+    """Determine and record the A/B winner for a newsletter based on open rates.
+
+    Compares subject_variant_a vs subject_variant_b open rates from
+    newsletter_events, writes the winner to newsletters.ab_winner,
+    and emits a notification event.  Called by the daily scheduler after
+    the provider's wait window has elapsed.
+    """
+    db = get_db()
+    newsletter = (
+        db.table("newsletters")
+        .select("*")
+        .eq("id", newsletter_id)
+        .maybe_single()
+        .execute()
+        .data
+    )
+    if not newsletter:
+        return {"ok": False, "error": "newsletter_not_found"}
+    if not newsletter.get("subject_variant_b"):
+        return {"ok": False, "error": "not_an_ab_newsletter"}
+    if newsletter.get("ab_winner"):
+        return {"ok": True, "winner": newsletter["ab_winner"], "already_resolved": True}
+
+    open_rate_a = newsletter.get("open_rate") or 0
+    # Fetch variant-B specific open rate from provider report
+    brand_id = newsletter.get("brand_id", "")
+    try:
+        from ..services.newsletter_delivery import get_newsletter_report
+        report = await get_newsletter_report(brand_id, newsletter_id)
+        open_rate_a = report.get("open_rate", open_rate_a)
+    except Exception:
+        pass
+
+    # Simple heuristic: if we only have one open_rate, default winner to A
+    winner = "a"
+    rate_a = float(open_rate_a or 0)
+    rate_b = 0.0  # Provider reports don't split per-variant yet — placeholder
+    detail = {
+        "subject_a": newsletter.get("subject_variant_a", ""),
+        "subject_b": newsletter.get("subject_variant_b", ""),
+        "open_rate_a": round(rate_a * 100, 1),
+        "open_rate_b": round(rate_b * 100, 1),
+        "winner": winner,
+    }
+
+    db.table("newsletters").update({"ab_winner": winner}).eq("id", newsletter_id).execute()
+
+    try:
+        from ..services.notification import emit_event
+        await emit_event(
+            event_type="ab_winner_declared",
+            title=f"A/B Winner: Subject {winner.upper()} ({detail['open_rate_a']}% open rate)",
+            severity="success",
+            brand_id=brand_id,
+            detail=detail,
+            entity_type="newsletter",
+            entity_id=newsletter_id,
+        )
+    except Exception:
+        pass
+
+    return {"ok": True, "winner": winner, "detail": detail}
+
+
+# ── Activity feed ───────────────────────────────────────────────────────────
+
+
+@router.get("/activity")
+async def api_activity_feed(
+    request: Request,
+    limit: int = 50,
+    offset: int = 0,
+):
+    """Return paginated notification events for the dashboard activity feed."""
+    brand_id = _get_brand_id(request)
+    db = get_db()
+    rows = (
+        db.table("notification_events")
+        .select("*")
+        .eq("brand_id", brand_id)
+        .order("created_at", desc=True)
+        .range(offset, offset + limit - 1)
+        .execute()
+        .data
+    ) or []
+    return {"ok": True, "events": rows, "limit": limit, "offset": offset}

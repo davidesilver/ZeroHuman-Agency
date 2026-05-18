@@ -7,6 +7,7 @@ import logging
 from ..db import get_db
 from ..utils.audit_trail import log_publish_event
 from .email_providers import get_email_provider, SenderInfo
+from .notification import emit_event
 
 log = logging.getLogger(__name__)
 
@@ -183,6 +184,19 @@ async def send_newsletter(brand_id: str, newsletter_id: str, recipients: list[st
 
     except Exception as exc:
         log.error("Primary provider %s failed: %s — falling back to Resend", provider.config.provider, exc)
+        # Emit provider failure alert before fallback
+        try:
+            await emit_event(
+                event_type="campaign_send_failed",
+                title=f"Campaign send failed — {provider.config.provider}",
+                severity="error",
+                brand_id=brand_id,
+                detail={"provider": provider.config.provider, "error": str(exc), "newsletter_id": newsletter_id},
+                entity_type="newsletter",
+                entity_id=newsletter_id,
+            )
+        except Exception:
+            pass
         used_provider = "resend"
         fallback = _make_resend_fallback(recipients)
         fb_campaign = await fallback.create_campaign(
@@ -210,6 +224,26 @@ async def send_newsletter(brand_id: str, newsletter_id: str, recipients: list[st
             "ab_used": ab_used,
         },
     )
+
+    # Lifecycle alert: campaign sent
+    try:
+        await emit_event(
+            event_type="campaign_sent",
+            title=f"Newsletter #{newsletter.get('edition_number', '?')} sent",
+            severity="success",
+            brand_id=brand_id,
+            detail={
+                "provider": used_provider,
+                "recipients": len(recipients),
+                "subject_a": subject_a,
+                "subject_b": subject_b or "",
+                "ab_used": ab_used,
+            },
+            entity_type="newsletter",
+            entity_id=newsletter_id,
+        )
+    except Exception:
+        pass
 
     return {
         "newsletter_id": newsletter_id,

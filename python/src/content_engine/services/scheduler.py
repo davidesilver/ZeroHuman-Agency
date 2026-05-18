@@ -48,17 +48,17 @@ async def daily_research_pipeline(brand_id: str) -> dict:
     }
 
     if research_result.items_found == 0:
-        # Alerting is best-effort: never let a Telegram outage abort the pipeline.
         try:
-            from .alerting import send_telegram_alert
-            await send_telegram_alert(
-                f"⚠️ Zero items found in daily research for brand `{brand_id}`."
-                " Check crawler/API endpoints."
+            from .notification import emit_event
+            await emit_event(
+                event_type="research_zero_items",
+                title="Zero items found in daily research",
+                severity="warning",
+                brand_id=brand_id,
+                detail={"sources_scanned": research_result.sources_scanned},
             )
         except Exception as alert_err:
-            logger.warning(
-                "Telegram alert failed for brand %s: %s", brand_id, alert_err,
-            )
+            logger.warning("Notification failed for brand %s: %s", brand_id, alert_err)
 
     # Step 2: Scoring
     scoring_result = await run_scoring(brand_id, ScoringRequest())
@@ -103,6 +103,13 @@ async def daily_research_pipeline(brand_id: str) -> dict:
     # Step 4: Feedback loop
     feedback_result = await update_feedback_bonus(brand_id)
     results["feedback"] = feedback_result
+
+    # Step 5: Daily digest — always sent, even on full success
+    try:
+        from .notification import send_digest
+        await send_digest(brand_id, results)
+    except Exception as digest_err:
+        logger.warning("Daily digest failed for brand %s: %s", brand_id, digest_err)
 
     return results
 
