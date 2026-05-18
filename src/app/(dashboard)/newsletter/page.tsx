@@ -23,6 +23,8 @@ interface Newsletter {
   sent_at: string | null
   open_rate: number | null
   click_rate: number | null
+  layout_type: string | null
+  subject_variant_b: string | null
 }
 
 export default function NewsletterPage() {
@@ -154,6 +156,7 @@ export default function NewsletterPage() {
             <TableRow>
               <TableHead className="w-16">#</TableHead>
               <TableHead>Title</TableHead>
+              <TableHead className="w-24">Layout</TableHead>
               <TableHead className="w-28">Date</TableHead>
               <TableHead className="w-24">Open Rate</TableHead>
               <TableHead className="w-20">CTR</TableHead>
@@ -165,7 +168,13 @@ export default function NewsletterPage() {
             {newsletters.map((nl) => (
               <TableRow key={nl.id}>
                 <TableCell className="font-medium">{nl.edition_number}</TableCell>
-                <TableCell>{nl.title}</TableCell>
+                <TableCell>
+                  <span>{nl.title}</span>
+                  {nl.subject_variant_b && (
+                    <span className="ml-1.5 text-[9px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-1 py-0.5 rounded">A/B</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground capitalize">{nl.layout_type || '—'}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {nl.sent_at ? new Date(nl.sent_at).toLocaleDateString('en-US') : '—'}
                 </TableCell>

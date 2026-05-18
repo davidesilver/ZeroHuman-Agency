@@ -1,13 +1,14 @@
-"""Newsletter delivery via Resend API."""
+"""Newsletter delivery — routes through the configured EmailProvider adapter."""
 
 from __future__ import annotations
 import html as html_lib
+import logging
 
-import resend
-
-from ..config import settings
 from ..db import get_db
 from ..utils.audit_trail import log_publish_event
+from .email_providers import get_email_provider, SenderInfo
+
+log = logging.getLogger(__name__)
 
 NEWSLETTER_TEMPLATE = """<!DOCTYPE html>
 <html>
@@ -58,6 +59,7 @@ def _build_html(brand_name: str, edition_number: int, sections: list[dict]) -> s
     """Build newsletter HTML from sections.
 
     All user-controlled fields are HTML-escaped to prevent XSS (C-04).
+    Phase 2 will replace this with React Email rendering.
     """
     sections_html = ""
     for section in sections:
@@ -104,18 +106,31 @@ async def generate_newsletter_html(brand_id: str, newsletter_id: str) -> str:
         sections=sections,
     )
 
-    # Save HTML to newsletter
     db.table("newsletters").update({"html_body": html}).eq("id", newsletter_id).execute()
-
     return html
 
 
-async def send_newsletter(brand_id: str, newsletter_id: str, recipients: list[str]) -> dict:
-    """Send a newsletter via Resend."""
-    if not settings.resend_api_key:
-        raise RuntimeError("RESEND_API_KEY not configured")
+def _make_resend_fallback(recipients: list[str]):
+    from .email_providers import ResendProvider, ProviderConfig
+    from ..config import settings as s
+    return ResendProvider(ProviderConfig(
+        provider="resend",
+        api_key=s.resend_api_key,
+        sender_name=s.newsletter_from_name,
+        sender_email=s.newsletter_from_email,
+        list_id=",".join(recipients),
+        webhook_secret="",
+        ab_split_pct=20,
+        ab_wait_hours=4,
+    ))
 
-    resend.api_key = settings.resend_api_key
+
+async def send_newsletter(brand_id: str, newsletter_id: str, recipients: list[str]) -> dict:
+    """Send a newsletter via the brand's configured email provider.
+
+    Uses A/B campaign if subject variants exist, regular campaign otherwise.
+    Falls back to Resend on primary provider failure.
+    """
     db = get_db()
 
     newsletter = db.table("newsletters").select("*").eq("id", newsletter_id).single().execute().data
@@ -127,37 +142,111 @@ async def send_newsletter(brand_id: str, newsletter_id: str, recipients: list[st
         html = await generate_newsletter_html(brand_id, newsletter_id)
 
     title = newsletter.get("title", "Newsletter")
+    subject_a: str = newsletter.get("subject_variant_a") or title
+    subject_b: str | None = newsletter.get("subject_variant_b")
 
-    # Send via Resend
-    result = resend.Emails.send({
-        "from": f"{settings.newsletter_from_name} <{settings.newsletter_from_email}>",
-        "to": recipients,
-        "subject": title,
-        "html": html,
-    })
+    provider = await get_email_provider(brand_id)
+    list_id = provider.config.list_id or (recipients[0] if recipients else "")
+    sender = SenderInfo(name=provider.config.sender_name, email=provider.config.sender_email)
+    used_provider = provider.config.provider
+    ab_used = False
 
-    resend_id = result.get("id") if isinstance(result, dict) else str(result)
+    try:
+        if subject_b and list_id and provider.config.provider != "resend":
+            # Check if provider has sent at least one campaign before (Brevo A/B requirement)
+            prior = (
+                db.table("newsletters")
+                .select("id")
+                .eq("brand_id", brand_id)
+                .eq("status", "sent")
+                .neq("id", newsletter_id)
+                .limit(1)
+                .execute()
+                .data
+            )
+            if prior:
+                campaign_ref = await provider.create_ab_campaign(
+                    list_id=list_id,
+                    subjects=[subject_a, subject_b],
+                    html=html,
+                    sender=sender,
+                )
+                ab_used = True
+            else:
+                # First campaign — regular send to satisfy Brevo prerequisite
+                log.info("First campaign for brand %s — sending regular (not A/B)", brand_id)
+                campaign_ref = await provider.create_campaign(list_id=list_id, subject=subject_a, html=html, sender=sender)
+        else:
+            campaign_ref = await provider.create_campaign(list_id=list_id, subject=subject_a, html=html, sender=sender)
 
-    # Update newsletter record
-    db.table("newsletters").update({
+        result = await provider.send_campaign(campaign_ref)
+
+    except Exception as exc:
+        log.error("Primary provider %s failed: %s — falling back to Resend", provider.config.provider, exc)
+        used_provider = "resend"
+        fallback = _make_resend_fallback(recipients)
+        fb_campaign = await fallback.create_campaign(
+            list_id=",".join(recipients), subject=subject_a, html=html,
+        )
+        result = await fallback.send_campaign(fb_campaign)
+        campaign_ref = result.campaign_ref
+
+    update_payload: dict = {
         "status": "sent",
         "sent_at": "now()",
         "recipients_count": len(recipients),
-    }).eq("id", newsletter_id).execute()
+        "provider_campaign_id": campaign_ref.campaign_id,
+    }
+    db.table("newsletters").update(update_payload).eq("id", newsletter_id).execute()
 
     await log_publish_event(
         brand_id, newsletter_id,
         action="newsletter_send",
-        platform="email",
+        platform=used_provider,
         status="success",
-        details={"resend_id": resend_id, "recipients": len(recipients)},
+        details={
+            "provider_send_id": result.provider_send_id,
+            "recipients": len(recipients),
+            "ab_used": ab_used,
+        },
     )
 
     return {
         "newsletter_id": newsletter_id,
-        "resend_id": resend_id,
+        "provider": used_provider,
+        "provider_send_id": result.provider_send_id,
+        "ab_used": ab_used,
         "recipients": len(recipients),
         "status": "sent",
+    }
+
+
+async def get_newsletter_report(brand_id: str, newsletter_id: str) -> dict:
+    """Fetch campaign analytics from the email provider."""
+    db = get_db()
+    newsletter = db.table("newsletters").select("provider_campaign_id").eq("id", newsletter_id).maybe_single().execute().data
+    if not newsletter or not newsletter.get("provider_campaign_id"):
+        return {"error": "No provider campaign ID — newsletter not yet sent via provider"}
+
+    from .email_providers import CampaignRef
+    provider = await get_email_provider(brand_id)
+    campaign_ref = CampaignRef(
+        provider=provider.config.provider,
+        campaign_id=newsletter.get("provider_campaign_id", ""),
+    )
+    report = await provider.get_report(campaign_ref)
+    return {
+        "sent": report.sent,
+        "delivered": report.delivered,
+        "opens": report.opens,
+        "unique_opens": report.unique_opens,
+        "clicks": report.clicks,
+        "unique_clicks": report.unique_clicks,
+        "unsubscribes": report.unsubscribes,
+        "bounces": report.bounces,
+        "open_rate": report.open_rate,
+        "click_rate": report.click_rate,
+        "click_to_open": report.click_to_open,
     }
 
 

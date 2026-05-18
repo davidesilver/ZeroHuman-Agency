@@ -682,6 +682,56 @@ export type Database = {
           },
         ]
       }
+      email_provider_config: {
+        Row: {
+          ab_split_pct: number
+          ab_wait_hours: number
+          api_key: string
+          brand_id: string
+          created_at: string
+          list_id: string
+          provider: string
+          sender_email: string
+          sender_name: string
+          updated_at: string
+          webhook_secret: string
+        }
+        Insert: {
+          ab_split_pct?: number
+          ab_wait_hours?: number
+          api_key?: string
+          brand_id: string
+          created_at?: string
+          list_id?: string
+          provider?: string
+          sender_email?: string
+          sender_name?: string
+          updated_at?: string
+          webhook_secret?: string
+        }
+        Update: {
+          ab_split_pct?: number
+          ab_wait_hours?: number
+          api_key?: string
+          brand_id?: string
+          created_at?: string
+          list_id?: string
+          provider?: string
+          sender_email?: string
+          sender_name?: string
+          updated_at?: string
+          webhook_secret?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_provider_config_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           brand_id: string
@@ -1355,15 +1405,56 @@ export type Database = {
           },
         ]
       }
+      newsletter_events: {
+        Row: {
+          created_at: string
+          email: string
+          event_type: string
+          id: string
+          metadata: Json
+          newsletter_id: string
+          occurred_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          newsletter_id: string
+          occurred_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          newsletter_id?: string
+          occurred_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_events_newsletter_id_fkey"
+            columns: ["newsletter_id"]
+            isOneToOne: false
+            referencedRelation: "newsletters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       newsletters: {
         Row: {
+          ab_winner: string | null
           brand_id: string
           click_rate: number | null
           created_at: string | null
           edition_number: number
           html_body: string | null
           id: string
+          layout_type: string | null
           open_rate: number | null
+          provider_campaign_id: string | null
           recipients_count: number | null
           scheduled_at: string | null
           sent_at: string | null
@@ -1371,18 +1462,23 @@ export type Database = {
           slot_sistema_id: string | null
           slot_strumento_id: string | null
           status: Database["public"]["Enums"]["newsletter_status"]
+          subject_variant_a: string | null
+          subject_variant_b: string | null
           title: string
           unsubscribe_count: number | null
           updated_at: string | null
         }
         Insert: {
+          ab_winner?: string | null
           brand_id: string
           click_rate?: number | null
           created_at?: string | null
           edition_number: number
           html_body?: string | null
           id?: string
+          layout_type?: string | null
           open_rate?: number | null
+          provider_campaign_id?: string | null
           recipients_count?: number | null
           scheduled_at?: string | null
           sent_at?: string | null
@@ -1390,18 +1486,23 @@ export type Database = {
           slot_sistema_id?: string | null
           slot_strumento_id?: string | null
           status?: Database["public"]["Enums"]["newsletter_status"]
+          subject_variant_a?: string | null
+          subject_variant_b?: string | null
           title: string
           unsubscribe_count?: number | null
           updated_at?: string | null
         }
         Update: {
+          ab_winner?: string | null
           brand_id?: string
           click_rate?: number | null
           created_at?: string | null
           edition_number?: number
           html_body?: string | null
           id?: string
+          layout_type?: string | null
           open_rate?: number | null
+          provider_campaign_id?: string | null
           recipients_count?: number | null
           scheduled_at?: string | null
           sent_at?: string | null
@@ -1409,6 +1510,8 @@ export type Database = {
           slot_sistema_id?: string | null
           slot_strumento_id?: string | null
           status?: Database["public"]["Enums"]["newsletter_status"]
+          subject_variant_a?: string | null
+          subject_variant_b?: string | null
           title?: string
           unsubscribe_count?: number | null
           updated_at?: string | null

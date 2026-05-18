@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
 import Link from 'next/link'
+import { EmailProviderCard } from '@/components/settings/email-provider-card'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 // Shape returned by GET /api/system/config
@@ -771,6 +772,9 @@ export default function SettingsPage() {
           </p>
         </CardContent>
       </Card>
+
+      {/* ── Email Provider ──────────────────────────────────────────────────── */}
+      <EmailProviderCard />
 
       {/* ── Cost Budget ─────────────────────────────────────────────────────── */}
       <Card>
