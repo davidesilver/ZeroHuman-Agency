@@ -26,33 +26,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: '3.12'
+          version: "latest"
 
-      - name: Install dependencies
+      - name: Export production requirements
+        # Export only non-dev dependencies so we audit what ships to production.
+        # uv export writes a pip-compatible requirements.txt with pinned hashes.
         run: |
           cd python
-          pip install pip-audit
-          pip install -r requirements.txt || pip install -e ".[dev]" || true
+          uv export --no-dev --no-hashes -o requirements-audit.txt
+
+      - name: Install pip-audit
+        run: pip install pip-audit
 
       - name: Run pip-audit (fail on HIGH/CRITICAL)
+        # Audit only our exported requirements, not pip-audit's own deps.
+        # --skip-editable avoids re-auditing the local package itself.
         run: |
-          cd python
           pip-audit \
+            --requirement python/requirements-audit.txt \
+            --skip-editable \
             --format json \
-            --output sbom-python.json \
+            --output python/sbom-python.json \
             --vulnerability-service pypi \
-            || (echo "❌ Vulnerabilities found!" && exit 1)
+            || (echo "❌ Vulnerabilities found in Python deps!" && cat python/sbom-python.json && exit 1)
 
       - name: Generate CycloneDX SBOM (Python)
         run: |
           pip install cyclonedx-bom
-          cd python
-          cyclonedx-py environment \
+          cyclonedx-py requirements python/requirements-audit.txt \
             --output-format json \
-            --output sbom-cyclonedx-python.json
+            --output python/sbom-cyclonedx-python.json
 
       - name: Upload Python SBOM
         uses: actions/upload-artifact@v4
