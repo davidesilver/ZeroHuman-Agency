@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Content Engine",
-  description: "AI-powered content automation system",
+  title: "ZeroHuman — Content Engine",
+  description: "Autonomous AI content operations — research, draft, review, publish across every brand.",
 };
 
 export default function RootLayout({

@@ -1,4 +1,4 @@
-# Content Engine
+# ZeroHuman — Content Engine
 
 **An autonomous, multi-tenant AI content operations platform that transforms how teams create, manage, and publish content across multiple channels.**
 
@@ -34,6 +34,13 @@ Topics + Sources → Research → Scoring → Draft → Review → Publish
 | **Image generation** | Generate images per draft using any compatible image backend |
 | **Feedback loop** | Social metrics flow back into scoring weights — high-performing content influences future research |
 | **Observability** | Cost tracking, agent heartbeats, LLM fallback logs, pipeline health dashboard |
+| **Notifications** | Telegram bot with lifecycle alerts, daily digest, bot commands, and activity feed |
+| **Deep Research** | Long-form research via local-deep-research Docker sidecar |
+| **Competitor Watch** | Monitor competitor content and extract signal for your pipeline |
+| **Video intelligence** | YouTube trend retrieval and video content analysis |
+| **Email marketing** | Brevo integration for list management and campaign analytics |
+| **CLI / MCP** | Command-line interface and MCP server for agent-to-agent integration |
+| **Brand vault** | Per-brand encrypted credential storage — API keys never leave your database unencrypted |
 
 Everything is **multi-tenant**: each brand has isolated data, its own sources, tone of voice, scoring weights, and agent configuration.
 
@@ -90,6 +97,7 @@ Create multiple brands, each with its own sources, tone, agents, scoring weights
 | Layer | Technology |
 |---|---|
 | Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4 |
+| UI system | Base UI primitives, light-mode-first design tokens, Linear/Sentry/YouTube Studio patterns |
 | Backend | Python, FastAPI, uvicorn |
 | Database | PostgreSQL via Supabase (auth, RLS, storage, vector search) |
 | Social publishing | Postiz (self-hosted Docker or cloud — optional) |
@@ -146,8 +154,8 @@ npm run dev
 ```bash
 cd python
 uv sync
-uv run uvicorn src.content_engine.main:app --reload --port 8000
-# → http://localhost:8000
+uv run uvicorn src.content_engine.main:app --reload --port 8082
+# → http://localhost:8082
 ```
 
 ### 5 — First brand
@@ -172,7 +180,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # Backend location (frontend proxies heavy ops here)
-PYTHON_BACKEND_URL=http://localhost:8000
+PYTHON_BACKEND_URL=http://localhost:8082
 
 # At least one LLM provider
 ANTHROPIC_API_KEY=
@@ -210,7 +218,7 @@ REPLICATE_API_TOKEN=
 ### Operations
 
 ```bash
-ALLOWED_ORIGINS=http://localhost:3000   # comma-separated, no trailing slash
+ALLOWED_ORIGINS=http://localhost:3080   # comma-separated — must match the Next.js port you use
 NEWSLETTER_FROM_EMAIL=hello@yourdomain.com
 NEWSLETTER_FROM_NAME=Your Newsletter
 TELEGRAM_BOT_TOKEN=          # optional: alert channel
