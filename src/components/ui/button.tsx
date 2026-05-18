@@ -4,30 +4,25 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 /**
- * Button — Linear button-primary spec, ZeroHuman recolor.
+ * Button — Linear spec, light-mode.
  *
- * Linear specs (replicated exactly):
  *  - All buttons: rounded-md (8px), never pill
- *  - Primary: coral fill + obsidian text (Linear: lavender → coral swap)
- *  - Secondary: surface-1 + ink text + hairline border
- *  - Tertiary: canvas + ink text (no border)
- *  - Type: 14px / 500 / tracking 0 (button cap spec)
- *  - Padding: 8px 14px (Linear compact spec)
- *  - Focus: 2px coral outline at 50% opacity (Linear pattern)
- *  - No box-shadow on dark — Linear principle
+ *  - Primary: coral fill + white text
+ *  - Outline: white bg + hairline border (visible on cream canvas)
+ *  - Ghost: hover lifts to surface-1 (white) on cream
+ *  - Press: scale(0.97) Starbucks tactile animation
+ *  - Focus: 2px coral outline at 50% opacity
  */
 const buttonVariants = cva(
   cn(
-    // Base shape (Linear button spec)
     "group/button inline-flex shrink-0 items-center justify-center gap-1.5",
     "rounded-md border border-transparent bg-clip-padding",
     "text-sm font-medium whitespace-nowrap",
     "transition-colors duration-100",
     "outline-none select-none",
-    // Focus ring (Linear: 2px brand outline at 50% opacity)
     "focus-visible:outline-2 focus-visible:outline-offset-2",
-    // Active press (subtle, no transform on Linear — kept minimal)
-    "active:not-aria-[haspopup]:translate-y-px",
+    // Starbucks press animation
+    "active:not-aria-[haspopup]:scale-[0.97] active:not-aria-[haspopup]:transition-transform active:not-aria-[haspopup]:duration-75",
     "disabled:pointer-events-none disabled:opacity-50",
     "aria-invalid:border-[var(--status-error)]",
     "[&_svg]:pointer-events-none [&_svg]:shrink-0",
@@ -36,31 +31,31 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Primary — Coral fill, dark text (Linear button-primary recolor)
+        // Primary — Coral fill, white text (light mode)
         default: cn(
-          "bg-[var(--brand-primary)] text-[var(--canvas)]",
+          "bg-[var(--brand-primary)] text-white",
           "hover:bg-[var(--brand-primary-hover)]",
           "active:bg-[var(--brand-primary-focus)]",
           "focus-visible:outline-[var(--brand-primary)]"
         ),
-        // Secondary — surface-1 + hairline border (Linear button-secondary)
+        // Outline — white bg + warm hairline border (Linear button-secondary)
         outline: cn(
           "bg-[var(--surface-1)] text-ink border-hairline",
           "hover:bg-[var(--surface-2)] hover:border-hairline-strong",
           "focus-visible:outline-[var(--brand-primary)]"
         ),
-        // Surface-2 fill (used for selected tabs etc — Linear pricing-tab-selected)
+        // Secondary — surface-2 fill
         secondary: cn(
-          "bg-[var(--surface-2)] text-ink",
+          "bg-[var(--surface-2)] text-ink border-hairline",
           "hover:bg-[var(--surface-3)]"
         ),
-        // Tertiary / ghost — no background, hover lifts to surface-1
+        // Ghost — transparent, hover lifts to white (visible on cream)
         ghost: cn(
           "text-ink-muted",
           "hover:bg-[var(--surface-1)] hover:text-ink",
           "aria-expanded:bg-[var(--surface-1)] aria-expanded:text-ink"
         ),
-        // Destructive — soft red, no fill (subtle)
+        // Destructive
         destructive: cn(
           "bg-[var(--status-error)]/10 text-[var(--status-error)]",
           "hover:bg-[var(--status-error)]/20",

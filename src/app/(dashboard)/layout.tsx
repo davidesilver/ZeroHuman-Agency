@@ -8,18 +8,17 @@ import { APISpendRow } from '@/components/layout/api-spend-row'
 import { BrandProvider } from '@/lib/brand-context'
 
 /**
- * Dashboard shell — Linear app layout.
+ * Dashboard shell — light cream main area + dark sidebar anchor.
  *
  * Structure:
  *   ┌─ StagingBar (coral, 28px)  ──────────────────────┐
  *   ├─────────┬──────────────────────────────────────┤
  *   │ Sidebar │ Top context bar (URL + API spend)    │
  *   │ 240px   ├──────────────────────────────────────┤
- *   │ canvas  │ Main content (canvas bg, padded)     │
+ *   │ dark    │ Main content (cream canvas, padded)  │
  *   └─────────┴──────────────────────────────────────┘
  *
- * Canvas everywhere — sidebar and main share #050505.
- * Hairline border between sidebar and main creates the only divider.
+ * Sidebar uses sidebar-specific dark tokens; main uses light canvas tokens.
  */
 export default async function DashboardLayout({
   children,

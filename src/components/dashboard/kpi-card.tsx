@@ -4,13 +4,9 @@ import { Card } from '@/components/ui/card'
 /**
  * KPICard — Dashboard metric tile.
  *
- * Layout:
- *   - Eyebrow label (uppercase, +0.15em tracking) — Linear/Sentry pattern
- *   - Display value (Linear display-md spec: 40px / 600 / -1.0px)
- *   - Subtitle (caption, ink-subtle)
- *   - Trend pill (top-right, status-success-soft chip)
- *
- * Destructive variant: tints value + adds hairline highlight
+ * Light-mode: white card + Miro warm shadow (from Card component).
+ * Stripe tnum applied to the display value for column alignment.
+ * Miro 64px stat display pattern for key metrics.
  */
 interface KPICardProps {
   title: string
@@ -36,9 +32,10 @@ export function KPICard({ title, value, subtitle, trend, variant = 'default' }: 
           </span>
         )}
       </div>
+      {/* Stripe tabular figures — numbers align in columns */}
       <div
         className={cn(
-          'font-semibold leading-none',
+          'tabular font-semibold leading-none',
           variant === 'destructive' ? 'text-[var(--status-error)]' : 'text-ink'
         )}
         style={{

@@ -139,14 +139,14 @@ function PipelineTab() {
           <h3 className="text-sm font-medium mb-3">Content Drafts</h3>
           <div className="grid grid-cols-5 gap-3">
             {[
-              { label: 'Draft', value: data.drafts.draft, color: 'bg-[var(--surface-2)]' },
-              { label: 'In Review', value: data.drafts.in_review, color: 'status-warning-soft' },
-              { label: 'Approved', value: data.drafts.approved, color: 'status-success-soft' },
-              { label: 'Scheduled', value: data.drafts.scheduled, color: 'status-info-soft' },
-              { label: 'Published', value: data.drafts.published, color: 'bg-[var(--brand-primary)]/10' },
+              { label: 'Draft', value: data.drafts.draft, color: 'tint-draft' },
+              { label: 'In Review', value: data.drafts.in_review, color: 'tint-review' },
+              { label: 'Approved', value: data.drafts.approved, color: 'tint-approved' },
+              { label: 'Scheduled', value: data.drafts.scheduled, color: 'tint-scheduled' },
+              { label: 'Published', value: data.drafts.published, color: 'tint-published' },
             ].map(s => (
               <div key={s.label} className={cn('rounded-lg p-3 text-center', s.color)}>
-                <div className="text-2xl font-bold">{s.value}</div>
+                <div className="tabular text-2xl font-bold">{s.value}</div>
                 <div className="text-xs text-muted-foreground mt-1">{s.label}</div>
               </div>
             ))}

@@ -187,19 +187,23 @@ async function LlmKpis() {
 async function PipelineCard() {
   const stats = await loadStats()
   const stages = [
-    { label: 'Discovery', count: stats.new },
-    { label: 'Scored', count: stats.scored },
-    { label: 'Approved', count: stats.approved },
-    { label: 'Published', count: stats.published },
+    { label: 'Discovery', count: stats.new, tint: 'var(--tint-draft)' },
+    { label: 'Scored', count: stats.scored, tint: 'var(--tint-review)' },
+    { label: 'Approved', count: stats.approved, tint: 'var(--tint-approved)' },
+    { label: 'Published', count: stats.published, tint: 'var(--tint-published)' },
   ]
   return (
     <Card>
       <div className="flex items-center justify-between">
         {stages.map((stage, i) => (
           <div key={stage.label} className="flex items-center">
-            <div className="text-center">
+            {/* Notion pastel tint chip per stage */}
+            <div
+              className="text-center px-5 py-3 rounded-[var(--radius-lg)]"
+              style={{ background: stage.tint }}
+            >
               <p
-                className="font-semibold text-ink"
+                className="tabular font-semibold text-ink"
                 style={{
                   fontSize: '28px',
                   letterSpacing: '-0.6px',
