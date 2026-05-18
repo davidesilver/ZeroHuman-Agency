@@ -1,11 +1,10 @@
 import { Suspense } from 'react'
-
 import { Activity } from 'lucide-react'
 
 import { KPICard } from '@/components/dashboard/kpi-card'
 import { GettingStartedBanner } from '@/components/dashboard/getting-started'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -22,44 +21,81 @@ import {
   loadHealth,
   loadStats,
 } from './_dashboard-data'
+
 export const dynamic = 'force-dynamic'
 
+/**
+ * Dashboard — Main overview page.
+ *
+ * Typography hierarchy (Linear pattern):
+ *  - Eyebrow uppercase + tracking → "OVERVIEW"
+ *  - Page title h1 (40px / 600 / -1.0px) with coral chip on key word
+ *  - Section eyebrows above each KPI row
+ *  - Generous 32px gap between sections (Linear rhythm)
+ */
 export default function DashboardPage() {
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+    <div className="space-y-8 max-w-[1280px]">
+      {/* ── Page header ──────────────────────────────────────────── */}
+      <header className="space-y-2">
+        <p className="eyebrow">Overview</p>
+        <h1 className="text-ink">
+          Welcome to your <span className="chip-coral">Content Engine</span>
+        </h1>
+        <p className="text-base text-ink-muted max-w-2xl">
+          Monitor pipeline health, agent activity, and content velocity across
+          every connected brand.
+        </p>
+      </header>
 
       <GettingStartedBanner />
 
-      <Suspense fallback={<KpiRowSkeleton count={4} />}>
-        <PrimaryKpis />
-      </Suspense>
+      {/* ── Primary KPIs ─────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <p className="eyebrow">Production</p>
+        <Suspense fallback={<KpiRowSkeleton count={4} />}>
+          <PrimaryKpis />
+        </Suspense>
+      </section>
 
-      <Suspense fallback={<KpiRowSkeleton count={3} />}>
-        <HealthKpis />
-      </Suspense>
+      {/* ── System health ────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <p className="eyebrow">System Health</p>
+        <Suspense fallback={<KpiRowSkeleton count={3} />}>
+          <HealthKpis />
+        </Suspense>
+      </section>
 
-      <Suspense fallback={<KpiRowSkeleton count={3} />}>
-        <LlmKpis />
-      </Suspense>
+      {/* ── LLM routing ──────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <p className="eyebrow">LLM Routing</p>
+        <Suspense fallback={<KpiRowSkeleton count={3} />}>
+          <LlmKpis />
+        </Suspense>
+      </section>
 
-      <Suspense fallback={<PipelineSkeleton />}>
-        <PipelineCard />
-      </Suspense>
+      {/* ── Pipeline ─────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <p className="eyebrow">Pipeline</p>
+        <Suspense fallback={<PipelineSkeleton />}>
+          <PipelineCard />
+        </Suspense>
+      </section>
 
-      <div className="grid grid-cols-2 gap-4">
+      {/* ── Activity + Agent status (2-up grid) ──────────────────── */}
+      <section className="grid grid-cols-2 gap-4">
         <Suspense fallback={<TableSkeleton title="Recent Activity" />}>
           <ActivityCard />
         </Suspense>
         <Suspense fallback={<TableSkeleton title="Agent Status" />}>
           <AgentStatusCard />
         </Suspense>
-      </div>
+      </section>
     </div>
   )
 }
 
-// ── Sections ──────────────────────────────────────────────────────────────
+// ── Sections ────────────────────────────────────────────────────────
 
 async function PrimaryKpis() {
   const [stats, costs, health] = await Promise.all([
@@ -69,7 +105,7 @@ async function PrimaryKpis() {
   ])
   const totalPipeline = stats.new + stats.scored + stats.approved
   return (
-    <div className="grid grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-4 gap-4">
       <KPICard title="Content in pipeline" value={totalPipeline} />
       <KPICard title="Published" value={stats.published} />
       <KPICard
@@ -97,7 +133,7 @@ async function PrimaryKpis() {
 async function HealthKpis() {
   const { summary } = await loadHealth()
   return (
-    <div className="grid grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-3 gap-4">
       <KPICard
         title="Avg Uptime"
         value={`${summary.avg_uptime}%`}
@@ -105,7 +141,7 @@ async function HealthKpis() {
         variant={summary.avg_uptime < 95 ? 'destructive' : 'default'}
       />
       <KPICard
-        title="Total Pipeline Errors"
+        title="Pipeline Errors"
         value={summary.total_errors}
         subtitle={
           summary.total_errors > 0 ? 'Action required' : 'System healthy'
@@ -113,7 +149,7 @@ async function HealthKpis() {
         variant={summary.total_errors > 0 ? 'destructive' : 'default'}
       />
       <KPICard
-        title="Total Tasks in Queue"
+        title="Tasks in Queue"
         value={summary.total_queue}
         subtitle={summary.total_queue > 50 ? 'High load' : 'Normal queue'}
       />
@@ -124,9 +160,9 @@ async function HealthKpis() {
 async function LlmKpis() {
   const { summary } = await loadHealth()
   return (
-    <div className="grid grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-3 gap-4">
       <KPICard
-        title="Active LLM Models"
+        title="Active models"
         value={summary.active_models.length}
         subtitle={
           summary.active_models.slice(0, 2).join(', ') +
@@ -134,19 +170,15 @@ async function LlmKpis() {
         }
       />
       <KPICard
-        title="Engines Active"
+        title="Engines"
         value={summary.active_engines.length}
         subtitle={summary.active_engines.join(', ')}
       />
       <KPICard
-        title="Emergency Fallbacks (24h)"
+        title="Emergency fallbacks (24h)"
         value={summary.emergency_fallbacks_24h}
-        subtitle={
-          summary.emergency_fallbacks_24h > 0 ? 'Alert' : 'Normal'
-        }
-        variant={
-          summary.emergency_fallbacks_24h > 0 ? 'destructive' : 'default'
-        }
+        subtitle={summary.emergency_fallbacks_24h > 0 ? 'Alert' : 'Normal'}
+        variant={summary.emergency_fallbacks_24h > 0 ? 'destructive' : 'default'}
       />
     </div>
   )
@@ -155,33 +187,39 @@ async function LlmKpis() {
 async function PipelineCard() {
   const stats = await loadStats()
   const stages = [
-    { label: 'Discovery', count: stats.new },
-    { label: 'Scored', count: stats.scored },
-    { label: 'Approved', count: stats.approved },
-    { label: 'Published', count: stats.published },
+    { label: 'Discovery', count: stats.new, tint: 'var(--tint-draft)' },
+    { label: 'Scored', count: stats.scored, tint: 'var(--tint-review)' },
+    { label: 'Approved', count: stats.approved, tint: 'var(--tint-approved)' },
+    { label: 'Published', count: stats.published, tint: 'var(--tint-published)' },
   ]
   return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle className="text-base">Content Pipeline</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between">
-          {stages.map((stage, i) => (
-            <div key={stage.label} className="flex items-center">
-              <div className="text-center">
-                <p className="text-2xl font-bold">{stage.count}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stage.label}
-                </p>
-              </div>
-              {i < stages.length - 1 && (
-                <span className="mx-3 text-muted-foreground">→</span>
-              )}
+    <Card>
+      <div className="flex items-center justify-between">
+        {stages.map((stage, i) => (
+          <div key={stage.label} className="flex items-center">
+            {/* Notion pastel tint chip per stage */}
+            <div
+              className="text-center px-5 py-3 rounded-[var(--radius-lg)]"
+              style={{ background: stage.tint }}
+            >
+              <p
+                className="tabular font-semibold text-ink"
+                style={{
+                  fontSize: '28px',
+                  letterSpacing: '-0.6px',
+                  lineHeight: 1.2,
+                }}
+              >
+                {stage.count}
+              </p>
+              <p className="eyebrow mt-1 text-[10px]">{stage.label}</p>
             </div>
-          ))}
-        </div>
-      </CardContent>
+            {i < stages.length - 1 && (
+              <span className="mx-6 text-ink-tertiary text-lg">→</span>
+            )}
+          </div>
+        ))}
+      </div>
     </Card>
   )
 }
@@ -191,45 +229,43 @@ async function ActivityCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Recent Activity</CardTitle>
+        <CardTitle>Recent Activity</CardTitle>
       </CardHeader>
-      <CardContent>
-        {activities.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground py-8">
-            No activity — system not yet active
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Time</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Detail</TableHead>
+      {activities.length === 0 ? (
+        <p className="text-center text-sm text-ink-subtle py-8">
+          No activity — system not yet active
+        </p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Time</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Detail</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {activities.map((a) => (
+              <TableRow key={`${a.type}-${a.timestamp}-${a.message}`}>
+                <TableCell className="text-xs text-ink-subtle whitespace-nowrap font-mono">
+                  {a.timestamp
+                    ? new Date(a.timestamp).toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : '—'}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="text-[10px] font-medium">
+                    {a.type.toUpperCase()}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-sm text-ink-muted">{a.message}</TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {activities.map((a) => (
-                <TableRow key={`${a.type}-${a.timestamp}-${a.message}`}>
-                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                    {a.timestamp
-                      ? new Date(a.timestamp).toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
-                      : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-[10px]">
-                      {a.type.toUpperCase()}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm">{a.message}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
+            ))}
+          </TableBody>
+        </Table>
+      )}
     </Card>
   )
 }
@@ -239,77 +275,75 @@ async function AgentStatusCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Agent Status</CardTitle>
+        <CardTitle>Agent Status</CardTitle>
       </CardHeader>
-      <CardContent>
-        {agents.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Activity className="size-8 mx-auto mb-3 opacity-40" />
-            <p className="text-sm">No agent activity yet</p>
-            <p className="text-xs mt-1">
-              Generate content to see real-time agent status
-            </p>
-          </div>
-        ) : (
-          <ul className="space-y-3">
-            {agents.map((a) => {
-              const isUsingFallback = a.fallback_model !== null
-              const latencyColor =
-                a.last_latency_ms && a.last_latency_ms > 5000
-                  ? 'text-red-500'
-                  : a.last_latency_ms && a.last_latency_ms > 2000
-                  ? 'text-yellow-500'
-                  : 'text-green-500'
-              return (
-                <li key={a.agent_name} className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{a.agent_name}</span>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={
-                          a.status === 'healthy' ? 'default' : 'secondary'
-                        }
-                        className="text-xs"
-                      >
-                        {a.status === 'healthy'
-                          ? 'Online'
-                          : a.status === 'degraded'
-                          ? 'Degraded'
-                          : 'Offline'}
-                      </Badge>
-                      {isUsingFallback && (
-                        <Badge variant="destructive" className="text-xs">
-                          Fallback
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground pl-2">
-                    <span>{a.current_model || 'Unknown'}</span>
-                    <span className={`font-mono ${latencyColor}`}>
-                      {a.last_latency_ms ? `${a.last_latency_ms}ms` : 'N/A'}
+      {agents.length === 0 ? (
+        <div className="text-center py-8 text-ink-subtle">
+          <Activity className="size-8 mx-auto mb-3 opacity-40" />
+          <p className="text-sm">No agent activity yet</p>
+          <p className="text-xs mt-1 text-ink-tertiary">
+            Generate content to see real-time agent status
+          </p>
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {agents.map((a) => {
+            const isUsingFallback = a.fallback_model !== null
+            const latencyColor =
+              a.last_latency_ms && a.last_latency_ms > 5000
+                ? 'text-[var(--status-error)]'
+                : a.last_latency_ms && a.last_latency_ms > 2000
+                ? 'text-[var(--status-warning)]'
+                : 'text-[var(--status-success)]'
+            return (
+              <li key={a.agent_name} className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-ink">{a.agent_name}</span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={
+                        a.status === 'healthy'
+                          ? 'status-success-soft text-[10px] font-medium px-1.5 py-0.5 rounded'
+                          : 'status-warning-soft text-[10px] font-medium px-1.5 py-0.5 rounded'
+                      }
+                    >
+                      {a.status === 'healthy'
+                        ? 'Online'
+                        : a.status === 'degraded'
+                        ? 'Degraded'
+                        : 'Offline'}
                     </span>
+                    {isUsingFallback && (
+                      <span className="status-error-soft text-[10px] font-medium px-1.5 py-0.5 rounded">
+                        Fallback
+                      </span>
+                    )}
                   </div>
-                  <div className="text-xs text-muted-foreground pl-2">
-                    Engine:{' '}
-                    <span className="font-medium">{a.engine || 'Unknown'}</span>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </CardContent>
+                </div>
+                <div className="flex items-center justify-between text-xs text-ink-subtle pl-2">
+                  <span>{a.current_model || 'Unknown'}</span>
+                  <span className={`font-mono ${latencyColor}`}>
+                    {a.last_latency_ms ? `${a.last_latency_ms}ms` : 'N/A'}
+                  </span>
+                </div>
+                <div className="text-xs text-ink-tertiary pl-2">
+                  Engine: <span className="font-medium text-ink-subtle">{a.engine || 'Unknown'}</span>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </Card>
   )
 }
 
-// ── Skeletons ─────────────────────────────────────────────────────────────
+// ── Skeletons ──────────────────────────────────────────────────────
 
 function KpiRowSkeleton({ count }: { count: number }) {
   return (
     <div
-      className="grid gap-4 mb-6"
+      className="grid gap-4"
       style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}
     >
       {Array.from({ length: count }).map((_, i) => (
@@ -320,22 +354,20 @@ function KpiRowSkeleton({ count }: { count: number }) {
 }
 
 function PipelineSkeleton() {
-  return <Skeleton className="h-32 mb-6 rounded-lg" />
+  return <Skeleton className="h-32 rounded-lg" />
 }
 
 function TableSkeleton({ title }: { title: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-6 w-full" />
-          ))}
-        </div>
-      </CardContent>
+      <div className="space-y-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-6 w-full" />
+        ))}
+      </div>
     </Card>
   )
 }

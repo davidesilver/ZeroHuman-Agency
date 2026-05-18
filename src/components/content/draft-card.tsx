@@ -25,17 +25,17 @@ interface DraftCardProps {
   onMediaChange?: () => void
 }
 
-function platformColor(platform: string): string {
+function platformClass(platform: string): string {
   const map: Record<string, string> = {
-    linkedin: 'bg-blue-100 text-blue-800',
-    x: 'bg-gray-100 text-gray-800',
-    instagram: 'bg-pink-100 text-pink-800',
-    facebook: 'bg-indigo-100 text-indigo-800',
-    tiktok: 'bg-purple-100 text-purple-800',
-    blog: 'bg-green-100 text-green-800',
-    email: 'bg-amber-100 text-amber-800',
+    linkedin: 'platform-linkedin',
+    x: 'platform-x',
+    instagram: 'platform-instagram',
+    facebook: 'platform-facebook',
+    tiktok: 'platform-tiktok',
+    blog: 'platform-blog',
+    email: 'platform-email',
   }
-  return map[platform] || 'bg-gray-100 text-gray-800'
+  return map[platform] || 'platform-x'
 }
 
 function statusVariant(status: string) {
@@ -62,12 +62,21 @@ export function DraftCard({ draft, onAction, onMediaChange }: DraftCardProps) {
   const isTerminal = draft.status === 'published' || draft.status === 'archived'
   const isApproved = draft.status === 'approved' || draft.status === 'scheduled'
 
+  // Notion pastel tint strip by status
+  const statusBorderColor =
+    draft.status === 'approved' || draft.status === 'scheduled' ? 'var(--tint-approved)' :
+    draft.status === 'published' ? 'var(--tint-published)' :
+    draft.status === 'archived' ? 'var(--tint-review)' : undefined
+
   return (
-    <Card className="flex flex-col">
+    <Card
+      className="flex flex-col border-hairline relative overflow-hidden"
+      style={statusBorderColor ? { borderLeftColor: statusBorderColor, borderLeftWidth: '3px' } : undefined}
+    >
       <CardContent className="pt-4 space-y-3 flex-1 flex flex-col">
         <div className="flex items-start justify-between gap-2">
           <div className="flex gap-1.5 flex-wrap">
-            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${platformColor(draft.platform)}`}>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${platformClass(draft.platform)}`}>
               {draft.platform.toUpperCase()}
             </span>
             <Badge variant="secondary" className="text-[10px]">
@@ -80,32 +89,32 @@ export function DraftCard({ draft, onAction, onMediaChange }: DraftCardProps) {
         </div>
 
         {firstMedia && (
-          <div className="rounded overflow-hidden border">
+          <div className="rounded-md overflow-hidden border border-hairline">
             <img src={firstMedia} alt="Generated visual" className="w-full h-32 object-cover" />
           </div>
         )}
 
         <Link href={`/content-hub/${draft.id}`} className="block hover:opacity-80 transition-opacity flex-1">
-          <h3 className="font-medium text-sm line-clamp-2">{draft.title || 'Untitled'}</h3>
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-3">
+          <h3 className="font-medium text-sm text-ink line-clamp-2">{draft.title || 'Untitled'}</h3>
+          <p className="text-xs text-ink-muted mt-1 line-clamp-3">
             {draft.body?.slice(0, 200) || ''}
           </p>
         </Link>
 
         {godResult?.verdict && (
           <div className="text-xs">
-            <span className="text-muted-foreground">GOD Review:</span>{' '}
-            <span className={godResult.verdict === 'pass' ? 'text-green-600 font-medium' : 'text-amber-600 font-medium'}>
+            <span className="text-ink-subtle">GOD Review:</span>{' '}
+            <span className={godResult.verdict === 'pass' ? 'text-status-success font-medium' : 'text-status-warning font-medium'}>
               {godResult.verdict.toUpperCase()}
             </span>
             {godResult.advocate_score != null && (
-              <span className="text-muted-foreground"> · {godResult.advocate_score}/10</span>
+              <span className="text-ink-subtle"> · {godResult.advocate_score}/10</span>
             )}
           </div>
         )}
 
-        {/* Action bar — always visible, primary action emphasized */}
-        <div className="flex items-center gap-1.5 pt-2 border-t flex-wrap">
+        {/* Action bar */}
+        <div className="flex items-center gap-1.5 pt-2 border-t border-hairline flex-wrap">
           <Link href={`/content-hub/${draft.id}`} className="shrink-0">
             <Button variant="ghost" size="xs" title="Open draft">
               <Eye className="size-3" />
@@ -119,7 +128,7 @@ export function DraftCard({ draft, onAction, onMediaChange }: DraftCardProps) {
               size="xs"
               onClick={() => handle('approved')}
               disabled={pendingAction !== null}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-[var(--status-success)] hover:bg-[var(--status-success)]/90 text-white"
               title="Approve this draft"
             >
               {pendingAction === 'approved'
@@ -171,7 +180,7 @@ export function DraftCard({ draft, onAction, onMediaChange }: DraftCardProps) {
               size="xs"
               onClick={() => handle('archived')}
               disabled={pendingAction !== null}
-              className="ml-auto text-muted-foreground hover:text-destructive"
+              className="ml-auto text-ink-subtle hover:text-status-error"
               title="Archive this draft"
             >
               {pendingAction === 'archived'

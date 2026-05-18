@@ -4,6 +4,37 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * ──────────────────────────────────────────────────────────────────────────
+ *  ZEROHUMAN DESIGN SYSTEM — Light-first, Linear structure + creative picks
+ * ──────────────────────────────────────────────────────────────────────────
+ *
+ *  Primary reference:  Linear.app (structure, typography, sidebar, tabs)
+ *  Secondary:          Sentry (eyebrow labels, accent chips)
+ *  Tertiary:           YouTube Studio (sidebar group organization)
+ *  Creative picks:
+ *    - Intercom/Starbucks: warm cream canvas #f5f1ec (less fatigue)
+ *    - Notion: 6-color pastel tint system for content types
+ *    - Stripe: tabular figures (tnum) for metrics + cream band sections
+ *    - Starbucks: scale(0.97) press animation on CTAs
+ *    - Figma: 16px card radius, 24px featured radius
+ *    - Miro: warm purple-tinted shadows rgba(5,0,56,0.08)
+ *
+ *  Brand palette:
+ *    Cream      #f5f1ec  — canvas (Intercom warm cream)
+ *    Charcoal   #111111  — ink, primary text
+ *    Coral      #FF7F50  — SINGLE chromatic accent (mark, CTA, focus)
+ *
+ *  Rules:
+ *    - Light-mode only (single mode)
+ *    - Sidebar stays dark as contrast anchor (Sentry/YouTube pattern)
+ *    - Coral used ONLY for: brand mark, primary CTA, focus, active state
+ *    - No second chromatic accent (status = utility, not accent)
+ *    - Warm purple-tinted shadows on elevated surfaces (not hairline-only)
+ *    - No pill-rounded CTAs (8px buttons, 16px cards)
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -11,7 +42,7 @@
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
 
-  /* shadcn semantic colors */
+  /* shadcn semantic mapping */
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -29,7 +60,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* shadcn sidebar */
+  /* Sidebar tokens (Linear-style dark nav) */
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -39,30 +70,49 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* Charts — Chromatic Grid */
+  /* Linear surface ladder (4-step, replaces shadow elevation) */
+  --color-canvas: var(--canvas);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-4: var(--surface-4);
+
+  /* Ink hierarchy (Linear's 4-tier text scale) */
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-ink-tertiary: var(--ink-tertiary);
+
+  /* Hairline borders (Linear's 3-tier border scale) */
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-hairline-tertiary: var(--hairline-tertiary);
+
+  /* Brand (Coral replaces Linear's lavender) */
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-hover: var(--brand-primary-hover);
+  --color-brand-primary-focus: var(--brand-primary-focus);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-accent: var(--brand-accent);
+
+  /* Status (semantic only — never decorative) */
+  --color-status-success: var(--status-success);
+  --color-status-warning: var(--status-warning);
+  --color-status-error: var(--status-error);
+  --color-status-info: var(--status-info);
+
+  /* Charts */
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
 
-  /* Brand colors */
-  --color-brand-primary: var(--brand-primary);
-  --color-brand-primary-hover: var(--brand-primary-hover);
-  --color-brand-secondary: var(--brand-secondary);
-  --color-brand-accent: var(--brand-accent);
-
-  /* Status colors */
-  --color-status-success: var(--status-success);
-  --color-status-warning: var(--status-warning);
-  --color-status-error: var(--status-error);
-  --color-status-info: var(--status-info);
-
   /* Staging bar */
   --color-staging-bg: var(--staging-bg);
   --color-staging-text: var(--staging-text);
 
-  /* Content category colors */
+  /* Platform / category colors (utility tokens, not accent) */
   --color-cat-finanza: var(--cat-finanza);
   --color-cat-prodotto: var(--cat-prodotto);
   --color-cat-marketing: var(--cat-marketing);
@@ -70,86 +120,315 @@
   --color-cat-business: var(--cat-business);
 
   /* Radius */
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-card: 16px;           /* Figma card radius */
+  --radius-featured: 24px;       /* Figma featured/modal radius */
+  --radius-2xl: 24px;
+  --radius-3xl: 32px;
+
+  /* Miro warm shadow system */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+
+  /* Notion pastel tints */
+  --color-tint-draft: var(--tint-draft);
+  --color-tint-review: var(--tint-review);
+  --color-tint-approved: var(--tint-approved);
+  --color-tint-scheduled: var(--tint-scheduled);
+  --color-tint-published: var(--tint-published);
+  --color-tint-error: var(--tint-error);
+
+  /* Spacing extras for section rhythm (Linear: 96px between sections) */
+  --spacing-section: 96px;
 }
 
+/*
+ * ──────────────────────────────────────────────────────────────────────────
+ *  TOKEN DEFINITIONS — Light-first, warm cream canvas
+ * ──────────────────────────────────────────────────────────────────────────
+ */
 :root {
-  /* shadcn base — mapped to Chromatic Grid */
-  --background: #FFFFFF;
-  --foreground: #111827;
-  --card: #FFFFFF;
-  --card-foreground: #111827;
-  --popover: #FFFFFF;
-  --popover-foreground: #111827;
-  --primary: #3B82F6;
-  --primary-foreground: #FFFFFF;
-  --secondary: #F3F4F6;
-  --secondary-foreground: #111827;
-  --muted: #F9FAFB;
-  --muted-foreground: #6B7280;
-  --accent: #F3F4F6;
-  --accent-foreground: #111827;
-  --destructive: #EF4444;
-  --border: #E5E7EB;
-  --input: #E5E7EB;
-  --ring: #3B82F6;
-  --radius: 0.5rem;
+  /* ── Canvas & surface ladder (light, warm cream → white) ── */
+  --canvas: #f5f1ec;             /* Intercom warm cream — less fatiguing than pure white */
+  --surface-1: #ffffff;          /* White cards on cream canvas */
+  --surface-2: #f9f8f6;          /* Slightly warm white — hover states */
+  --surface-3: #f3f0eb;          /* Deeper cream — popovers, dropdowns */
+  --surface-4: #ede9e3;          /* Deepest tint — nested surfaces */
 
-  /* Charts — Chromatic Grid */
-  --chart-1: #3B82F6;
-  --chart-2: #10B981;
-  --chart-3: #8B5CF6;
-  --chart-4: #F59E0B;
-  --chart-5: #EF4444;
+  --background: var(--canvas);
+  --foreground: var(--ink);
 
-  /* Sidebar — dark theme */
-  --sidebar: #1F2937;
-  --sidebar-foreground: #FFFFFF;
-  --sidebar-primary: #3B82F6;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #374151;
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: #374151;
-  --sidebar-ring: #3B82F6;
+  /* ── Ink hierarchy (dark on light — 4 tiers) ── */
+  --ink: #111111;                /* Near-black — headlines, body */
+  --ink-muted: #4a4a4a;          /* Dark gray — meta info */
+  --ink-subtle: #737373;         /* Mid gray — eyebrows, deselected */
+  --ink-tertiary: #a3a3a3;       /* Light gray — disabled, placeholders */
 
-  /* Brand */
-  --brand-primary: #3B82F6;
-  --brand-primary-hover: #2563EB;
-  --brand-secondary: #10B981;
-  --brand-accent: #F59E0B;
+  /* ── Hairlines (warm gray — visible on cream/white) ── */
+  --hairline: #e5e2dc;           /* Warm gray border — default */
+  --hairline-strong: #d1cdc6;    /* Stronger warm gray — input focus */
+  --hairline-tertiary: #c4bfb8;  /* Deepest border — nested */
 
-  /* Status */
-  --status-success: #10B981;
-  --status-warning: #F59E0B;
-  --status-error: #EF4444;
-  --status-info: #3B82F6;
+  /* ── Brand: Coral ── */
+  --brand-primary: #FF7F50;          /* Coral — primary accent */
+  --brand-primary-hover: #FF9670;    /* Lighter coral — hover */
+  --brand-primary-focus: #F26B3A;    /* Deeper coral — pressed/focus */
+  --brand-secondary: #36454F;        /* Charcoal — secondary surface accent */
+  --brand-accent: #C0C0C0;           /* Silver — tertiary text accent */
 
-  /* Staging bar */
-  --staging-bg: #10B981;
-  --staging-text: #FFFFFF;
+  /* ── shadcn semantic mapping ── */
+  --primary: var(--brand-primary);
+  --primary-foreground: #ffffff;     /* White text on coral */
 
-  /* Content categories */
-  --cat-finanza: #EF4444;
-  --cat-prodotto: #3B82F6;
-  --cat-marketing: #10B981;
-  --cat-tech: #8B5CF6;
-  --cat-business: #F59E0B;
+  --card: var(--surface-1);
+  --card-foreground: var(--ink);
+
+  --popover: var(--surface-1);
+  --popover-foreground: var(--ink);
+
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--ink);
+
+  --muted: var(--surface-3);
+  --muted-foreground: var(--ink-subtle);
+
+  --accent: var(--surface-2);
+  --accent-foreground: var(--ink);
+
+  --destructive: #dc2626;
+
+  --border: var(--hairline);
+  --input: var(--hairline);
+  --ring: var(--brand-primary-focus);
+
+  /* ── Sidebar — stays DARK (contrast anchor, Sentry/YouTube pattern) ── */
+  --sidebar: #1c1c24;
+  --sidebar-foreground: #e2e2e6;
+  --sidebar-primary: var(--brand-primary);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #26262f;
+  --sidebar-accent-foreground: #e2e2e6;
+  --sidebar-border: #2e2e38;
+  --sidebar-ring: var(--brand-primary);
+
+  /* ── Status — adjusted for light backgrounds ── */
+  --status-success: #16a34a;     /* Green — AA on white */
+  --status-warning: #d97706;     /* Amber — AA on white */
+  --status-error: #dc2626;       /* Red — AA on white */
+  --status-info: #2563eb;        /* Blue — AA on white */
+
+  /* ── Miro warm purple-tinted shadow system ── */
+  --shadow-sm: 0 1px 3px rgba(5, 0, 56, 0.06);
+  --shadow-md: 0 4px 12px rgba(5, 0, 56, 0.08);
+  --shadow-lg: 0 8px 24px rgba(5, 0, 56, 0.10);
+  --shadow-xl: 0 16px 48px rgba(5, 0, 56, 0.12);
+
+  /* ── Figma generous radius scale ── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;              /* Buttons */
+  --radius-lg: 12px;
+  --radius-card: 16px;           /* Standard cards (Figma) */
+  --radius-featured: 24px;       /* Featured/modal areas */
+  --radius-2xl: 24px;
+  --radius-3xl: 32px;
+
+  /* ── Notion 6-color pastel tint system for content types ── */
+  --tint-draft: #e6e0f5;         /* Lavender — draft state */
+  --tint-review: #ffe8d4;        /* Peach — in review */
+  --tint-approved: #d9f3e1;      /* Mint — approved */
+  --tint-scheduled: #dcecfa;     /* Sky — scheduled */
+  --tint-published: #fef7d6;     /* Cream-gold — published */
+  --tint-error: #fde0ec;         /* Rose — error/rejected */
+
+  /* ── Charts ── */
+  --chart-1: #FF7F50;            /* Coral */
+  --chart-2: #16a34a;            /* Green */
+  --chart-3: #2563eb;            /* Blue */
+  --chart-4: #d97706;            /* Amber */
+  --chart-5: #9333ea;            /* Purple */
+
+  /* ── Staging bar (Coral signature) ── */
+  --staging-bg: var(--brand-primary);
+  --staging-text: #ffffff;
+
+  /* ── Content categories ── */
+  --cat-finanza: #dc2626;
+  --cat-prodotto: #2563eb;
+  --cat-marketing: #16a34a;
+  --cat-tech: #9333ea;
+  --cat-business: #d97706;
 }
 
+/*
+ * ──────────────────────────────────────────────────────────────────────────
+ *  BASE LAYER — Linear typography + light-mode adjustments
+ * ──────────────────────────────────────────────────────────────────────────
+ */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    @apply font-sans antialiased;
+    /* Inter: calt+kern+liga for quality, ss01+cv11 for alternate glyphs */
+    /* tnum (Stripe): tabular figures for metrics alignment */
+    font-feature-settings: "calt", "kern", "liga", "ss01", "cv11";
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   body {
     @apply bg-background text-foreground;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: -0.05px;
   }
-  html {
-    @apply font-sans;
+
+  /* Display scale — Linear typography spec */
+  h1 {
+    font-size: 40px;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -1.0px;
   }
+  h2 {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.20;
+    letter-spacing: -0.6px;
+  }
+  h3 {
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: -0.4px;
+  }
+  h4 {
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 1.40;
+    letter-spacing: -0.2px;
+  }
+
+  /* Selection — coral tint on light bg */
+  ::selection {
+    background: rgba(255, 127, 80, 0.20);
+    color: var(--ink);
+  }
+
+  /* Scrollbar — minimal, warm gray on light */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--surface-3);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--hairline-strong);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--hairline-tertiary);
+  }
+
+  /* Focus ring — 2px coral at 50% opacity */
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--brand-primary-focus) 50%, transparent);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * ──────────────────────────────────────────────────────────────────────────
+ *  UTILITY LAYER — Design system signature components
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+@layer utilities {
+
+  /* ── Surface ladder utilities ── */
+  .surface-canvas { background-color: var(--canvas); }
+  .surface-1 { background-color: var(--surface-1); }
+  .surface-2 { background-color: var(--surface-2); }
+  .surface-3 { background-color: var(--surface-3); }
+  .surface-4 { background-color: var(--surface-4); }
+
+  /* ── Hairline utilities ── */
+  .border-hairline { border-color: var(--hairline); }
+  .border-hairline-strong { border-color: var(--hairline-strong); }
+  .border-hairline-tertiary { border-color: var(--hairline-tertiary); }
+
+  /* ── Eyebrow (Linear/Sentry: uppercase + positive tracking) ── */
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-subtle);
+  }
+
+  /* ── Coral keyword chip (Sentry pattern, Coral on light bg) ── */
+  .chip-coral {
+    background: var(--brand-primary);
+    color: #ffffff;                /* White on coral — AA contrast on light */
+    padding: 0 0.4em;
+    border-radius: 4px;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
+  /* ── Status soft backgrounds (light-mode: 12% tint for readability) ── */
+  .status-success-soft { background: rgba(22, 163, 74, 0.10); color: var(--status-success); }
+  .status-warning-soft { background: rgba(217, 119, 6, 0.10); color: var(--status-warning); }
+  .status-error-soft { background: rgba(220, 38, 38, 0.10); color: var(--status-error); }
+  .status-info-soft { background: rgba(37, 99, 235, 0.10); color: var(--status-info); }
+
+  /* ── Platform soft badges (light-mode adjusted) ── */
+  .platform-linkedin { background: rgba(10, 102, 194, 0.10); color: #0a66c2; }
+  .platform-x { background: rgba(17, 17, 17, 0.08); color: var(--ink); }
+  .platform-instagram { background: rgba(228, 64, 95, 0.10); color: #e4405f; }
+  .platform-facebook { background: rgba(24, 119, 242, 0.10); color: #1877f2; }
+  .platform-tiktok { background: rgba(147, 51, 234, 0.10); color: #9333ea; }
+  .platform-blog { background: rgba(22, 163, 74, 0.10); color: var(--status-success); }
+  .platform-email { background: rgba(217, 119, 6, 0.10); color: var(--status-warning); }
+
+  /* ── Miro warm shadow utilities ── */
+  .shadow-warm-sm { box-shadow: var(--shadow-sm); }
+  .shadow-warm { box-shadow: var(--shadow-md); }
+  .shadow-warm-lg { box-shadow: var(--shadow-lg); }
+  .shadow-warm-xl { box-shadow: var(--shadow-xl); }
+
+  /* ── Notion pastel content-type tints ── */
+  .tint-draft { background-color: var(--tint-draft); }
+  .tint-review { background-color: var(--tint-review); }
+  .tint-approved { background-color: var(--tint-approved); }
+  .tint-scheduled { background-color: var(--tint-scheduled); }
+  .tint-published { background-color: var(--tint-published); }
+  .tint-error { background-color: var(--tint-error); }
+
+  /* ── Starbucks press animation ── */
+  .press:active { transform: scale(0.97); transition: transform 80ms ease; }
+
+  /* ── Stripe: tabular figures for metrics ── */
+  .tabular { font-feature-settings: "tnum", "calt", "kern", "liga", "ss01", "cv11"; }
+
+  /* ── Coral glow (hero CTA only) ── */
+  .glow-coral {
+    box-shadow: 0 0 24px rgba(255, 127, 80, 0.25);
+  }
+
+  /* ── Section rhythm ── */
+  .section-gap { padding-top: 96px; padding-bottom: 96px; }
+  .section-gap-sm { padding-top: 48px; padding-bottom: 48px; }
 }

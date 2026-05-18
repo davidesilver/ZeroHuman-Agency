@@ -139,14 +139,14 @@ function PipelineTab() {
           <h3 className="text-sm font-medium mb-3">Content Drafts</h3>
           <div className="grid grid-cols-5 gap-3">
             {[
-              { label: 'Draft', value: data.drafts.draft, color: 'bg-muted' },
-              { label: 'In Review', value: data.drafts.in_review, color: 'bg-amber-100 dark:bg-amber-900/30' },
-              { label: 'Approved', value: data.drafts.approved, color: 'bg-green-100 dark:bg-green-900/30' },
-              { label: 'Scheduled', value: data.drafts.scheduled, color: 'bg-blue-100 dark:bg-blue-900/30' },
-              { label: 'Published', value: data.drafts.published, color: 'bg-emerald-100 dark:bg-emerald-900/30' },
+              { label: 'Draft', value: data.drafts.draft, color: 'tint-draft' },
+              { label: 'In Review', value: data.drafts.in_review, color: 'tint-review' },
+              { label: 'Approved', value: data.drafts.approved, color: 'tint-approved' },
+              { label: 'Scheduled', value: data.drafts.scheduled, color: 'tint-scheduled' },
+              { label: 'Published', value: data.drafts.published, color: 'tint-published' },
             ].map(s => (
               <div key={s.label} className={cn('rounded-lg p-3 text-center', s.color)}>
-                <div className="text-2xl font-bold">{s.value}</div>
+                <div className="tabular text-2xl font-bold">{s.value}</div>
                 <div className="text-xs text-muted-foreground mt-1">{s.label}</div>
               </div>
             ))}
@@ -180,7 +180,7 @@ function PipelineTab() {
           </div>
           <div className="w-full bg-secondary rounded-full h-2.5">
             <div
-              className={cn('h-2.5 rounded-full transition-all', budgetPct > 80 ? 'bg-destructive' : 'bg-green-500')}
+              className={cn('h-2.5 rounded-full transition-all', budgetPct > 80 ? 'bg-[var(--status-error)]' : 'bg-[var(--status-success)]')}
               style={{ width: `${budgetPct}%` }}
             />
           </div>

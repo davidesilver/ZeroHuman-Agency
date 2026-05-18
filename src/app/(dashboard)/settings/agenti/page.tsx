@@ -230,7 +230,7 @@ export default function AgentSettingsPage() {
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 text-red-900 rounded-lg">
+      <div className="p-4 status-error-soft rounded-lg border border-[var(--status-error)]/30">
         {error}
       </div>
     )

@@ -6,37 +6,72 @@ import { LogOut } from 'lucide-react'
 import { navigationItems } from '@/lib/navigation'
 import { BrandSwitcher } from './brand-switcher'
 
-interface SidebarProps {
-  logoutAction: () => Promise<void>
-}
-
-export function Sidebar({ logoutAction }: SidebarProps) {
+/**
+ * Sidebar — Dark contrast anchor on light cream main area.
+ *
+ * Uses dedicated sidebar tokens (--sidebar-*) so it stays dark
+ * while the rest of the app is light (Sentry/YouTube Studio pattern).
+ *
+ * - Width: 240px
+ * - Background: --sidebar (#1c1c24)
+ * - Border-right: --sidebar-border (#2e2e38)
+ * - Active item: --sidebar-accent bg + coral left-border
+ * - Brand mark: coral square + white "Z"
+ */
+export function Sidebar({ logoutAction }: { logoutAction: () => Promise<void> }) {
   const pathname = usePathname()
 
   return (
-    <aside className="w-60 bg-sidebar h-full flex flex-col">
-      {/* Brand */}
-      <div className="px-4 py-5">
-        <h2 className="text-lg font-semibold text-white">Content Engine</h2>
+    <aside
+      className="w-60 h-full flex flex-col"
+      style={{
+        background: 'var(--sidebar)',
+        borderRight: '1px solid var(--sidebar-border)',
+      }}
+    >
+      {/* ── Brand mark + wordmark ───────────────────────────────────── */}
+      <div className="px-4 py-4 flex items-center gap-3">
+        <div
+          className="size-8 rounded-md flex items-center justify-center shrink-0"
+          style={{ background: 'var(--brand-primary)' }}
+        >
+          <span className="text-sm font-bold text-white" style={{ letterSpacing: '-0.04em' }}>
+            Z
+          </span>
+        </div>
+        <div className="flex flex-col min-w-0">
+          <span
+            className="text-sm font-semibold truncate"
+            style={{ color: 'var(--sidebar-foreground)', letterSpacing: '-0.01em' }}
+          >
+            ZeroHuman
+          </span>
+          <span
+            className="text-[10px] font-semibold uppercase tracking-[0.15em]"
+            style={{ color: 'rgba(226,226,230,0.45)' }}
+          >
+            Content Engine
+          </span>
+        </div>
       </div>
 
-      {/* Brand Switcher */}
+      {/* ── Brand switcher ──────────────────────────────────────────── */}
       <BrandSwitcher />
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2">
+      {/* ── Navigation ──────────────────────────────────────────────── */}
+      <nav className="flex-1 overflow-y-auto px-2 py-2">
         {navigationItems.map((item, index) => {
           if ('type' in item && item.type === 'separator') {
             return (
               <div
                 key={index}
-                className="mt-6 mb-2 px-4 text-xs font-semibold uppercase tracking-wider text-gray-500"
+                className="text-[10px] font-semibold uppercase tracking-[0.15em] mt-5 mb-1.5 px-3"
+                style={{ color: 'rgba(226,226,230,0.40)' }}
               >
                 {item.label}
               </div>
             )
           }
-
           if (!('href' in item)) return null
 
           const Icon = item.icon
@@ -46,28 +81,59 @@ export function Sidebar({ logoutAction }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
-                isActive
-                  ? 'border-l-2 border-brand-primary bg-sidebar-accent text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-sidebar-accent'
-              }`}
+              className="relative flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors duration-100"
+              style={{
+                color: isActive ? 'var(--sidebar-foreground)' : 'rgba(226,226,230,0.60)',
+                background: isActive ? 'var(--sidebar-accent)' : 'transparent',
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.background = 'var(--sidebar-accent)'
+                  e.currentTarget.style.color = 'var(--sidebar-foreground)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = 'rgba(226,226,230,0.60)'
+                }
+              }}
             >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span>{item.label}</span>
+              {/* Active indicator: 2px coral left border */}
+              {isActive && (
+                <span
+                  className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r"
+                  style={{ background: 'var(--brand-primary)' }}
+                />
+              )}
+              <Icon
+                className="h-4 w-4 shrink-0"
+                style={isActive ? { color: 'var(--brand-primary)' } : undefined}
+              />
+              <span className="font-medium truncate">{item.label}</span>
             </Link>
           )
         })}
       </nav>
 
-      {/* Logout */}
-      <div className="p-2 border-t border-sidebar-border">
+      {/* ── Logout (pinned bottom) ─────────────────────────────────── */}
+      <div className="p-2" style={{ borderTop: '1px solid var(--sidebar-border)' }}>
         <form action={logoutAction}>
           <button
             type="submit"
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-sidebar-accent transition-colors"
+            className="flex w-full items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors"
+            style={{ color: 'rgba(226,226,230,0.50)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--sidebar-accent)'
+              e.currentTarget.style.color = 'var(--sidebar-foreground)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = 'rgba(226,226,230,0.50)'
+            }}
           >
             <LogOut className="h-4 w-4 shrink-0" />
-            <span>Logout</span>
+            <span className="font-medium">Logout</span>
           </button>
         </form>
       </div>

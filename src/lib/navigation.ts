@@ -20,26 +20,31 @@ import {
 } from 'lucide-react'
 
 export const navigationItems = [
-  { label: 'Home', href: '/', icon: LayoutDashboard },
+  { type: 'separator' as const, label: 'Overview' },
+  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+
+  { type: 'separator' as const, label: 'Content' },
   { label: 'Content Hub', href: '/content-hub', icon: FileText },
-  { type: 'separator' as const, label: 'PRODUCTION' },
-  { label: 'Research', href: '/ricerca', icon: Search },
-  { label: 'Deep Research', href: '/deep-research', icon: Microscope },
   { label: 'Calendar', href: '/calendario', icon: Calendar },
   { label: 'Newsletter', href: '/newsletter', icon: Mail },
   { label: 'Blog', href: '/blog', icon: BookOpen },
   { label: 'Social', href: '/social', icon: Share2 },
-  { type: 'separator' as const, label: 'VIDEO & MEDIA' },
   { label: 'Videos', href: '/videos', icon: Video },
+
+  { type: 'separator' as const, label: 'Intelligence' },
+  { label: 'Research', href: '/ricerca', icon: Search },
+  { label: 'Deep Research', href: '/deep-research', icon: Microscope },
   { label: 'Competitor Watch', href: '/competitor-watch', icon: Eye },
-  { type: 'separator' as const, label: 'QUALITY' },
   { label: 'Writing Lab', href: '/writing-lab', icon: FlaskConical },
-  { label: 'Metrics', href: '/metriche', icon: BarChart3 },
-  { type: 'separator' as const, label: 'SYSTEM' },
   { label: 'Memory', href: '/memory', icon: Brain },
+
+  { type: 'separator' as const, label: 'Analytics' },
+  { label: 'Metrics', href: '/metriche', icon: BarChart3 },
   { label: 'Revenue', href: '/revenue', icon: Activity },
   { label: 'API Costs', href: '/costi-api', icon: DollarSign },
+
+  { type: 'separator' as const, label: 'System' },
   { label: 'Brands', href: '/brands', icon: Building },
   { label: 'Settings', href: '/settings', icon: Settings },
-  { label: 'Setup Wizard', href: '/setup', icon: Rocket },
+  { label: 'Setup', href: '/setup', icon: Rocket },
 ] as const
