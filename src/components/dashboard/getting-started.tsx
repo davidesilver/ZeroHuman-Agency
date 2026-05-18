@@ -168,7 +168,7 @@ export function GettingStartedBanner() {
                 onClick={done ? (e => e.preventDefault()) : undefined}
               >
                 {done ? (
-                  <CheckCircle2 className="size-4 text-green-600 mt-0.5 shrink-0" />
+                  <CheckCircle2 className="size-4 text-status-success mt-0.5 shrink-0" />
                 ) : (
                   <Circle className="size-4 text-muted-foreground mt-0.5 shrink-0" />
                 )}

@@ -91,14 +91,14 @@ export function AssetUploadCard({ brandId, onUploaded }: { brandId: string; onUp
       </div>
       <button
         onClick={handleUpload} disabled={!file || status === 'uploading'}
-        className="px-3 py-1.5 rounded bg-black text-white text-sm disabled:opacity-50 inline-flex items-center gap-2"
+        className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm disabled:opacity-50 inline-flex items-center gap-2"
       >
         {status === 'uploading' && <Loader2 className="animate-spin" size={14}/>}
         {status === 'done' && <CheckCircle2 size={14}/>}
         {status === 'error' && <XCircle size={14}/>}
         {status === 'uploading' ? 'Uploading…' : 'Upload'}
       </button>
-      {err && <p className="text-xs text-red-600">{err}</p>}
+      {err && <p className="text-xs text-status-error">{err}</p>}
     </div>
   )
 }

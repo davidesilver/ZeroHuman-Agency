@@ -4,21 +4,54 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Badge — Linear status-badge spec.
+ *
+ * Linear spec:
+ *  - Background: surface-2 (#141516)
+ *  - Text: ink-muted
+ *  - Type: caption (12px / 400 / +0px tracking)
+ *  - Rounded: pill (9999px) for status, xs (4px) for tags
+ *  - Padding: 2px 8px
+ *
+ * Variants:
+ *  - default: brand-primary (coral) — for active/important counts
+ *  - secondary: surface-2 + ink-muted (Linear status-badge default)
+ *  - outline: transparent + hairline border + ink
+ *  - destructive: soft error
+ */
 const badgeVariants = cva(
-  "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
+  cn(
+    "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1",
+    "overflow-hidden rounded px-2 py-0.5",
+    "text-[11px] font-medium whitespace-nowrap",
+    "transition-colors border border-transparent",
+    "focus-visible:outline-2 focus-visible:outline-[var(--brand-primary)] focus-visible:outline-offset-1",
+    "has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5",
+    "[&>svg]:pointer-events-none [&>svg]:size-3"
+  ),
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
-        secondary:
-          "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
-        destructive:
-          "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
-        outline:
-          "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
-        ghost:
-          "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
-        link: "text-primary underline-offset-4 hover:underline",
+        default: cn(
+          "bg-[var(--brand-primary)] text-[var(--canvas)]",
+          "[a]:hover:bg-[var(--brand-primary-hover)]"
+        ),
+        secondary: cn(
+          "bg-[var(--surface-2)] text-ink-muted",
+          "[a]:hover:bg-[var(--surface-3)]"
+        ),
+        outline: cn(
+          "bg-transparent border-hairline text-ink-muted",
+          "[a]:hover:bg-[var(--surface-1)] [a]:hover:text-ink"
+        ),
+        destructive: cn(
+          "bg-[var(--status-error)]/15 text-[var(--status-error)]"
+        ),
+        ghost: cn(
+          "bg-transparent text-ink-subtle",
+          "hover:bg-[var(--surface-1)] hover:text-ink"
+        ),
       },
     },
     defaultVariants: {
