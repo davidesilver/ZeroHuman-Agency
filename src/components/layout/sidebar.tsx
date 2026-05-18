@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LogOut } from 'lucide-react'
@@ -31,14 +32,13 @@ export function Sidebar({ logoutAction }: { logoutAction: () => Promise<void> })
     >
       {/* ── Brand mark + wordmark ───────────────────────────────────── */}
       <div className="px-4 py-4 flex items-center gap-3">
-        <div
-          className="size-8 rounded-md flex items-center justify-center shrink-0"
-          style={{ background: 'var(--brand-primary)' }}
-        >
-          <span className="text-sm font-bold text-white" style={{ letterSpacing: '-0.04em' }}>
-            Z
-          </span>
-        </div>
+        <Image
+          src="/brand/zerohuman-mark-reverse.svg"
+          alt="ZeroHuman"
+          width={32}
+          height={32}
+          className="shrink-0"
+        />
         <div className="flex flex-col min-w-0">
           <span
             className="text-sm font-semibold truncate"

@@ -35,7 +35,7 @@ export const dynamic = 'force-dynamic'
  */
 export default function DashboardPage() {
   return (
-    <div className="space-y-8 max-w-[1280px]">
+    <div className="space-y-8">
       {/* ── Page header ──────────────────────────────────────────── */}
       <header className="space-y-2">
         <p className="eyebrow">Overview</p>
