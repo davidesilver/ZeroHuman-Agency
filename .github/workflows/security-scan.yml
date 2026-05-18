@@ -54,11 +54,12 @@ jobs:
             || (echo "❌ Vulnerabilities found in Python deps!" && cat python/sbom-python.json && exit 1)
 
       - name: Generate CycloneDX SBOM (Python)
+        continue-on-error: true   # SBOM is an informational artifact — not a security gate
         run: |
           pip install cyclonedx-bom
           cyclonedx-py requirements python/requirements-audit.txt \
-            --output-format json \
-            --output python/sbom-cyclonedx-python.json
+            --of JSON \
+            > python/sbom-cyclonedx-python.json
 
       - name: Upload Python SBOM
         uses: actions/upload-artifact@v4
