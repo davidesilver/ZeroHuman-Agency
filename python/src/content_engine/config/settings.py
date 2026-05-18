@@ -14,9 +14,17 @@ class Settings(BaseSettings):
     pillo_api_key: str = ""
     resend_api_key: str = ""
     firecrawl_api_key: str = ""
+    tavily_api_key: str = ""
     postiz_api_key: str = ""
     postiz_base_url: str = ""
     context7_mcp_url: str = "https://mcp.context7.com/mcp"
+    # Postiz MCP sidecar (antoniolg/postiz-mcp) — optional, for stateful publishing
+    # Start with: npx @antoniolg/postiz-mcp  (uses POSTIZ_API_KEY + POSTIZ_BASE_URL)
+    postiz_mcp_enabled: bool = False
+
+    # Per-brand credential vault encryption key (Fernet)
+    # Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    brand_secrets_encryption_key: str = ""
     newsletter_from_email: str = "newsletter@yourdomain.com"
     newsletter_from_name: str = "Content Engine"
     telegram_bot_token: str = ""

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
 import Link from 'next/link'
+import { EmailProviderCard } from '@/components/settings/email-provider-card'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 // Shape returned by GET /api/system/config
@@ -21,10 +22,12 @@ interface SystemConfig {
     anthropic: boolean
     openrouter: boolean
     serper: boolean
+    tavily: boolean
     youtube: boolean
     resend: boolean
     firecrawl: boolean
   }
+  research_tier: 'premium' | 'tavily' | 'free'
   image_backends: {
     default_backend: string
     default_model: string
@@ -526,8 +529,11 @@ function AddBrandCard() {
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [topics, setTopics] = useState('')
+  const [budget, setBudget] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   const handleNameChange = (v: string) => {
     setName(v)
@@ -552,7 +558,15 @@ function AddBrandCard() {
       if (json.success) {
         const newBrand = { id: json.data.id, name: json.data.name, slug: json.data.slug }
         setActiveBrand(newBrand)
-        setName(''); setSlug(''); setTopics('')
+        const budgetVal = budget.trim() === '' ? null : parseFloat(budget)
+        if (budgetVal != null && json.data.id) {
+          await fetch(`/api/brands/${json.data.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ daily_budget_usd: budgetVal }),
+          })
+        }
+        setName(''); setSlug(''); setTopics(''); setBudget('')
         setOpen(false)
         window.location.reload()
       } else {
@@ -571,7 +585,7 @@ function AddBrandCard() {
           <CardTitle className="text-sm flex items-center gap-2">
             <Building className="size-4 text-muted-foreground" />
             Brands
-            <Badge variant="secondary" className="text-[10px] ml-1">{brands.length}</Badge>
+            {mounted && <Badge variant="secondary" className="text-[10px] ml-1">{brands.length}</Badge>}
           </CardTitle>
           <div className="flex items-center gap-2">
             <Link
@@ -607,6 +621,14 @@ function AddBrandCard() {
             <div className="space-y-1.5">
               <Label className="text-xs">Topics <span className="text-muted-foreground">(comma separated)</span></Label>
               <Input value={topics} onChange={e => setTopics(e.target.value)} placeholder="logistics, sustainability, B2B" className="h-8 text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Daily budget (USD) <span className="text-muted-foreground">— blank = unlimited</span></Label>
+              <Input
+                type="number" min="0" step="0.50"
+                value={budget} onChange={e => setBudget(e.target.value)}
+                placeholder="5.00" className="h-8 text-sm"
+              />
             </div>
             {error && <p className="text-xs text-destructive">{error}</p>}
             <div className="flex justify-end gap-2">
@@ -760,8 +782,35 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-0">
-            <Row label="Serper (Google search)" envKey="SERPER_API_KEY" hint="serper.dev">
+            {/* Active research tier banner */}
+            {cfg && (
+              <div className={`mb-3 px-3 py-2 rounded-md text-xs flex items-center gap-2 ${
+                cfg.research_tier === 'premium'
+                  ? 'bg-green-50 border border-green-200 text-green-800'
+                  : cfg.research_tier === 'tavily'
+                    ? 'bg-blue-50 border border-blue-200 text-blue-800'
+                    : 'bg-amber-50 border border-amber-200 text-amber-800'
+              }`}>
+                <span className="font-medium">
+                  {cfg.research_tier === 'premium' && '✓ Premium tier active — Serper (Google Search)'}
+                  {cfg.research_tier === 'tavily' && '~ Mid-tier active — Tavily (1000 free searches/month)'}
+                  {cfg.research_tier === 'free' && '~ Free tier active — DuckDuckGo + RSS (no API key needed)'}
+                </span>
+                {cfg.research_tier !== 'premium' && (
+                  <span className="ml-auto opacity-70">
+                    {cfg.research_tier === 'free' ? 'Add TAVILY_API_KEY or SERPER_API_KEY for higher quality' : 'Add SERPER_API_KEY for premium quality'}
+                  </span>
+                )}
+              </div>
+            )}
+            <Row label="Serper (Google search)" envKey="SERPER_API_KEY" hint="serper.dev — premium">
               <StatusBadge configured={cfg?.api_keys.serper ?? null} />
+            </Row>
+            <Row label="Tavily" envKey="TAVILY_API_KEY" hint="tavily.com — 1000 free/month">
+              <StatusBadge configured={cfg?.api_keys.tavily ?? null} />
+            </Row>
+            <Row label="DuckDuckGo" hint="always active — no API key needed">
+              <Badge className="text-[10px] bg-green-600 hover:bg-green-600">Active</Badge>
             </Row>
             <Row label="YouTube Data API v3" envKey="YOUTUBE_API_KEY" hint="trend retriever">
               <StatusBadge configured={cfg?.api_keys.youtube ?? null} />
@@ -934,6 +983,9 @@ export default function SettingsPage() {
           </p>
         </CardContent>
       </Card>
+
+      {/* ── Email Provider ──────────────────────────────────────────────────── */}
+      <EmailProviderCard />
 
       {/* ── Cost Budget ─────────────────────────────────────────────────────── */}
       <Card>

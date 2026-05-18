@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+tests/
+*.sh
+*.md
+fallback_metrics.json
+heartbeat_usage_example.py
+.venv

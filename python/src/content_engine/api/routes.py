@@ -14,13 +14,19 @@ _SCHEDULER_SECRET = os.environ.get("SCHEDULER_SECRET", "")
 
 
 async def _require_scheduler_secret(request: Request) -> None:
-    """C-06: Guard scheduler endpoints with a shared secret."""
+    """C-06: Guard scheduler endpoints with a shared secret. Fail closed."""
     if not _SCHEDULER_SECRET:
-        # Allow in local dev if env var is not set (but log a warning)
-        _logger.warning("SCHEDULER_SECRET not set — scheduler endpoints are unprotected!")
-        return
+        _logger.error(
+            "SCHEDULER_SECRET not set — refusing to run scheduler endpoint",
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Scheduler is not configured (SCHEDULER_SECRET unset)",
+        )
     provided = request.headers.get("X-Scheduler-Secret", "")
-    if not provided or provided != _SCHEDULER_SECRET:
+    # Constant-time comparison to avoid trivial timing leak on the secret.
+    import hmac as _hmac
+    if not provided or not _hmac.compare_digest(provided, _SCHEDULER_SECRET):
         raise HTTPException(403, "Invalid or missing scheduler secret")
 
 from pydantic import BaseModel
@@ -33,11 +39,17 @@ from ..agents.god_system import run_god_mode
 from ..agents.adapter import adapt_content
 from ..agents.writing_lab import create_session, vote_round
 from ..scoring.engine import run_scoring
-from ..services.newsletter_delivery import send_newsletter, preview_newsletter
+from ..services.newsletter_delivery import send_newsletter, preview_newsletter, get_newsletter_report
 from ..services.postiz_publisher import publish_now as publish_to_postiz, schedule_post
 from ..services.feedback_loop import record_social_metrics, update_feedback_bonus
 from ..services.postiz_analytics import pull_daily_metrics, run_daily_analytics_cycle
 from ..services.scheduler import daily_research_pipeline, publish_scheduled_posts
+from ..services.credential_vault import (
+    get_credentials,
+    set_credentials,
+    delete_credentials,
+    list_configured_services,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -657,6 +669,252 @@ async def api_preview_newsletter(newsletter_id: str, request: Request):
     return {"success": True, "data": {"html": html}}
 
 
+@router.get("/newsletter/{newsletter_id}/report")
+async def api_newsletter_report(newsletter_id: str, request: Request):
+    brand_id = _get_brand_id(request)
+    report = await get_newsletter_report(brand_id, newsletter_id)
+    return {"success": True, "data": report}
+
+
+# ── Email Webhooks ───────────────────────────────────────────────────────────
+
+@router.post("/webhooks/email/brevo")
+async def webhook_brevo(request: Request):
+    """Receive Brevo marketing webhook events (open, click, bounce, unsub).
+
+    Brevo validates by source IP; we trust the payload structure.
+    """
+    try:
+        payload = await request.json()
+    except Exception:
+        return {"ok": False, "error": "invalid_json"}
+
+    db = get_db()
+
+    # Brevo sends a list of events
+    events = payload if isinstance(payload, list) else [payload]
+
+    _brevo_event_map = {
+        "delivered": "delivered",
+        "opened": "opened",
+        "clicks": "clicked",
+        "click": "clicked",
+        "soft_bounces": "bounced",
+        "hard_bounces": "bounced",
+        "unsubscribed": "unsubscribed",
+        "spam_reports": "bounced",
+    }
+
+    for event in events:
+        event_type_raw = event.get("event", "")
+        event_type = _brevo_event_map.get(event_type_raw)
+        if not event_type:
+            continue
+
+        campaign_id = str(event.get("campaignId") or event.get("campaign_id") or "")
+        email = event.get("email", "")
+        ts = event.get("ts_event") or event.get("date_event") or None
+
+        if not campaign_id:
+            continue
+
+        # Find newsletter by provider_campaign_id
+        row = (
+            db.table("newsletters")
+            .select("id, brand_id")
+            .eq("provider_campaign_id", campaign_id)
+            .maybe_single()
+            .execute()
+            .data
+        )
+        if not row:
+            continue
+
+        newsletter_id = row["id"]
+        try:
+            db.table("newsletter_events").insert({
+                "newsletter_id": newsletter_id,
+                "event_type": event_type,
+                "email": email,
+                "occurred_at": ts,
+                "metadata": {"raw_event": event_type_raw, "provider": "brevo"},
+            }).execute()
+        except Exception as exc:
+            _logger.warning("Failed to insert newsletter_event: %s", exc)
+
+        # Update aggregate metrics
+        _update_newsletter_metrics(db, newsletter_id)
+
+    return {"ok": True}
+
+
+@router.post("/webhooks/email/mailchimp")
+async def webhook_mailchimp(request: Request):
+    """Receive Mailchimp webhook events.
+
+    Mailchimp sends form-encoded data with a shared secret in the URL.
+    """
+    try:
+        body = await request.body()
+        from urllib.parse import parse_qs
+        params = parse_qs(body.decode())
+        event_type_raw = (params.get("type") or [""])[0]
+        email = (params.get("data[email]") or [""])[0]
+        campaign_id = (params.get("data[campaign_id]") or [""])[0]
+    except Exception:
+        return {"ok": False, "error": "parse_error"}
+
+    _mc_event_map = {
+        "subscribe": None,
+        "unsubscribe": "unsubscribed",
+        "campaign": None,
+        "cleaned": "bounced",
+        "upemail": None,
+        "profile": None,
+        "opened": "opened",
+        "clicked": "clicked",
+    }
+    event_type = _mc_event_map.get(event_type_raw)
+    if not event_type or not campaign_id:
+        return {"ok": True}
+
+    db = get_db()
+    row = (
+        db.table("newsletters")
+        .select("id")
+        .eq("provider_campaign_id", campaign_id)
+        .maybe_single()
+        .execute()
+        .data
+    )
+    if not row:
+        return {"ok": True}
+
+    newsletter_id = row["id"]
+    try:
+        db.table("newsletter_events").insert({
+            "newsletter_id": newsletter_id,
+            "event_type": event_type,
+            "email": email,
+            "metadata": {"raw_event": event_type_raw, "provider": "mailchimp"},
+        }).execute()
+        _update_newsletter_metrics(db, newsletter_id)
+    except Exception as exc:
+        _logger.warning("Failed to insert mailchimp newsletter_event: %s", exc)
+
+    return {"ok": True}
+
+
+def _update_newsletter_metrics(db, newsletter_id: str) -> None:
+    """Recompute and persist aggregate metrics from newsletter_events."""
+    try:
+        events = (
+            db.table("newsletter_events")
+            .select("event_type")
+            .eq("newsletter_id", newsletter_id)
+            .execute()
+            .data
+        ) or []
+
+        # Count delivered first for rate computation
+        delivered = sum(1 for e in events if e["event_type"] == "delivered") or 1
+        opens = len({e for e in events if e["event_type"] == "opened"})
+        clicks = len({e for e in events if e["event_type"] == "clicked"})
+        unsubs = sum(1 for e in events if e["event_type"] == "unsubscribed")
+
+        db.table("newsletters").update({
+            "open_rate": round(opens / delivered, 4),
+            "click_rate": round(clicks / delivered, 4),
+            "unsubscribe_count": unsubs,
+        }).eq("id", newsletter_id).execute()
+    except Exception as exc:
+        _logger.warning("Failed to update newsletter metrics for %s: %s", newsletter_id, exc)
+
+
+# ── Email Provider ──────────────────────────────────────────────────────────
+
+
+class EmailProviderConfigRequest(BaseModel):
+    provider: str
+    api_key: str
+    sender_name: str = ""
+    sender_email: str = ""
+    list_id: str = ""
+    webhook_secret: str = ""
+    ab_split_pct: int = 20
+    ab_wait_hours: int = 4
+
+
+@router.get("/email-provider/config")
+async def api_get_email_provider_config(request: Request):
+    brand_id = _get_brand_id(request)
+    db = get_db()
+    row = (
+        db.table("email_provider_config")
+        .select("provider, sender_name, sender_email, list_id, ab_split_pct, ab_wait_hours")
+        .eq("brand_id", brand_id)
+        .maybe_single()
+        .execute()
+        .data
+    )
+    return {"success": True, "data": row or {}}
+
+
+@router.post("/email-provider/config")
+async def api_upsert_email_provider_config(req: EmailProviderConfigRequest, request: Request):
+    brand_id = _get_brand_id(request)
+    db = get_db()
+    payload = {
+        "brand_id": brand_id,
+        "provider": req.provider,
+        "api_key": req.api_key,
+        "sender_name": req.sender_name,
+        "sender_email": req.sender_email,
+        "list_id": req.list_id,
+        "webhook_secret": req.webhook_secret,
+        "ab_split_pct": req.ab_split_pct,
+        "ab_wait_hours": req.ab_wait_hours,
+    }
+    db.table("email_provider_config").upsert(payload, on_conflict="brand_id").execute()
+    return {"success": True}
+
+
+@router.post("/email-provider/validate")
+async def api_validate_email_provider(req: EmailProviderConfigRequest, request: Request):
+    """Validate an email provider API key by calling a lightweight endpoint."""
+    from ..services.email_providers import BrevoProvider, ResendProvider, ProviderConfig
+    config = ProviderConfig(
+        provider=req.provider,
+        api_key=req.api_key,
+        sender_name=req.sender_name or "Test",
+        sender_email=req.sender_email or "test@example.com",
+        list_id=req.list_id,
+        webhook_secret=req.webhook_secret,
+        ab_split_pct=req.ab_split_pct,
+        ab_wait_hours=req.ab_wait_hours,
+    )
+    match req.provider:
+        case "brevo":
+            provider = BrevoProvider(config)
+        case _:
+            provider = ResendProvider(config)
+    await provider.validate()
+    return {"success": True, "data": {"provider": req.provider, "valid": True}}
+
+
+@router.get("/email-provider/lists")
+async def api_get_email_provider_lists(request: Request):
+    """Fetch subscriber lists from the brand's configured provider."""
+    brand_id = _get_brand_id(request)
+    from ..services.email_providers import get_email_provider
+    provider = await get_email_provider(brand_id)
+    lists = await provider.get_lists()
+    return {
+        "success": True,
+        "data": [{"list_id": l.list_id, "name": l.name, "total_subscribers": l.total_subscribers} for l in lists],
+    }
+
+
 # ── Social Publishing ────────────────────────────────────────────────────────
 
 
@@ -742,7 +1000,23 @@ class MetricsRequest(BaseModel):
 
 
 @router.post("/analytics/metrics")
-async def api_record_metrics(req: MetricsRequest):
+async def api_record_metrics(req: MetricsRequest, request: Request):
+    brand_id = _get_brand_id(request)
+    # Confirm the draft belongs to this brand before recording metrics, otherwise
+    # any authenticated user could overwrite another tenant's metrics row
+    # (the feedback loop trains its scoring engine on those numbers).
+    db = get_db()
+    draft = (
+        db.table("content_drafts")
+        .select("id")
+        .eq("id", req.draft_id)
+        .eq("brand_id", brand_id)
+        .single()
+        .execute()
+        .data
+    )
+    if not draft:
+        raise HTTPException(404, "draft not found")
     result = await record_social_metrics(
         req.draft_id, req.platform,
         impressions=req.impressions, clicks=req.clicks,
@@ -1167,6 +1441,7 @@ async def api_memory_discover(payload: MemoryDiscoverRequest, request: Request):
 
     from ..memory.consolidation.extractor import extract_facts_from_text
     from ..memory.consolidation.verifier import verify
+    from ..utils.url_safety import UnsafeURLError, assert_safe_public_url
 
     # Resolve brand_id: JWT default, or body override validated against membership
     jwt_brand_id = _get_brand_id(request)
@@ -1179,14 +1454,16 @@ async def api_memory_discover(payload: MemoryDiscoverRequest, request: Request):
         brand_id = jwt_brand_id
 
     url = payload.url.strip()
-    if not url.startswith(("http://", "https://")):
-        raise HTTPException(400, "url must start with http:// or https://")
+    try:
+        assert_safe_public_url(url, allow_http=True)
+    except UnsafeURLError as exc:
+        raise HTTPException(400, f"unsafe url: {exc}")
 
-    # Fetch the URL
+    # Fetch the URL (no redirects: each hop would need re-validation)
     try:
         async with httpx.AsyncClient(
             timeout=15.0,
-            follow_redirects=True,
+            follow_redirects=False,
             headers={"User-Agent": "Mozilla/5.0"},
         ) as client:
             resp = await client.get(url)
@@ -1315,6 +1592,67 @@ async def api_memory_upload_source(request: Request):
             "candidates": candidates,
             "count": len(candidates),
         },
+    }
+
+
+# ── Credential Vault ──────────────────────────────────────────────────────────
+
+_ALLOWED_SERVICES = {
+    "postiz", "serper", "tavily", "youtube", "firecrawl",
+    "x", "resend", "openrouter", "brevo",
+}
+
+
+class CredentialPayload(BaseModel):
+    credentials: dict
+
+
+@router.get("/brands/credentials")
+async def api_list_credentials(request: Request):
+    """List service names with credentials configured for the authenticated brand."""
+    brand_id = _get_brand_id(request)
+    services = await list_configured_services(brand_id)
+    return {"brand_id": brand_id, "configured_services": services}
+
+
+@router.put("/brands/credentials/{service_name}")
+async def api_set_credentials(service_name: str, payload: CredentialPayload, request: Request):
+    """Store (or update) encrypted credentials for a service.
+
+    The credential dict format per service:
+        postiz:    {"api_key": "...", "base_url": "http://..."}
+        serper:    {"api_key": "..."}
+        tavily:    {"api_key": "..."}
+        youtube:   {"api_key": "..."}
+        firecrawl: {"api_key": "..."}
+        x:         {"bearer_token": "..."}
+        resend:    {"api_key": "..."}
+        openrouter: {"api_key": "..."}
+    """
+    if service_name not in _ALLOWED_SERVICES:
+        raise HTTPException(400, f"Unknown service '{service_name}'. Allowed: {sorted(_ALLOWED_SERVICES)}")
+    brand_id = _get_brand_id(request)
+    await set_credentials(brand_id, service_name, payload.credentials)
+    return {"ok": True, "service": service_name}
+
+
+@router.delete("/brands/credentials/{service_name}")
+async def api_delete_credentials(service_name: str, request: Request):
+    """Delete credentials for a service from the vault."""
+    brand_id = _get_brand_id(request)
+    await delete_credentials(brand_id, service_name)
+    return {"ok": True, "service": service_name}
+
+
+@router.get("/brands/credentials/{service_name}/status")
+async def api_credential_status(service_name: str, request: Request):
+    """Check whether credentials exist for a service (does NOT return the values)."""
+    brand_id = _get_brand_id(request)
+    creds = await get_credentials(brand_id, service_name)
+    return {
+        "service": service_name,
+        "configured": creds is not None,
+        "fields": list(creds.keys()) if creds else [],
     }
 
 

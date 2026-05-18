@@ -42,10 +42,16 @@ export async function GET() {
       anthropic:   isSet('ANTHROPIC_API_KEY'),
       openrouter:  isSet('OPENROUTER_API_KEY'),
       serper:      isSet('SERPER_API_KEY'),
+      tavily:      isSet('TAVILY_API_KEY'),
       youtube:     isSet('YOUTUBE_API_KEY'),
       resend:      isSet('RESEND_API_KEY'),
       firecrawl:   isSet('FIRECRAWL_API_KEY'),
     },
+    research_tier: isSet('SERPER_API_KEY')
+      ? 'premium'
+      : isSet('TAVILY_API_KEY')
+        ? 'tavily'
+        : 'free',
     image_backends: {
       default_backend: envStr('DEFAULT_IMAGE_BACKEND', 'mock'),
       default_model:   envStr('DEFAULT_IMAGE_MODEL',   'mock-v1'),

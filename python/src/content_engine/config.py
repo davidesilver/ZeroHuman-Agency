@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     context7_mcp_url: str = "https://mcp.context7.com/mcp"
     newsletter_from_email: str = "newsletter@yourdomain.com"
     newsletter_from_name: str = "Content Engine"
+    nextjs_url: str = "http://localhost:3000"  # URL of the Next.js app for internal render calls
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 

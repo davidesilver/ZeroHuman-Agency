@@ -26,14 +26,20 @@ The platform is a two-application system around one shared database. It is not a
 │  Storage (assets,     │     │  Email marketing (Brevo)  │
 │    videos)            │     │  Video rendering          │
 │  Edge functions       │     │  LLM provider hub         │
+│  brand_service_creds  │     │  Credential vault (Fernet)│
 └──────────────────────┘     └──┬──────────┬─────────────┘
                                 │          │ HTTP (optional)
               ┌─────────────────┘          │
-              │ HTTP (optional)   ┌─────────▼─────────────┐
+              │ subprocess/HTTP   ┌─────────▼─────────────┐
 ┌─────────────▼─────────┐        │   Postiz Satellite     │
 │  local-deep-research  │        │  Social OAuth+schedule │
 │  (Docker :5000)       │        │  (Docker or cloud)     │
 │  Async research jobs  │        └───────────────────────┘
+├───────────────────────┤
+│  CLI Binaries         │
+│  (PrintingPress)      │
+│  serper · tavily      │
+│  firecrawl · yt       │
 └───────────────────────┘
 ```
 
@@ -80,6 +86,8 @@ The proxy helper (`src/lib/api-helpers.ts`) forwards the Supabase session token 
 - Scheduled jobs: daily research, publish queued posts
 - Agent config and skills CRUD (reads from DB with 5-min TTL cache)
 - Observability: cost tracking, pipeline health heartbeats, LLM fallback logs
+- CLI runner (`utils/cli_runner.py`): subprocess wrapper for PrintingPress binaries; each retriever tries the CLI first and falls back to direct HTTP if the binary is absent
+- Credential vault (`services/credential_vault.py`): Fernet-encrypted per-brand API keys stored in `brand_service_credentials`; vault credentials override global env vars at call time
 
 ### Database (`supabase/migrations/`)
 
@@ -188,6 +196,7 @@ Third-party API keys (Brevo, Heygen, HyperFrames, OpenClaw) are stored encrypted
 | Request correlation | `X-Request-ID` generated per request; forwarded to backend; included in responses |
 | Secret masking | API keys masked in all log output (`***xxxx` pattern) |
 | Brand secret encryption | Fernet at app layer; DB stores ciphertext only; key never logged or exposed via API |
+| Per-brand credential vault | API keys Fernet-encrypted at rest; injected into subprocess env at runtime; never logged or returned via API |
 
 ---
 
@@ -246,7 +255,7 @@ Supporting tables: `api_costs`, `pipeline_health`, `llm_fallback_log`, `audit_tr
 | `python/src/content_engine/services/` | Postiz, newsletter, scheduler, image gen, Brevo, brand secrets, feature flags, LLM hub |
 | `python/src/content_engine/services/llm/` | LLMProvider ABC, OpenRouter, OpenClaw, registrar, telemetry |
 | `python/src/content_engine/monitoring/` | Pipeline health and LLM fallback monitoring |
-| `python/src/content_engine/utils/` | LLM client, cost tracker, rate limiter, SSRF guard, JSON parser |
+| `python/src/content_engine/utils/` | LLM client, cost tracker, rate limiter, SSRF guard, JSON parser, CLI runner |
 | `python/src/content_engine/config/` | Pydantic settings (all from environment) |
 | `supabase/migrations/` | Schema source of truth (001–042) |
 | `supabase/functions/` | Supabase Edge Functions (analytics sync) |
