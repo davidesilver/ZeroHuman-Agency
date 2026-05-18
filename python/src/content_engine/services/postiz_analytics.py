@@ -6,8 +6,7 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from ..config import settings
 from ..db import get_db
@@ -16,7 +15,7 @@ from .postiz_client import PostizClient
 _logger = logging.getLogger("content_engine.postiz_analytics")
 
 
-async def fetch_post_analytics(postiz_id: str) -> Optional[dict]:
+async def fetch_post_analytics(postiz_id: str) -> dict | None:
     """Fetch analytics for a single post from Postiz API.
 
     Returns None on failure but logs the error — the caller decides whether
@@ -55,7 +54,7 @@ async def pull_daily_metrics(brand_id: str, days_back: int = 7) -> dict:
     processed = 0
     metrics_fetched = 0
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    cutoff = datetime.now(UTC) - timedelta(days=days_back)
     drafts_resp = (
         db.table("content_drafts")
         .select("id, metadata, published_at")
@@ -119,7 +118,7 @@ async def record_social_metrics(
         "shares": shares,
         "comments": comments,
         "saves": saves,
-        "recorded_at": datetime.now(timezone.utc).isoformat(),
+        "recorded_at": datetime.now(UTC).isoformat(),
     }, on_conflict="draft_id,platform").execute()
 
 
@@ -129,7 +128,7 @@ def compute_engagement_score_optimized(metrics: list[dict]) -> float:
         return 5.0
 
     scored_metrics = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     for m in metrics:
         if m.get("impressions", 0) < 100:
@@ -181,7 +180,7 @@ async def update_feedback_bonus(brand_id: str) -> dict:
     brand = db.table("brands").select("feedback_bonus").eq("id", brand_id).single().execute()
     previous = brand.data.get("feedback_bonus", 5.0) if brand.data else 5.0
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    cutoff = datetime.now(UTC) - timedelta(days=30)
     draft_ids_resp = (
         db.table("content_drafts")
         .select("id")
@@ -207,14 +206,14 @@ async def update_feedback_bonus(brand_id: str) -> dict:
 
     db.table("brands").update({
         "feedback_bonus": new_score,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
     }).eq("id", brand_id).execute()
 
     return {
         "previous_score": previous,
         "new_score": new_score,
         "metrics_used": len(metrics_data),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
     }
 
 

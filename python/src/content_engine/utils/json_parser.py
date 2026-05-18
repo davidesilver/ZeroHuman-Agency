@@ -13,10 +13,10 @@ Author: AI Engineering Team
 Created: 2026-04-16
 """
 
-import re
 import json
 import logging
-from typing import Optional, Dict, Any
+import re
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class RobustJSONParser:
         text: str,
         context: str = "unknown",
         allow_partial: bool = False
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Parse JSON from LLM response with multiple fallback strategies.
 
@@ -88,7 +88,7 @@ class RobustJSONParser:
         return None
 
     @staticmethod
-    def _try_direct_parse(text: str) -> Optional[Dict[str, Any]]:
+    def _try_direct_parse(text: str) -> dict[str, Any] | None:
         """
         Strategy 1: Direct JSON parse (fastest path).
 
@@ -108,7 +108,7 @@ class RobustJSONParser:
             return None
 
     @staticmethod
-    def _try_strip_outer_fences(text: str) -> Optional[Dict[str, Any]]:
+    def _try_strip_outer_fences(text: str) -> dict[str, Any] | None:
         """
         Strategy 2: Strip outer markdown fences only.
 
@@ -148,7 +148,7 @@ class RobustJSONParser:
             return None
 
     @staticmethod
-    def _try_extract_first_json(object: str) -> Optional[Dict[str, Any]]:
+    def _try_extract_first_json(text: str) -> dict[str, Any] | None:
         """
         Strategy 3: Extract first complete JSON object using brace counting.
 
@@ -207,7 +207,7 @@ class RobustJSONParser:
         return None
 
     @staticmethod
-    def _try_regex_extraction(text: str) -> Optional[Dict[str, Any]]:
+    def _try_regex_extraction(text: str) -> dict[str, Any] | None:
         """
         Strategy 4: Regex-based extraction of JSON patterns.
 
@@ -242,7 +242,7 @@ class RobustJSONParser:
         return None
 
     @staticmethod
-    def _try_partial_extraction(text: str) -> Optional[Dict[str, Any]]:
+    def _try_partial_extraction(text: str) -> dict[str, Any] | None:
         """
         Fallback: Extract whatever key-value pairs we can.
 
@@ -282,7 +282,7 @@ class RobustJSONParser:
 json_parser = RobustJSONParser()
 
 
-def parse_llm_json(text: str, context: str = "unknown") -> Optional[Dict[str, Any]]:
+def parse_llm_json(text: str, context: str = "unknown") -> dict[str, Any] | None:
     """
     Convenience wrapper for RobustJSONParser.parse_llm_response.
 

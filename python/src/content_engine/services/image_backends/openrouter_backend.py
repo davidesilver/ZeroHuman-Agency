@@ -5,8 +5,8 @@ OpenRouter supports image models through an OpenAI-compatible
 using the same OpenRouter API key already configured for text agents.
 """
 from __future__ import annotations
+
 import base64
-from typing import Optional
 
 import httpx
 
@@ -17,9 +17,9 @@ from .base import GeneratedImage
 class OpenRouterBackend:
     name = "openrouter"
 
-    async def generate(self, *, prompt: str, negative_prompt: Optional[str],
+    async def generate(self, *, prompt: str, negative_prompt: str | None,
                        model_id: str, width: int, height: int,
-                       seed: Optional[int]) -> GeneratedImage:
+                       seed: int | None) -> GeneratedImage:
         if not settings.openrouter_api_key:
             raise RuntimeError("OPENROUTER_API_KEY not configured")
 

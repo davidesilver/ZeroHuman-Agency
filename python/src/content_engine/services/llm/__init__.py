@@ -11,8 +11,8 @@ This layer wraps it and emits a row to llm_provider_metrics on each call.
 """
 
 from .provider import LLMProvider, LLMRequest, LLMResult
-from .registrar import get_registrar, register_provider, list_providers
-from .telemetry import record_llm_call, call_with_telemetry
+from .registrar import get_registrar, list_providers, register_provider
+from .telemetry import call_with_telemetry, record_llm_call
 
 __all__ = [
     "LLMProvider",

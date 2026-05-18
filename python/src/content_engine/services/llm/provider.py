@@ -8,14 +8,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
 class LLMRequest:
     prompt: str
-    system_prompt: Optional[str] = None
-    model: Optional[str] = None          # None = provider picks the default
+    system_prompt: str | None = None
+    model: str | None = None          # None = provider picks the default
     temperature: float = 0.7
     task_type: str = "creative"
     brand_id: str = ""
@@ -31,10 +31,10 @@ class LLMResult:
     provider: str
     prompt_tokens: int
     completion_tokens: int
-    latency_ms: Optional[int] = None
-    cost_usd: Optional[float] = None
+    latency_ms: int | None = None
+    cost_usd: float | None = None
     is_fallback: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class LLMProvider(ABC):

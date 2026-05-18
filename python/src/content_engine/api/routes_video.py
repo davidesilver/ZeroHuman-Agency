@@ -10,24 +10,23 @@ Endpoints:
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
-from ..services.video_renderer import (
-    VideoRenderError,
-    enqueue_render,
-    get_video_status,
-    list_videos,
-)
+from ..db import get_db
 from ..services.heygen_client import (
     HeygenError,
     generate_talking_head,
     list_avatars,
     poll_heygen_status,
 )
-from ..db import get_db
+from ..services.video_renderer import (
+    VideoRenderError,
+    enqueue_render,
+    get_video_status,
+    list_videos,
+)
 
 _logger = logging.getLogger("content_engine.video")
 
@@ -44,7 +43,7 @@ def _brand_id(request: Request) -> str:
 class CreateTemplateRequest(BaseModel):
     name: str
     slug: str
-    description: Optional[str] = None
+    description: str | None = None
     composition_path: str
     props_schema: dict = {}
 
@@ -74,7 +73,7 @@ async def create_template(body: CreateTemplateRequest, request: Request):
 class RenderRequest(BaseModel):
     template_slug: str
     render_props: dict
-    title: Optional[str] = None
+    title: str | None = None
 
 
 @router.post("/render", status_code=202)
@@ -128,8 +127,8 @@ async def list_templates(request: Request):
 class TalkingHeadRequest(BaseModel):
     script: str
     avatar_id: str
-    voice_id: Optional[str] = None
-    title: Optional[str] = None
+    voice_id: str | None = None
+    title: str | None = None
 
 
 @router.get("/heygen/avatars")

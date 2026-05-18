@@ -22,16 +22,16 @@ Cost/failure handling:
   - cost_usd is passed into cost_tracker so the per-brand daily cap applies.
 """
 from __future__ import annotations
+
 import asyncio
 import logging
-from typing import Optional
 from uuid import uuid4
 
 from ..config import settings
 from ..db import get_db
-from ..utils.brand_assets import get_brand_palette
-from ..utils.cost_tracker import track_cost, check_daily_cost_cap, CostCapExceeded
 from ..memory import events as memory_events
+from ..utils.brand_assets import get_brand_palette
+from ..utils.cost_tracker import CostCapExceeded, check_daily_cost_cap, track_cost
 from .image_backends import get_backend
 from .image_prompt_builder import build_prompt
 
@@ -213,7 +213,7 @@ async def _run_image_job_with_timeout(
             _run_image_job(gen_id, brand_id, draft_id, width, height),
             timeout=JOB_TIMEOUT_SECONDS,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error("Image job %s timed out after %ds", gen_id, JOB_TIMEOUT_SECONDS)
         db = get_db()
         db.table("image_generations").update({

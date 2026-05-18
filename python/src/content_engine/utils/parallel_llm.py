@@ -13,9 +13,9 @@ Created: 2026-04-17
 """
 
 import asyncio
-import time
-from typing import List, Optional, Tuple, Dict, Any
 import logging
+import time
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -59,13 +59,13 @@ class ParallelLLMCaller:
 
     async def call_first_success(
         self,
-        models: List[str],
+        models: list[str],
         prompt: str,
         task_type: str = "general",
         context: str = "unknown",
         brand_id: str = "default",
         agent_name: str = "unknown",
-    ) -> Tuple[Optional[Dict[str, Any]], float]:
+    ) -> tuple[dict[str, Any] | None, float]:
         """
         Call multiple models in parallel, return first successful response.
 
@@ -141,7 +141,7 @@ class ParallelLLMCaller:
                     logger.warning(f"Task failed: {e}")
                     continue
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(
                 f"All parallel LLM calls timed out after {self.overall_timeout}s "
                 f"(tried {len(models)} models)"
@@ -157,14 +157,14 @@ class ParallelLLMCaller:
 
     async def call_with_fallback(
         self,
-        primary_models: List[str],
-        fallback_models: List[str],
+        primary_models: list[str],
+        fallback_models: list[str],
         prompt: str,
         task_type: str = "general",
         context: str = "unknown",
         brand_id: str = "default",
         agent_name: str = "unknown",
-    ) -> Tuple[Optional[Dict[str, Any]], float, bool]:
+    ) -> tuple[dict[str, Any] | None, float, bool]:
         """
         Try primary models in parallel, fall back to fallback models if all fail.
 
@@ -198,7 +198,7 @@ class ParallelLLMCaller:
             return result, latency, False  # Success with primary
 
         # All primary models failed, try fallback models
-        logger.warning(f"All primary models failed, trying fallback models")
+        logger.warning("All primary models failed, trying fallback models")
         result, latency = await self.call_first_success(
             fallback_models,
             prompt,
@@ -218,7 +218,7 @@ class ParallelLLMCaller:
         context: str,
         brand_id: str,
         agent_name: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Call a single model with timeout.
 
@@ -239,7 +239,7 @@ class ParallelLLMCaller:
                 timeout=self.timeout_per_model,
             )
             return result
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(f"Model {model} timed out after {self.timeout_per_model}s")
             return None
         except Exception as e:
@@ -254,7 +254,7 @@ class ParallelLLMCaller:
         context: str,
         brand_id: str,
         agent_name: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Actual LLM call implementation.
 
@@ -282,7 +282,7 @@ class ParallelLLMCaller:
 
         return await self._llm_caller(model, prompt, task_type, context, brand_id, agent_name)
 
-    def get_performance_stats(self) -> Dict[str, Any]:
+    def get_performance_stats(self) -> dict[str, Any]:
         """
         Get performance statistics for parallel calls.
 
@@ -304,14 +304,14 @@ class ParallelCallMetrics:
         self.successful_calls = 0
         self.failed_calls = 0
         self.total_latency_ms = 0.0
-        self.model_success_counts: Dict[str, int] = {}
-        self.model_failure_counts: Dict[str, int] = {}
+        self.model_success_counts: dict[str, int] = {}
+        self.model_failure_counts: dict[str, int] = {}
 
     def record_call(
         self,
         success: bool,
         latency_ms: float,
-        model_used: Optional[str] = None,
+        model_used: str | None = None,
         models_tried: int = 1
     ):
         """
@@ -336,7 +336,7 @@ class ParallelCallMetrics:
         else:
             self.failed_calls += 1
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get performance statistics.
 

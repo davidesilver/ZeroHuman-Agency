@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timezone, timedelta
 from collections import defaultdict
+from datetime import UTC, datetime, timedelta
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -111,7 +111,7 @@ class PersistentRateLimitMiddleware(BaseHTTPMiddleware):
         from ..db import get_db
         db = get_db()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         window_start = now - timedelta(seconds=window_sec)
 
         # Try to get the current counter
@@ -127,7 +127,7 @@ class PersistentRateLimitMiddleware(BaseHTTPMiddleware):
             row_window_start = datetime.fromisoformat(row["window_start"])
             # Ensure timezone-aware for comparison
             if row_window_start.tzinfo is None:
-                row_window_start = row_window_start.replace(tzinfo=timezone.utc)
+                row_window_start = row_window_start.replace(tzinfo=UTC)
 
             if row_window_start >= window_start:
                 # Window is still active — check count

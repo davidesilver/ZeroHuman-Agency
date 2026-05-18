@@ -6,7 +6,6 @@ import json
 
 from ..db import get_db
 from ..memory.retrieval import recall as memory_recall
-from ..utils.cost_tracker import track_cost
 from ..utils.llm_client import call_llm
 from ..utils.security_utils import sanitize_for_prompt  # H-07: prompt injection guard
 from .agent_loader import get_agent_identity  # Fase 1: Use DB-based identity loader

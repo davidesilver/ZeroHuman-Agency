@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ...db import get_db
 from ...services.notification import emit_event
@@ -45,11 +45,11 @@ class ConsolidationReport:
     facts_rejected_dedup: list[str] = field(default_factory=list)
     facts_superseded: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
-    started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     finished_at: datetime | None = None
 
-    def finish(self) -> "ConsolidationReport":
-        self.finished_at = datetime.now(timezone.utc)
+    def finish(self) -> ConsolidationReport:
+        self.finished_at = datetime.now(UTC)
         return self
 
     @property
@@ -142,7 +142,7 @@ async def _fetch_recent_episodic(
     """Fetch recent episodic summaries from vw_memory_episodic as source texts."""
     from datetime import timedelta
 
-    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
     db = get_db()
     q = (
         db.table("vw_memory_episodic")

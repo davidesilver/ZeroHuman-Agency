@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Frontend: typecheck + build ──────────────────────────────────────────
+  frontend:
+    name: Frontend (typecheck + build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          # Dummy values so Next.js doesn't bail on missing env vars at build time
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          PYTHON_BACKEND_URL: http://localhost:8082
+
+  # ── Backend: lint + tests ────────────────────────────────────────────────
+  backend:
+    name: Backend (lint + tests)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Install Python dependencies
+        run: |
+          cd python
+          uv sync --all-extras
+
+      - name: Ruff lint
+        run: |
+          cd python
+          uv run ruff check src/
+
+      - name: Run tests
+        run: |
+          cd python
+          uv run pytest tests/ -x -q
+        env:
+          ANTHROPIC_API_KEY: placeholder
+          SUPABASE_URL: https://placeholder.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+          SCHEDULER_SECRET: placeholder
+          BRAND_SECRETS_ENCRYPTION_KEY: ${{ secrets.BRAND_SECRETS_ENCRYPTION_KEY || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }}

@@ -11,8 +11,8 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from ..services.llm.registrar import list_providers
 from ..db import get_db
+from ..services.llm.registrar import list_providers
 
 _logger = logging.getLogger("content_engine.llm_providers")
 

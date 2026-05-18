@@ -19,12 +19,11 @@ import asyncio
 import json
 import logging
 import os
-from typing import Any, Optional
 
 import httpx
 
-from ..services.feature_flags import DEEP_RESEARCH_ENABLED, get_feature_flag
 from ..db import get_db
+from ..services.feature_flags import DEEP_RESEARCH_ENABLED, get_feature_flag
 
 logger = logging.getLogger("content_engine.retrievers.deep_research")
 

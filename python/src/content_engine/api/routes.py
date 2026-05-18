@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -31,25 +31,30 @@ async def _require_scheduler_secret(request: Request) -> None:
 
 from pydantic import BaseModel
 
-from ..db import get_db, get_user_db
-from ..models import TriggerRequest, ScoringRequest
-from ..orchestrator.research import run_research
-from ..orchestrator.content import generate_content, generate_and_god, generate_and_god_and_humanize
-from ..agents.god_system import run_god_mode
 from ..agents.adapter import adapt_content
+from ..agents.god_system import run_god_mode
 from ..agents.writing_lab import create_session, vote_round
+from ..db import get_db, get_user_db
+from ..models import ScoringRequest, TriggerRequest
+from ..orchestrator.content import generate_and_god, generate_and_god_and_humanize, generate_content
+from ..orchestrator.research import run_research
 from ..scoring.engine import run_scoring
-from ..services.newsletter_delivery import send_newsletter, preview_newsletter, get_newsletter_report
-from ..services.postiz_publisher import publish_now as publish_to_postiz, schedule_post
-from ..services.feedback_loop import record_social_metrics, update_feedback_bonus
-from ..services.postiz_analytics import pull_daily_metrics, run_daily_analytics_cycle
-from ..services.scheduler import daily_research_pipeline, publish_scheduled_posts
 from ..services.credential_vault import (
-    get_credentials,
-    set_credentials,
     delete_credentials,
+    get_credentials,
     list_configured_services,
+    set_credentials,
 )
+from ..services.feedback_loop import record_social_metrics, update_feedback_bonus
+from ..services.newsletter_delivery import (
+    get_newsletter_report,
+    preview_newsletter,
+    send_newsletter,
+)
+from ..services.postiz_analytics import run_daily_analytics_cycle
+from ..services.postiz_publisher import publish_now as publish_to_postiz
+from ..services.postiz_publisher import schedule_post
+from ..services.scheduler import daily_research_pipeline, publish_scheduled_posts
 
 router = APIRouter(prefix="/api")
 
@@ -157,10 +162,10 @@ async def get_llm_routing(request: Request):
     read it — the data isn't sensitive, just operational metadata).
     """
     from ..config.llm_models import (
-        MODEL_ROUTING,
         MODEL_CAPABILITIES,
-        OPENROUTER_FALLBACK_MODELS,
         MODEL_CONFIGS,
+        MODEL_ROUTING,
+        OPENROUTER_FALLBACK_MODELS,
     )
 
     capabilities = []
@@ -686,7 +691,7 @@ async def webhook_telegram(request: Request):
     Telegram posts JSON for every message/update to this URL.
     Auth via X-Telegram-Bot-Api-Secret-Token header.
     """
-    from ..services.telegram_bot import handle_update, _verify_secret
+    from ..services.telegram_bot import _verify_secret, handle_update
 
     secret_header = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
     if not _verify_secret(secret_header):
@@ -895,7 +900,7 @@ def _check_unsubscribe_spike(db, newsletter_id: str, current_unsubs: int) -> Non
         avg_unsubs = sum(r.get("unsubscribe_count") or 0 for r in past) / len(past)
         if avg_unsubs > 0 and current_unsubs >= avg_unsubs * 2:
             import asyncio
-            from .notification import emit_event as _emit  # type: ignore[attr-defined]
+
 
             async def _alert():
                 from ..services.notification import emit_event
@@ -976,7 +981,7 @@ async def api_upsert_email_provider_config(req: EmailProviderConfigRequest, requ
 @router.post("/email-provider/validate")
 async def api_validate_email_provider(req: EmailProviderConfigRequest, request: Request):
     """Validate an email provider API key by calling a lightweight endpoint."""
-    from ..services.email_providers import BrevoProvider, ResendProvider, ProviderConfig
+    from ..services.email_providers import BrevoProvider, ProviderConfig, ResendProvider
     config = ProviderConfig(
         provider=req.provider,
         api_key=req.api_key,
@@ -1005,7 +1010,7 @@ async def api_get_email_provider_lists(request: Request):
     lists = await provider.get_lists()
     return {
         "success": True,
-        "data": [{"list_id": l.list_id, "name": l.name, "total_subscribers": l.total_subscribers} for l in lists],
+        "data": [{"list_id": lst.list_id, "name": lst.name, "total_subscribers": lst.total_subscribers} for lst in lists],
     }
 
 
@@ -1030,8 +1035,8 @@ def _validate_scheduled_at(value: str) -> str:
         raise ValueError("scheduled_at must be a valid ISO 8601 datetime string")
     # Make timezone-aware for comparison
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    if dt <= datetime.now(timezone.utc):
+        dt = dt.replace(tzinfo=UTC)
+    if dt <= datetime.now(UTC):
         raise ValueError("scheduled_at must be in the future")
     return value
 
@@ -1131,7 +1136,6 @@ async def api_feedback_loop(request: Request):
 @router.post("/analytics/pull-metrics", dependencies=[Depends(_require_scheduler_secret)])
 async def api_pull_metrics():
     """Pull daily Postiz analytics for all brands. Requires X-Scheduler-Secret header."""
-    from ..services.postiz_analytics import run_daily_analytics_cycle
     try:
         result = await run_daily_analytics_cycle()
         return {"success": True, "data": result}
@@ -1435,7 +1439,7 @@ async def api_memory_patch_fact(
     if not patch:
         raise HTTPException(400, "No patchable fields provided")
 
-    from ..memory.stores.semantic import update_fact, list_facts
+    from ..memory.stores.semantic import update_fact
 
     # Verify ownership: fact must belong to this brand
     db = get_db()

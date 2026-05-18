@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 
-from ..utils.llm_client import call_llm
 from ..db import get_db
+from ..utils.llm_client import call_llm
 from .agent_loader import get_agent_identity  # Fase 1: Use DB-based identity loader
 
 # Base prompt template without identity section (identity will be loaded dynamically)

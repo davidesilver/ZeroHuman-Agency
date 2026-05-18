@@ -5,19 +5,19 @@ checks are always enforced at the user-session layer. Python only needs to
 resolve brand assets when generating content or images.
 """
 from __future__ import annotations
-from typing import Optional, TypedDict
+
+from typing import TypedDict
 
 from ..db import get_db
-from ..config import settings
 
 
 class BrandAsset(TypedDict):
     id: str
     kind: str
-    label: Optional[str]
+    label: str | None
     storage_path: str
     mime_type: str
-    palette_hex: Optional[list[str]]
+    palette_hex: list[str] | None
     metadata: dict
 
 
@@ -27,7 +27,7 @@ def _signed_url(storage_path: str, ttl_seconds: int = 600) -> str:
     return res.get("signedURL") or res.get("signed_url") or ""
 
 
-def get_brand_asset(brand_id: str, kind: str) -> Optional[BrandAsset]:
+def get_brand_asset(brand_id: str, kind: str) -> BrandAsset | None:
     """Return the most recent asset of `kind` for `brand_id`, or None."""
     db = get_db()
     rows = (
@@ -39,7 +39,7 @@ def get_brand_asset(brand_id: str, kind: str) -> Optional[BrandAsset]:
     return rows[0] if rows else None
 
 
-def get_brand_logo_url(brand_id: str) -> Optional[str]:
+def get_brand_logo_url(brand_id: str) -> str | None:
     a = get_brand_asset(brand_id, "logo_primary")
     return _signed_url(a["storage_path"]) if a else None
 

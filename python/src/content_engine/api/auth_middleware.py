@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -27,6 +27,7 @@ _logger = logging.getLogger("content_engine.auth")
 # which a revoked brand membership remains effective; raise it to cut Supabase
 # auth round-trips on hot paths.  60 s is the audit-recommended default.
 import os as _os
+
 _AUTH_CACHE_TTL = int(_os.environ.get("AUTH_CACHE_TTL_SECONDS", "60"))
 
 # Paths that do NOT require a JWT token

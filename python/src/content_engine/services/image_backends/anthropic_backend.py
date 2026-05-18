@@ -7,8 +7,8 @@ for image generation, matching the text-agent provider pattern.
 Requires a model that supports image output (Claude 3.7 Sonnet+, Claude 4).
 """
 from __future__ import annotations
+
 import base64
-from typing import Optional
 
 import httpx
 
@@ -19,9 +19,9 @@ from .base import GeneratedImage
 class AnthropicBackend:
     name = "anthropic"
 
-    async def generate(self, *, prompt: str, negative_prompt: Optional[str],
+    async def generate(self, *, prompt: str, negative_prompt: str | None,
                        model_id: str, width: int, height: int,
-                       seed: Optional[int]) -> GeneratedImage:
+                       seed: int | None) -> GeneratedImage:
         if not settings.anthropic_api_key:
             raise RuntimeError("ANTHROPIC_API_KEY not configured")
 

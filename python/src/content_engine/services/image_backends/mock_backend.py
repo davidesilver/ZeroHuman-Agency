@@ -2,20 +2,20 @@
 neutral background. Used in tests + when DEFAULT_IMAGE_BACKEND=mock.
 No network calls, no API keys."""
 from __future__ import annotations
+
 import io
-from typing import Optional
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .base import ImageBackend, GeneratedImage
+from .base import GeneratedImage
 
 
 class MockBackend:
     name = "mock"
 
-    async def generate(self, *, prompt: str, negative_prompt: Optional[str],
+    async def generate(self, *, prompt: str, negative_prompt: str | None,
                        model_id: str, width: int, height: int,
-                       seed: Optional[int]) -> GeneratedImage:
+                       seed: int | None) -> GeneratedImage:
         img = Image.new("RGB", (width, height), color=(245, 245, 245))
         draw = ImageDraw.Draw(img)
         try:
@@ -27,12 +27,16 @@ class MockBackend:
         for w in words:
             test = (line + " " + w).strip()
             if draw.textlength(test, font=font) > width - 48:
-                draw.text((24, y), line, fill=(20, 20, 20), font=font); y += 26; line = w
+                draw.text((24, y), line, fill=(20, 20, 20), font=font)
+                y += 26
+                line = w
             else:
                 line = test
-        if line: draw.text((24, y), line, fill=(20, 20, 20), font=font)
+        if line:
+            draw.text((24, y), line, fill=(20, 20, 20), font=font)
 
-        buf = io.BytesIO(); img.save(buf, format="PNG")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
         return GeneratedImage(
             image_bytes=buf.getvalue(), mime_type="image/png",
             width_px=width, height_px=height, cost_usd=0.0,

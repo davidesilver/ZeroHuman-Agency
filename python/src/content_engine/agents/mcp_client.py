@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import httpx
 import logging
-from typing import Dict, Any, Optional
+
+import httpx
 
 from ..config import settings
 

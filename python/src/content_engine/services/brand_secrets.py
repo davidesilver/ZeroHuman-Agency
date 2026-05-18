@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Optional
 
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -46,7 +45,7 @@ def get_brand_secret(
     brand_id: str,
     provider: str,
     key_name: str,
-) -> Optional[str]:
+) -> str | None:
     """Retrieve and decrypt a brand secret. Returns None if not found.
 
     Results are cached in-memory for the process lifetime.

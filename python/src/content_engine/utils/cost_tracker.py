@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC
 
 from ..db import get_db
 
@@ -104,7 +105,7 @@ async def check_daily_cost_cap(brand_id: str) -> None:
     naturally the next UTC day when the aggregate resets.
     """
     import os
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     global_cap_str = os.environ.get("DAILY_COST_CAP_USD")
     # If env var is not set → unlimited (None); parse defensively so a
@@ -143,7 +144,7 @@ async def check_daily_cost_cap(brand_id: str) -> None:
         cap = None  # unlimited
 
     # Start of today in UTC (midnight)
-    now_utc = datetime.now(timezone.utc)
+    now_utc = datetime.now(UTC)
     today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
 
     resp = (

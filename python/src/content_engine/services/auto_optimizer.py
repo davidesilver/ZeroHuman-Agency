@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import logging
-import json
-import asyncio
-from typing import List, Dict, Any, Tuple
+from typing import Any
 
+from ..agents.writer import WRITER_PROMPT
 from ..db import get_db
 from ..scoring.engine import score_item
 from ..utils.llm_client import call_llm
-from ..agents.writer import WRITER_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +71,7 @@ async def run_nightly_optimization(brand_id: str):
     resp = await call_llm(tweak_prompt, brand_id, context="system_optimizer", action="optimize", task_type="agentic")
     new_prompt = resp.content.strip()
 
-    logger.info(f"Generated new prompt variation. Will test against baseline.")
+    logger.info("Generated new prompt variation. Will test against baseline.")
 
     # 3 & 4. Real A/B testing
     logger.info("Running A/B test: generating 5 drafts with new prompt...")
@@ -90,7 +88,7 @@ async def run_nightly_optimization(brand_id: str):
     return {"status": "completed", "success": success, "ab_test_results": ab_test_results}
 
 
-async def run_ab_test(new_prompt: str, old_prompt: str, source_drafts: List[Dict], brand_id: str) -> Dict[str, Any]:
+async def run_ab_test(new_prompt: str, old_prompt: str, source_drafts: list[dict], brand_id: str) -> dict[str, Any]:
     """
     Run A/B test comparing new prompt against old prompt.
 
@@ -106,6 +104,7 @@ async def run_ab_test(new_prompt: str, old_prompt: str, source_drafts: List[Dict
     """
     from ..agents.writer import generate_content
 
+    db = get_db()
     new_scores = []
     old_scores = []
 
@@ -126,13 +125,13 @@ async def run_ab_test(new_prompt: str, old_prompt: str, source_drafts: List[Dict
         brand_data = brand_resp.data
 
         try:
-            # Generate with new prompt
-            new_content = await generate_content(research_item, brand_data, custom_prompt=new_prompt)
+            # Generate with new prompt (content used for scoring only)
+            await generate_content(research_item, brand_data, custom_prompt=new_prompt)
             new_score_result = await score_item(research_item, brand_data)
             new_scores.append(new_score_result[1])  # [1] is final_score
 
             # Generate with old prompt
-            old_content = await generate_content(research_item, brand_data, custom_prompt=old_prompt)
+            await generate_content(research_item, brand_data, custom_prompt=old_prompt)
             old_score_result = await score_item(research_item, brand_data)
             old_scores.append(old_score_result[1])
 

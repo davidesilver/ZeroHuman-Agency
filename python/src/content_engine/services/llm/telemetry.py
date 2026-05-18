@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional
 
 from ...db import get_db
 from .provider import LLMResult
@@ -50,7 +49,7 @@ async def call_with_telemetry(
     prompt: str,
     brand_id: str,
     *,
-    system_prompt: Optional[str] = None,
+    system_prompt: str | None = None,
     task_type: str = "creative",
     temperature: float = 0.7,
     context: str = "general",

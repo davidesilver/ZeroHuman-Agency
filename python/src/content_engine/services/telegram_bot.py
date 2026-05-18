@@ -96,12 +96,12 @@ async def _cmd_send(newsletter_id: str, brand_id: str) -> str:
 
     # Fetch recipients from email provider config
     try:
-        from .newsletter_delivery import send_newsletter
         from .email_providers import get_email_provider
+        from .newsletter_delivery import send_newsletter
         provider = await get_email_provider(brand_id)
         recipients = [provider.config.list_id] if provider.config.list_id else []
         if not recipients:
-            return f"❌ No recipient list configured for this brand."
+            return "❌ No recipient list configured for this brand."
         result = await send_newsletter(brand_id, newsletter_id, recipients)
         return f"📧 Newsletter `{newsletter_id[:8]}` sent to {result['recipients']} recipients via {result['provider']}."
     except Exception as exc:

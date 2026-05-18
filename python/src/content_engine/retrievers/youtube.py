@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -43,7 +43,7 @@ class YouTubeRetriever(BaseRetriever):
         max_items: int = config.get("max_items", 30)
         days_back: int = config.get("days_back", 7)
 
-        published_after = (datetime.now(timezone.utc) - timedelta(days=days_back)).isoformat()
+        published_after = (datetime.now(UTC) - timedelta(days=days_back)).isoformat()
         items: list[ResearchItemCreate] = []
         seen_urls: set[str] = set()
 

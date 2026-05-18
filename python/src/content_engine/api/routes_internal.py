@@ -7,18 +7,15 @@ They expose CRUD for encrypted brand secrets without ever returning plaintext.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from ..db import get_db
 from ..services.brand_secrets import (
     delete_brand_secret,
-    get_brand_secret,
-    invalidate_brand_cache,
     set_brand_secret,
 )
-from ..db import get_db
 
 _logger = logging.getLogger("content_engine.internal")
 

@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import json
-
-from ..utils.llm_client import call_llm
 from ..agents.mcp_client import augment_prompt_with_mcp
-from ..utils.json_parser import RobustJSONParser
 from ..db import get_db
+from ..utils.json_parser import RobustJSONParser
+from ..utils.llm_client import call_llm
 from .agent_loader import get_agent_identity
-
 
 ADVOCATE_PROMPT_BASE = """<context>
 Target Platform: {platform}

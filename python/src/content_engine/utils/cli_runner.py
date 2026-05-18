@@ -112,7 +112,7 @@ async def run_cli(
 
     try:
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         proc.kill()
         await proc.communicate()
         raise RuntimeError(f"CLI '{binary}' timed out after {timeout}s")

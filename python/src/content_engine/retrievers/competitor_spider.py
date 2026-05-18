@@ -12,7 +12,6 @@ Feature gate: competitor_monitoring_enabled must be ON.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from ..db import get_db
 from ..services.feature_flags import COMPETITOR_MONITORING_ENABLED, get_feature_flag
@@ -91,7 +90,7 @@ def _fetch_snapshot(snapshot_id: str, url: str) -> None:
         }).eq("id", snapshot_id).execute()
 
 
-def _scrape(url: str) -> tuple[str, Optional[str], dict]:
+def _scrape(url: str) -> tuple[str, str | None, dict]:
     """Scrape a URL with Scrapling. Returns (content, title, metadata)."""
     try:
         from scrapling import Fetcher
@@ -122,7 +121,7 @@ def _scrape(url: str) -> tuple[str, Optional[str], dict]:
         return content, title, {"status_code": resp.status_code, "url": url}
 
 
-def get_snapshots(brand_id: str, url: Optional[str] = None, limit: int = 20) -> list[dict]:
+def get_snapshots(brand_id: str, url: str | None = None, limit: int = 20) -> list[dict]:
     """Return snapshots for a brand, optionally filtered by URL."""
     _check_feature(brand_id)
     query = (

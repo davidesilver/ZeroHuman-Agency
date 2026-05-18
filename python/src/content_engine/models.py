@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
+
 from pydantic import BaseModel, Field
-from uuid import UUID, uuid4
 
 
 class RetrieverType(StrEnum):

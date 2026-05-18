@@ -1,4 +1,4 @@
-from .base import ImageBackend, GeneratedImage
+from .base import GeneratedImage, ImageBackend
 from .mock_backend import MockBackend
 
 __all__ = ["ImageBackend", "GeneratedImage", "MockBackend", "get_backend"]

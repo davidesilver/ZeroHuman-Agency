@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Optional
 
 from ..db import get_db
 
 
-async def get_pipeline_health(brand_id: Optional[str] = None) -> dict:
+async def get_pipeline_health(brand_id: str | None = None) -> dict:
     """
     Get pipeline health metrics for a brand or all brands.
 
@@ -211,7 +210,7 @@ async def send_alerts(alerts: list[str], channel: str = "telegram") -> bool:
     return False
 
 
-async def run_health_check(brand_id: Optional[str] = None) -> dict:
+async def run_health_check(brand_id: str | None = None) -> dict:
     """
     Run health check and send alerts if needed.
 

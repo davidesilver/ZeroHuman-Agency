@@ -7,7 +7,7 @@ and the outcome. Essential for debugging and compliance.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ..db import get_db
 
@@ -45,7 +45,7 @@ async def log_publish_event(
         "status": status,
         "details": details or {},
         "error": error,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     try:

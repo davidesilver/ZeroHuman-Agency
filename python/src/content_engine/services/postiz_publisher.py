@@ -11,7 +11,7 @@ integration_id references.
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from datetime import UTC
 
 from ..config import settings
 from ..db import get_db
@@ -96,7 +96,7 @@ async def publish_now(
     draft_id: str,
     platforms: list[str],
     *,
-    media_urls: Optional[list[str]] = None,
+    media_urls: list[str] | None = None,
 ) -> dict:
     """Publish a draft immediately to one or more social platforms via Postiz.
 
@@ -173,10 +173,10 @@ async def publish_now(
     else:
         current_meta = {"postiz_post_ids": postiz_post_ids}
 
-    from datetime import datetime, timezone
+    from datetime import datetime
     db.table("content_drafts").update({
         "status": "published",
-        "published_at": datetime.now(timezone.utc).isoformat(),
+        "published_at": datetime.now(UTC).isoformat(),
         "published_url": published_url,
         "metadata": current_meta,
     }).eq("id", draft_id).execute()
@@ -202,7 +202,7 @@ async def schedule_post(
     brand_id: str,
     draft_id: str,
     scheduled_at: str,
-    platforms: Optional[list[str]] = None,
+    platforms: list[str] | None = None,
 ) -> dict:
     """Schedule a draft for future publishing via Postiz.
 

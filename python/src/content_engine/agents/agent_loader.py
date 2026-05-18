@@ -17,10 +17,9 @@ Usage (Phase 2 — wired in after DB migration):
 from __future__ import annotations
 
 import logging
-import time
 import threading
+import time
 from dataclasses import dataclass
-from typing import Optional
 
 logger = logging.getLogger("content_engine.agent_loader")
 
@@ -38,15 +37,15 @@ def _load_defaults() -> dict[str, str]:
     if _DEFAULTS_LOADED:
         return _DEFAULT_IDENTITIES
 
-    from .writer import WRITER_PROMPT
-    from .editor import EDITOR_PROMPT
     from .adapter import ADAPTER_PROMPT
+    from .editor import EDITOR_PROMPT
     from .god_system import (
         ADVOCATE_PROMPT,
-        FACTCHECK_PROMPT,
         CREATIVE_PROMPT,
+        FACTCHECK_PROMPT,
         SYNTHESIS_PROMPT,
     )
+    from .writer import WRITER_PROMPT
 
     _DEFAULT_IDENTITIES = {
         "writer": WRITER_PROMPT,
@@ -70,7 +69,7 @@ CACHE_TTL_SECONDS = 300  # 5 minutes
 class _CacheEntry:
     identity: str
     skills_text: str
-    task_type_override: Optional[str]
+    task_type_override: str | None
     expires_at: float
 
 
@@ -91,7 +90,7 @@ class _AgentCache:
         self._lock = threading.Lock()
         self._ttl = ttl
 
-    def get(self, brand_id: str, agent_key: str) -> Optional[_CacheEntry]:
+    def get(self, brand_id: str, agent_key: str) -> _CacheEntry | None:
         key = (brand_id, agent_key)
         with self._lock:
             entry = self._store.get(key)
@@ -108,7 +107,7 @@ class _AgentCache:
         agent_key: str,
         identity: str,
         skills_text: str = "",
-        task_type_override: Optional[str] = None,
+        task_type_override: str | None = None,
     ) -> None:
         key = (brand_id, agent_key)
         entry = _CacheEntry(
@@ -120,7 +119,7 @@ class _AgentCache:
         with self._lock:
             self._store[key] = entry
 
-    def invalidate(self, brand_id: str, agent_key: Optional[str] = None) -> int:
+    def invalidate(self, brand_id: str, agent_key: str | None = None) -> int:
         """Invalidate cache entries.
 
         If agent_key is None, invalidate ALL entries for the brand.
@@ -231,7 +230,7 @@ async def get_agent_identity(
     return identity_text + (f"\n\n{skills_text}" if skills_text else "")
 
 
-async def get_task_type_override(brand_id: str, agent_key: str) -> Optional[str]:
+async def get_task_type_override(brand_id: str, agent_key: str) -> str | None:
     """Get task_type override for this brand+agent, if any.
 
     Returns None if no override is set (use the agent's default task_type).
@@ -245,7 +244,7 @@ async def get_task_type_override(brand_id: str, agent_key: str) -> Optional[str]
     return cached.task_type_override if cached else None
 
 
-def invalidate_agent_cache(brand_id: str, agent_key: Optional[str] = None) -> int:
+def invalidate_agent_cache(brand_id: str, agent_key: str | None = None) -> int:
     """Invalidate cached agent config (call after DB update).
 
     Args:

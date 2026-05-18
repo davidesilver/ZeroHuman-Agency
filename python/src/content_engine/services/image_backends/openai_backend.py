@@ -1,8 +1,8 @@
 # openai_backend.py
 """OpenAI image generation (gpt-image-1 / DALL-E 3)."""
 from __future__ import annotations
+
 import base64
-from typing import Optional
 
 import httpx
 
@@ -13,9 +13,9 @@ from .base import GeneratedImage
 class OpenAIBackend:
     name = "openai"
 
-    async def generate(self, *, prompt: str, negative_prompt: Optional[str],
+    async def generate(self, *, prompt: str, negative_prompt: str | None,
                        model_id: str, width: int, height: int,
-                       seed: Optional[int]) -> GeneratedImage:
+                       seed: int | None) -> GeneratedImage:
         if not settings.openai_api_key:
             raise RuntimeError("OPENAI_API_KEY not configured")
         # gpt-image-1 supports 1024x1024, 1024x1536, 1536x1024

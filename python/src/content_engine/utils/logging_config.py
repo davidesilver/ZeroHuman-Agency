@@ -15,8 +15,7 @@ import json
 import logging
 import os
 import sys
-import traceback
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 class JSONFormatter(logging.Formatter):
@@ -48,7 +47,7 @@ class JSONFormatter(logging.Formatter):
         record.message = record.getMessage()
 
         payload: dict = {
-            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.message,

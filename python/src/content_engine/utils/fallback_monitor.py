@@ -10,10 +10,8 @@ This module provides:
 from __future__ import annotations
 
 import logging
-import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from threading import Lock
-from typing import Optional
 
 from ..config import settings
 
@@ -29,10 +27,10 @@ class FallbackMonitor:
     - Emergency fallback count
     """
 
-    _instance: Optional["FallbackMonitor"] = None
+    _instance: FallbackMonitor | None = None
     _lock: Lock = Lock()
 
-    def __new__(cls) -> "FallbackMonitor":
+    def __new__(cls) -> FallbackMonitor:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -59,7 +57,7 @@ class FallbackMonitor:
 
     def _get_current_date(self) -> str:
         """Get current date string in UTC."""
-        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        return datetime.now(UTC).strftime("%Y-%m-%d")
 
     def _check_and_reset_daily(self) -> None:
         """Reset counters if it's a new day."""
@@ -200,7 +198,7 @@ class FallbackMonitor:
 
 
 # Singleton instance
-_monitor_instance: Optional[FallbackMonitor] = None
+_monitor_instance: FallbackMonitor | None = None
 
 
 def get_fallback_monitor() -> FallbackMonitor:

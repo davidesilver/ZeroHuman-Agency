@@ -7,7 +7,7 @@ Values are JSON blobs; callers own serialisation of complex objects.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from ...db import get_db
@@ -30,7 +30,7 @@ async def put(
     from datetime import timedelta
 
     expires_at = (
-        datetime.now(timezone.utc) + timedelta(hours=ttl_hours)
+        datetime.now(UTC) + timedelta(hours=ttl_hours)
     ).isoformat()
 
     db = get_db()
@@ -54,7 +54,7 @@ async def get(
 ) -> Any | None:
     """Retrieve a value from the hot store, or None if missing / expired."""
     db = get_db()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     resp = (
         db.table("memory_hot")
         .select("value")
@@ -81,7 +81,7 @@ async def delete(brand_id: str, session_id: str, key: str) -> None:
 async def get_session(brand_id: str, session_id: str) -> dict[str, Any]:
     """Return all live KV pairs for a session as a plain dict."""
     db = get_db()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     resp = (
         db.table("memory_hot")
         .select("key,value")

@@ -8,31 +8,30 @@ This file has been integrated with all Phase 1-3 improvements:
 
 from __future__ import annotations
 
-import httpx
+import asyncio
 import logging
 import time
-import asyncio
+from typing import Any
+
+import httpx
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional, Tuple
 
 from ..config import settings
-from ..db import get_db
-from .cost_tracker import track_cost, cost_tracker
-from .fallback_monitor import record_call, record_fallback
-from .json_parser import RobustJSONParser, json_parser
-from .llm_rate_limiter import rate_limiter, RateLimitStrategy
-from .degradation import degradation_manager, DegradationLevel
-from .fallback_metrics import fallback_metrics
-from .parallel_llm import parallel_llm_caller
 from ..config.llm_models import (
     ModelCapability,
-    get_models_for_capability,
-    get_model_ids_for_capability,
-    get_model_config,
-    get_primary_models_for_capability,
     get_fallback_models_for_capability,
-    get_models_by_provider,
+    get_model_config,
+    get_model_ids_for_capability,
+    get_primary_models_for_capability,
 )
+from ..db import get_db
+from .cost_tracker import cost_tracker, track_cost
+from .degradation import DegradationLevel, degradation_manager
+from .fallback_metrics import fallback_metrics
+from .fallback_monitor import record_call, record_fallback
+from .json_parser import json_parser
+from .llm_rate_limiter import rate_limiter
+from .parallel_llm import parallel_llm_caller
 
 logger = logging.getLogger("content_engine.llm")
 
@@ -43,14 +42,14 @@ class LLMResponse(BaseModel):
     tokens_prompt: int
     tokens_completion: int
     engine: str = "unknown"          # "anthropic" | "openrouter"
-    latency_ms: Optional[int] = None
-    fallback_to: Optional[str] = None
+    latency_ms: int | None = None
+    fallback_to: str | None = None
     # New fields from Phase 1-3 integration
-    degradation_level: Optional[str] = None
+    degradation_level: str | None = None
     used_parallel: bool = False
     used_fallback: bool = False
     is_emergency: bool = False
-    cost_usd: Optional[float] = None
+    cost_usd: float | None = None
 
 
 async def call_llm(
@@ -58,7 +57,7 @@ async def call_llm(
     brand_id: str,
     context: str = "general",
     action: str = "call_llm",
-    system_prompt: Optional[str] = None,
+    system_prompt: str | None = None,
     # Depending on task, we route to the right capability-based model
     task_type: str = "creative",
     temperature: float = 0.7,
@@ -208,11 +207,11 @@ async def call_llm_with_json(
     brand_id: str,
     context: str = "general",
     action: str = "call_llm_json",
-    system_prompt: Optional[str] = None,
+    system_prompt: str | None = None,
     task_type: str = "creative",
     temperature: float = 0.7,
     allow_partial: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Call LLM and parse JSON response using robust JSON parser.
 
@@ -293,7 +292,7 @@ def _map_task_type_to_capability(task_type: str) -> ModelCapability:
 async def _get_models_for_degradation(
     capability: ModelCapability,
     degradation_level: DegradationLevel
-) -> Tuple[List[str], List[str]]:
+) -> tuple[list[str], list[str]]:
     """Get primary and fallback models based on degradation level.
 
     Args:
@@ -332,9 +331,9 @@ async def _get_models_for_degradation(
 
 
 async def _call_llm_parallel(
-    models: List[str],
+    models: list[str],
     prompt: str,
-    system_prompt: Optional[str],
+    system_prompt: str | None,
     brand_id: str,
     context: str,
     action: str,
@@ -542,12 +541,12 @@ async def _call_llm_parallel(
 
 async def _call_single_model(
     model: str,
-    messages: List[Dict[str, str]],
+    messages: list[dict[str, str]],
     temperature: float,
     brand_id: str,
     context: str,
     action: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Call a single model (either OpenRouter or Anthropic).
 
     Args:
@@ -582,9 +581,9 @@ async def _call_single_model(
 
 async def _call_openrouter(
     model: str,
-    messages: List[Dict[str, str]],
+    messages: list[dict[str, str]],
     temperature: float,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Call OpenRouter API.
 
     Args:
@@ -631,9 +630,9 @@ async def _call_openrouter(
 
 async def _call_anthropic_direct(
     model: str,
-    messages: List[Dict[str, str]],
+    messages: list[dict[str, str]],
     temperature: float,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Call Anthropic API directly (uses Claude subscription credits).
 
     Args:
@@ -695,7 +694,7 @@ async def _call_anthropic_direct_legacy(
     brand_id: str,
     context: str,
     action: str,
-    system_prompt: Optional[str] = None,
+    system_prompt: str | None = None,
     temperature: float = 0.7,
 ) -> LLMResponse:
     """Legacy function for backward compatibility. Use call_llm instead."""
@@ -737,7 +736,7 @@ async def _call_anthropic_direct_legacy(
 async def _emergency_openrouter_fallback(
     task_type: str,
     prompt: str,
-    system_prompt: Optional[str],
+    system_prompt: str | None,
     brand_id: str,
     context: str,
     action: str,
@@ -871,7 +870,7 @@ async def _send_fallback_alert(
 
 async def _record_heartbeat_safely(
     brand_id: str,
-    llm_meta: Dict[str, Any],
+    llm_meta: dict[str, Any],
     context: str,
     action: str,
     status: str,

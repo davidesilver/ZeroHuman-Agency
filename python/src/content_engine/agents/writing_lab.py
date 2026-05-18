@@ -6,9 +6,7 @@ import asyncio
 import json
 import logging
 
-from ..config import settings
 from ..db import get_db
-from ..utils.cost_tracker import track_cost
 from ..utils.llm_client import call_llm
 
 logger = logging.getLogger(__name__)

@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import logging
 
-from ..agents.writer import generate_draft
 from ..agents.editor import edit_draft
-from ..agents.adapter import adapt_content
 from ..agents.god_system import run_god_mode
 from ..agents.humanizer import humanize_draft
+from ..agents.writer import generate_draft
 from ..db import get_db
 
 logger = logging.getLogger("content_engine.orchestrator")

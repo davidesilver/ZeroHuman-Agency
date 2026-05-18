@@ -13,16 +13,16 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
 
 from ..config import settings
 from ..db import get_db
-from ..utils.llm_client import call_llm_with_json, call_llm
 from ..memory.retrieval import recall as memory_recall
 from ..services.notification import emit_event
+from ..utils.llm_client import call_llm_with_json
 
 logger = logging.getLogger("content_engine.newsletter_generator")
 
@@ -235,7 +235,7 @@ async def generate_newsletter(brand_id: str) -> dict:
     db = get_db()
 
     # ── Fetch data ────────────────────────────────────────────────────────────
-    since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    since = (datetime.now(UTC) - timedelta(days=7)).isoformat()
     items_resp = (
         db.table("research_items")
         .select("id, title, summary, url, scores(*)")
@@ -284,7 +284,7 @@ async def generate_newsletter(brand_id: str) -> dict:
         f"{i}. [{_extract_score(it):.2f}] {it.get('title','')}\n{it.get('summary','')[:200]}\nID: {it.get('id')}"
         for i, it in enumerate(items, 1)
     )
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
 
     # ── Pass 1: Selection + Layout ────────────────────────────────────────────
     logger.info("[Pass 1] Selecting items and layout for brand %s", brand_id)

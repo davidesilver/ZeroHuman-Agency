@@ -13,8 +13,7 @@ Public API:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from uuid import uuid4
+from datetime import UTC, datetime
 
 from ..db import get_db
 from .consolidation.synthesizer import generate_reflection
@@ -61,7 +60,7 @@ async def supersede(
     resolved_importance = importance if importance is not None else old_row.get("importance", 0.5)
 
     # ── 2. Expire old fact ──────────────────────────────────────────────────
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     db.table("memory_semantic").update({"expires_at": now}).eq("id", old_fact_id).execute()
     logger.info("arbiter: expired old fact id=%s", old_fact_id)
 

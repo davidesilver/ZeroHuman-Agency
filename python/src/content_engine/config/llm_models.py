@@ -11,10 +11,9 @@ Author: AI Engineering Team
 Created: 2026-04-17
 """
 
-from typing import List, Dict
+import logging
 from dataclasses import dataclass
 from enum import Enum
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +51,7 @@ class ModelConfig:
     """
 
     model_id: str
-    capabilities: List[ModelCapability]
+    capabilities: list[ModelCapability]
     max_tokens: int = 4096
     temperature: float = 0.7
     timeout_seconds: int = 30
@@ -64,7 +63,7 @@ class ModelConfig:
 # Model configurations for all supported models
 # This is the single source of truth for model selection
 
-MODEL_CONFIGS: Dict[str, ModelConfig] = {
+MODEL_CONFIGS: dict[str, ModelConfig] = {
     # Anthropic Claude models
     "claude-sonnet-4-20250514": ModelConfig(
         model_id="claude-sonnet-4-20250514",
@@ -200,7 +199,7 @@ MODEL_CONFIGS: Dict[str, ModelConfig] = {
 
 # Model routing: map capabilities to models
 # Models are sorted by priority (lower = preferred)
-MODEL_ROUTING: Dict[ModelCapability, List[ModelConfig]] = {
+MODEL_ROUTING: dict[ModelCapability, list[ModelConfig]] = {
     ModelCapability.GENERAL: [
         MODEL_CONFIGS["claude-sonnet-4-20250514"],
         MODEL_CONFIGS["gpt-4o"],
@@ -243,14 +242,14 @@ MODEL_ROUTING: Dict[ModelCapability, List[ModelConfig]] = {
 
 # OpenRouter fallback models (free tier)
 # Used when all primary models fail
-OPENROUTER_FALLBACK_MODELS: List[str] = [
+OPENROUTER_FALLBACK_MODELS: list[str] = [
     "gemma-4-150b:free",
     "xiaomi/mimo:free",
     "meta-llama/llama-3-8b-instruct:free",
 ]
 
 # Model capability descriptions for UI/Logging
-MODEL_CAPABILITIES: Dict[ModelCapability, str] = {
+MODEL_CAPABILITIES: dict[ModelCapability, str] = {
     ModelCapability.GENERAL: "General purpose tasks",
     ModelCapability.RESEARCH: "Research and analysis",
     ModelCapability.SCORING: "Content scoring and evaluation",
@@ -261,7 +260,7 @@ MODEL_CAPABILITIES: Dict[ModelCapability, str] = {
 }
 
 
-def get_models_for_capability(capability: ModelCapability) -> List[ModelConfig]:
+def get_models_for_capability(capability: ModelCapability) -> list[ModelConfig]:
     """
     Get models sorted by priority for a given capability.
 
@@ -275,7 +274,7 @@ def get_models_for_capability(capability: ModelCapability) -> List[ModelConfig]:
     return sorted(models, key=lambda m: m.priority)
 
 
-def get_model_ids_for_capability(capability: ModelCapability) -> List[str]:
+def get_model_ids_for_capability(capability: ModelCapability) -> list[str]:
     """
     Get model IDs for a given capability.
 
@@ -289,7 +288,7 @@ def get_model_ids_for_capability(capability: ModelCapability) -> List[str]:
     return [m.model_id for m in models]
 
 
-def get_model_config(model_id: str) -> Optional[ModelConfig]:
+def get_model_config(model_id: str) -> ModelConfig | None:
     """
     Get configuration for a specific model.
 
@@ -302,7 +301,7 @@ def get_model_config(model_id: str) -> Optional[ModelConfig]:
     return MODEL_CONFIGS.get(model_id)
 
 
-def get_primary_models_for_capability(capability: ModelCapability) -> List[str]:
+def get_primary_models_for_capability(capability: ModelCapability) -> list[str]:
     """
     Get primary (non-free) models for a capability.
 
@@ -316,7 +315,7 @@ def get_primary_models_for_capability(capability: ModelCapability) -> List[str]:
     return [m.model_id for m in models if m.cost_tier != "free"]
 
 
-def get_fallback_models_for_capability(capability: ModelCapability) -> List[str]:
+def get_fallback_models_for_capability(capability: ModelCapability) -> list[str]:
     """
     Get fallback models for a capability.
 
@@ -333,12 +332,12 @@ def get_fallback_models_for_capability(capability: ModelCapability) -> List[str]
     return OPENROUTER_FALLBACK_MODELS
 
 
-def get_all_models() -> List[str]:
+def get_all_models() -> list[str]:
     """Get all configured model IDs."""
     return list(MODEL_CONFIGS.keys())
 
 
-def get_models_by_provider(provider: str) -> List[str]:
+def get_models_by_provider(provider: str) -> list[str]:
     """
     Get all models from a specific provider.
 
@@ -355,7 +354,7 @@ def get_models_by_provider(provider: str) -> List[str]:
     ]
 
 
-def get_models_by_cost_tier(cost_tier: str) -> List[str]:
+def get_models_by_cost_tier(cost_tier: str) -> list[str]:
     """
     Get all models in a specific cost tier.
 

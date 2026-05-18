@@ -13,15 +13,12 @@ Heygen V2 API endpoints used:
 from __future__ import annotations
 
 import logging
-import time
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import httpx
 
 from ..db import get_db
 from ..services.brand_secrets import get_brand_secret
-from ..services.feature_flags import get_feature_flag
 
 logger = logging.getLogger("content_engine.services.heygen")
 
@@ -63,7 +60,7 @@ def _quota_minutes(brand_id: str) -> int:
 
 
 def _current_usage(brand_id: str) -> float:
-    year_month = datetime.now(timezone.utc).strftime("%Y-%m")
+    year_month = datetime.now(UTC).strftime("%Y-%m")
     result = (
         get_db()
         .from_("heygen_usage")
@@ -79,7 +76,7 @@ def _current_usage(brand_id: str) -> float:
 
 
 def _add_usage(brand_id: str, minutes: float) -> None:
-    year_month = datetime.now(timezone.utc).strftime("%Y-%m")
+    year_month = datetime.now(UTC).strftime("%Y-%m")
     try:
         get_db().from_("heygen_usage").upsert({
             "brand_id": brand_id,
@@ -130,8 +127,8 @@ def generate_talking_head(
     brand_id: str,
     script: str,
     avatar_id: str,
-    voice_id: Optional[str] = None,
-    title: Optional[str] = None,
+    voice_id: str | None = None,
+    title: str | None = None,
 ) -> str:
     """Submit a Heygen talking-head video render. Returns the local videos.id UUID.
 

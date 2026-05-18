@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 
 from ..models import ResearchItemCreate, RetrieverType, SourceType
@@ -19,8 +19,8 @@ class GmailRetriever(BaseRetriever):
 
     async def fetch(self, config: dict) -> list[ResearchItemCreate]:  # noqa: C901
         try:
-            from google.oauth2.credentials import Credentials
             from google.auth.transport.requests import Request
+            from google.oauth2.credentials import Credentials
             from googleapiclient.discovery import build
         except ImportError:
             logger.warning("GmailRetriever: google-auth / googleapiclient not installed — skipping")
@@ -112,7 +112,7 @@ class GmailRetriever(BaseRetriever):
                     published_at = parsedate_to_datetime(raw_date)
                 except Exception:
                     try:
-                        published_at = datetime.now(timezone.utc)
+                        published_at = datetime.now(UTC)
                     except Exception:
                         pass
 

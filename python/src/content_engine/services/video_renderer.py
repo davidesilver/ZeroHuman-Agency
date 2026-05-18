@@ -16,7 +16,6 @@ import subprocess
 import tempfile
 import threading
 from pathlib import Path
-from typing import Optional
 
 from ..db import get_db
 
@@ -40,7 +39,7 @@ def enqueue_render(
     brand_id: str,
     template_slug: str,
     render_props: dict,
-    title: Optional[str] = None,
+    title: str | None = None,
 ) -> str:
     """Create a video record and start a background render. Returns the video UUID."""
     # Resolve template

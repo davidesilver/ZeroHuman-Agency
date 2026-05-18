@@ -1,7 +1,8 @@
 """Image backend interface. Each concrete backend implements generate()."""
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Protocol, Optional
+from typing import Protocol
 
 
 @dataclass
@@ -13,8 +14,8 @@ class GeneratedImage:
     height_px: int
     cost_usd: float
     model_id: str
-    seed: Optional[int] = None
-    raw_response: Optional[dict] = None
+    seed: int | None = None
+    raw_response: dict | None = None
 
 
 class ImageBackend(Protocol):
@@ -24,9 +25,9 @@ class ImageBackend(Protocol):
         self,
         *,
         prompt: str,
-        negative_prompt: Optional[str],
+        negative_prompt: str | None,
         model_id: str,
         width: int,
         height: int,
-        seed: Optional[int],
+        seed: int | None,
     ) -> GeneratedImage: ...

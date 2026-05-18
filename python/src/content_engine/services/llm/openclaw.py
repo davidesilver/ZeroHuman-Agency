@@ -16,13 +16,12 @@ import logging
 import os
 import random
 import time
-from typing import Optional
 
 import httpx
 
-from .provider import LLMProvider, LLMRequest, LLMResult
 from ..brand_secrets import get_brand_secret
 from ..feature_flags import get_feature_flag
+from .provider import LLMProvider, LLMRequest, LLMResult
 
 logger = logging.getLogger("content_engine.llm.openclaw")
 

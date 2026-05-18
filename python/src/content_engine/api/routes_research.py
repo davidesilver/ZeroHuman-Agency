@@ -13,11 +13,12 @@ Endpoints:
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
+from ..db import get_db
+from ..retrievers.competitor_spider import SpiderError, get_snapshots, start_spider
 from ..retrievers.deep_research import (
     DeepResearchError,
     generate_ideas,
@@ -25,8 +26,6 @@ from ..retrievers.deep_research import (
     get_status,
     start_job,
 )
-from ..retrievers.competitor_spider import SpiderError, get_snapshots, start_spider
-from ..db import get_db
 
 _logger = logging.getLogger("content_engine.research")
 
@@ -65,7 +64,7 @@ async def start_deep_research(body: DeepResearchRequest, request: Request):
 @router.get("/deep")
 async def list_deep_research_jobs(
     request: Request,
-    status: Optional[str] = Query(None),
+    status: str | None = Query(None),
     limit: int = Query(20, le=100),
 ):
     """List recent deep research jobs for the active brand."""
@@ -146,7 +145,7 @@ async def start_competitor_spider(body: CompetitorSpiderRequest, request: Reques
 @router.get("/competitor/snapshots")
 async def list_competitor_snapshots(
     request: Request,
-    url: Optional[str] = Query(None),
+    url: str | None = Query(None),
     limit: int = Query(20, le=100),
 ):
     """List competitor snapshots for the active brand."""

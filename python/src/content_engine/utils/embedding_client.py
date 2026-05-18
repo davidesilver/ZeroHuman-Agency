@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import logging
+
 import httpx
-from typing import List
 
 from ..config import settings
 from .cost_tracker import track_cost
 
 logger = logging.getLogger(__name__)
 
-async def generate_embedding(text: str, brand_id: str) -> List[float]:
+async def generate_embedding(text: str, brand_id: str) -> list[float]:
     """
     Generate an embedding vector for standard semantic similarity operations.
     Defaults to text-embedding-3-small (1536 dim).

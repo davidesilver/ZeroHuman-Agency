@@ -28,10 +28,12 @@ Decay sweep:
 
 from __future__ import annotations
 
-from .stores import hot, semantic
-from .retrieval import recall, recall_batch
+from datetime import UTC
+
 from . import arbiter, decay
 from . import consolidation as consolidate
+from .retrieval import recall, recall_batch
+from .stores import hot, semantic
 
 # Convenience re-export of the main consolidation entry point
 run_consolidation = consolidate.run_consolidation
@@ -51,11 +53,12 @@ class _Events:
         ttl_days: int = 90,
     ) -> None:
         """Append a supplementary event to memory_events (episodic feed)."""
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
+
         from ..db import get_db
 
         expires_at = (
-            datetime.now(timezone.utc) + timedelta(days=ttl_days)
+            datetime.now(UTC) + timedelta(days=ttl_days)
         ).isoformat()
 
         db = get_db()
@@ -67,7 +70,7 @@ class _Events:
                 "subject_id": subject_id,
                 "summary": summary,
                 "payload": payload or {},
-                "occurred_at": datetime.now(timezone.utc).isoformat(),
+                "occurred_at": datetime.now(UTC).isoformat(),
                 "expires_at": expires_at,
             }
         ).execute()

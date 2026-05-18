@@ -6,9 +6,9 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from ..db import get_db
 from ..services.postiz_client import PostizClient
 from ..services.postiz_publisher import _is_postiz_enabled
-from ..db import get_db
 from .routes import _get_brand_id
 
 _logger = logging.getLogger("content_engine.api.postiz")

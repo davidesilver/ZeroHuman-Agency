@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import re
 import time
-from collections import defaultdict
 
 import httpx
 
@@ -98,7 +97,7 @@ class CircuitBreaker:
         reset_timeout:  Seconds to wait before probing again.
     """
 
-    _instances: dict[str, "CircuitBreaker"] = {}
+    _instances: dict[str, CircuitBreaker] = {}
 
     def __init__(self, name: str, *, failure_threshold: int = 5, reset_timeout: float = 60.0):
         self.name = name
@@ -109,7 +108,7 @@ class CircuitBreaker:
         self._state = "CLOSED"
 
     @classmethod
-    def for_service(cls, name: str, **kwargs) -> "CircuitBreaker":
+    def for_service(cls, name: str, **kwargs) -> CircuitBreaker:
         """Get or create a singleton breaker for a named service."""
         if name not in cls._instances:
             cls._instances[name] = cls(name, **kwargs)

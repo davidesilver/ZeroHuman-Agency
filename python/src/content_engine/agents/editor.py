@@ -5,9 +5,8 @@ from __future__ import annotations
 import json
 
 from ..db import get_db
-from ..utils.cost_tracker import track_cost
 from ..utils.llm_client import call_llm
-from ..utils.security_utils import sanitize_for_prompt         # H-07
+from ..utils.security_utils import sanitize_for_prompt  # H-07
 from .agent_loader import get_agent_identity  # Fase 1: Use DB-based identity loader
 
 # Base prompt template without identity section (identity will be loaded dynamically)

@@ -6,7 +6,6 @@ no DB access, no LLM calls — so it's trivially testable and cheap to iterate.
 Order matters for most image models: subject first, style second, constraints last.
 """
 from __future__ import annotations
-from typing import Optional
 
 STYLE_PRESETS = {
     "editorial-minimal":
@@ -31,7 +30,7 @@ def build_prompt(
     brand_name: str,
     palette_hex: list[str],
     style_preset: str,
-    prompt_template: Optional[str],
+    prompt_template: str | None,
 ) -> str:
     """Build the full prompt. If `prompt_template` is set on the brand,
     use it with named placeholders; otherwise fall back to the default layout."""

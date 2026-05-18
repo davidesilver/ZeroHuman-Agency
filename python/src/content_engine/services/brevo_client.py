@@ -20,8 +20,9 @@ import csv
 import io
 import logging
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Any, Iterator, Optional
+from typing import Any
 
 import httpx
 
@@ -38,11 +39,11 @@ _RETRY_BASE_DELAY = 0.5  # seconds, doubles on each retry
 @dataclass
 class BrevoContact:
     email: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
     attributes: dict[str, Any] = field(default_factory=dict)
     list_ids: list[int] = field(default_factory=list)
-    brevo_id: Optional[int] = None
+    brevo_id: int | None = None
     is_blocklisted: bool = False
 
 
@@ -63,7 +64,7 @@ class BrevoClient:
 
     def __init__(self, brand_id: str):
         self._brand_id = brand_id
-        self._api_key: Optional[str] = None
+        self._api_key: str | None = None
 
     def _get_key(self) -> str:
         if not self._api_key:
@@ -130,7 +131,7 @@ class BrevoClient:
         data = self._request("GET", "/contacts", params={"limit": limit, "offset": offset})
         return [self._parse_contact(c) for c in data.get("contacts", [])]
 
-    def get_contact(self, email: str) -> Optional[BrevoContact]:
+    def get_contact(self, email: str) -> BrevoContact | None:
         """Fetch a single contact by email. Returns None if not found."""
         try:
             data = self._request("GET", f"/contacts/{email}")
@@ -174,7 +175,7 @@ class BrevoClient:
     def import_contacts_csv(
         self,
         csv_text: str,
-        list_id: Optional[int] = None,
+        list_id: int | None = None,
     ) -> Iterator[BrevoContact]:
         """Parse a CSV string and upsert each row. Yields synced contacts.
 
@@ -188,7 +189,7 @@ class BrevoClient:
         # Normalise column names to lowercase
         lower_fields = {f.lower(): f for f in reader.fieldnames if f}
 
-        def _field(row: dict, *candidates: str) -> Optional[str]:
+        def _field(row: dict, *candidates: str) -> str | None:
             for c in candidates:
                 if c in lower_fields:
                     val = row.get(lower_fields[c], "").strip()
@@ -230,7 +231,7 @@ class BrevoClient:
             for lst in data.get("lists", [])
         ]
 
-    def create_list(self, name: str, folder_id: Optional[int] = None) -> BrevoList:
+    def create_list(self, name: str, folder_id: int | None = None) -> BrevoList:
         """Create a new contact list."""
         payload: dict[str, Any] = {"name": name}
         if folder_id:

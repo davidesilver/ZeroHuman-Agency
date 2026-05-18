@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 
 import feedparser
@@ -19,7 +19,7 @@ class RSSRetriever(BaseRetriever):
         feeds: list[dict] = config.get("feeds", [])
         max_age_hours: int = config.get("max_age_hours", 48)
         max_items: int = config.get("max_items", 100)
-        cutoff = datetime.now(timezone.utc).timestamp() - (max_age_hours * 3600)
+        cutoff = datetime.now(UTC).timestamp() - (max_age_hours * 3600)
 
         items: list[ResearchItemCreate] = []
         for feed_cfg in feeds:
@@ -87,7 +87,7 @@ class RSSRetriever(BaseRetriever):
             if parsed:
                 try:
                     from time import mktime
-                    return datetime.fromtimestamp(mktime(parsed), tz=timezone.utc)
+                    return datetime.fromtimestamp(mktime(parsed), tz=UTC)
                 except Exception:
                     pass
         return None

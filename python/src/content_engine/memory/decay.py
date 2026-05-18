@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ..db import get_db
 
@@ -42,7 +42,7 @@ async def sweep(brand_id: str | None = None) -> SweepStats:
     """
     stats = SweepStats(errors=[])
     db = get_db()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     # ── Hot store: hard delete expired rows ────────────────────────────────
     try:
@@ -85,8 +85,8 @@ async def expiring_soon(brand_id: str, days: int = 7) -> list[dict]:
     from datetime import timedelta
 
     db = get_db()
-    cutoff = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
-    now = datetime.now(timezone.utc).isoformat()
+    cutoff = (datetime.now(UTC) + timedelta(days=days)).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     resp = (
         db.table("memory_semantic")

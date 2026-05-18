@@ -4,22 +4,22 @@ We use the HTTP API directly (not the replicate SDK) so httpx-mock fixtures
 work identically to the rest of the codebase.
 """
 from __future__ import annotations
+
 import asyncio
 import time
-from typing import Optional
 
 import httpx
 
 from ...config import settings
-from .base import ImageBackend, GeneratedImage
+from .base import GeneratedImage
 
 
 class ReplicateBackend:
     name = "replicate"
 
-    async def generate(self, *, prompt: str, negative_prompt: Optional[str],
+    async def generate(self, *, prompt: str, negative_prompt: str | None,
                        model_id: str, width: int, height: int,
-                       seed: Optional[int]) -> GeneratedImage:
+                       seed: int | None) -> GeneratedImage:
         if not settings.replicate_api_token:
             raise RuntimeError("REPLICATE_API_TOKEN not configured")
 
@@ -28,8 +28,10 @@ class ReplicateBackend:
             "width": width, "height": height,
             "num_outputs": 1, "num_inference_steps": 4,  # flux-schnell default
         }
-        if negative_prompt: inputs["negative_prompt"] = negative_prompt
-        if seed is not None: inputs["seed"] = seed
+        if negative_prompt:
+            inputs["negative_prompt"] = negative_prompt
+        if seed is not None:
+            inputs["seed"] = seed
 
         headers = {
             "Authorization": f"Token {settings.replicate_api_token}",

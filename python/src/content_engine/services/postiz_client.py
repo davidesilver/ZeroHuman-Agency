@@ -23,11 +23,10 @@ retry+idempotency keys — CLI caching is counterproductive for writes.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import random
-from typing import Optional
-import asyncio
 
 import httpx
 
@@ -145,10 +144,10 @@ class PostizClient:
         *,
         integration_ids: list[str],
         content: str,
-        scheduled_at: Optional[str] = None,
-        media_urls: Optional[list[str]] = None,
-        settings_json: Optional[dict] = None,
-        idempotency_key: Optional[str] = None,
+        scheduled_at: str | None = None,
+        media_urls: list[str] | None = None,
+        settings_json: dict | None = None,
+        idempotency_key: str | None = None,
     ) -> dict:
         """Create a post (publish immediately or schedule).
 

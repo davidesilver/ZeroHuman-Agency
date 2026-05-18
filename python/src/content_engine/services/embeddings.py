@@ -10,7 +10,7 @@ The model matches the vector(1536) column in research_items.
 from __future__ import annotations
 
 import logging
-from typing import Sequence
+from collections.abc import Sequence
 
 import httpx
 

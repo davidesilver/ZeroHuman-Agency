@@ -12,14 +12,14 @@ Feature gate: email_marketing_enabled must be ON for the brand.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
-from ..services.brevo_client import BrevoAuthError, BrevoContact, BrevoClient, get_brevo_client
-from ..services.feature_flags import EMAIL_MARKETING_ENABLED, get_feature_flag
 from ..db import get_db
+from ..services.brevo_client import BrevoAuthError, BrevoClient, BrevoContact
+from ..services.feature_flags import EMAIL_MARKETING_ENABLED, get_feature_flag
 
 _logger = logging.getLogger("content_engine.email_marketing")
 
@@ -42,15 +42,15 @@ def _require_feature(brand_id: str) -> None:
 
 class ContactInput(BaseModel):
     email: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
     attributes: dict[str, Any] = {}
 
 
 class ContactSyncRequest(BaseModel):
-    contacts: Optional[list[ContactInput]] = None
-    csv: Optional[str] = None
-    list_id: Optional[int] = None
+    contacts: list[ContactInput] | None = None
+    csv: str | None = None
+    list_id: int | None = None
 
 
 class SyncResult(BaseModel):
@@ -62,7 +62,7 @@ class SyncResult(BaseModel):
 
 class ListCreateRequest(BaseModel):
     name: str
-    folder_id: Optional[int] = None
+    folder_id: int | None = None
 
 
 # ── Routes ───────────────────────────────────────────────────────────────

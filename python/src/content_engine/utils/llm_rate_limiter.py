@@ -15,13 +15,11 @@ Author: AI Engineering Team
 Created: 2026-04-16
 """
 
-import time
 import asyncio
-from typing import Dict, Optional
-from collections import defaultdict
+import logging
+import time
 from dataclasses import dataclass, field
 from enum import Enum
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -136,8 +134,8 @@ class RateLimiter:
     """
 
     def __init__(self):
-        self._limits: Dict[str, RateLimitConfig] = {}
-        self._buckets: Dict[str, TokenBucket] = {}
+        self._limits: dict[str, RateLimitConfig] = {}
+        self._buckets: dict[str, TokenBucket] = {}
         self._lock = asyncio.Lock()
 
     def configure_limit(self, key: str, config: RateLimitConfig):
@@ -205,7 +203,7 @@ class RateLimiter:
         self,
         key: str,
         tokens: float = 1.0,
-        timeout: Optional[float] = None
+        timeout: float | None = None
     ):
         """
         Wait until tokens are available.
@@ -256,7 +254,7 @@ class RateLimiter:
 
         return bucket.wait_time(tokens)
 
-    def get_status(self, key: str) -> Dict[str, any]:
+    def get_status(self, key: str) -> dict[str, any]:
         """
         Get current status of a rate limit.
 

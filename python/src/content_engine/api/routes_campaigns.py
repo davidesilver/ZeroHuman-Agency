@@ -13,13 +13,12 @@ import hashlib
 import hmac
 import logging
 import os
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from ..services.brevo_client import BrevoError, get_brevo_client
 from ..db import get_db
+from ..services.brevo_client import BrevoError, get_brevo_client
 
 _logger = logging.getLogger("content_engine.campaigns")
 
@@ -39,10 +38,10 @@ def _brand_id(request: Request) -> str:
 class CreateCampaignRequest(BaseModel):
     name: str
     subject: str
-    draft_id: Optional[str] = None
-    html_content: Optional[str] = None  # falls back to draft body if None
-    list_id: Optional[int] = None
-    scheduled_at: Optional[str] = None  # ISO 8601, None = send immediately
+    draft_id: str | None = None
+    html_content: str | None = None  # falls back to draft body if None
+    list_id: int | None = None
+    scheduled_at: str | None = None  # ISO 8601, None = send immediately
 
 
 @router.post("", status_code=201)

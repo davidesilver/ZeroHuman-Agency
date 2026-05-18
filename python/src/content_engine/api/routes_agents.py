@@ -7,12 +7,11 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
 _logger = logging.getLogger("content_engine.api.agents")
 
-from ..db import get_db, get_user_db
 from ..api.routes import _get_brand_id, _get_client_db
 
 router = APIRouter(prefix="/api/v1")
@@ -242,12 +241,7 @@ async def delete_agent_config(config_id: str, request: Request):
         raise HTTPException(404, "Agent config not found")
 
     # Delete config
-    deleted = (
-        db.table("agent_configs")
-        .delete()
-        .eq("id", config_id)
-        .execute()
-    )
+    db.table("agent_configs").delete().eq("id", config_id).execute()
 
     return {
         "success": True,
@@ -427,12 +421,7 @@ async def delete_agent_skill(skill_id: str, request: Request):
         raise HTTPException(404, "Agent skill not found")
 
     # Delete skill
-    deleted = (
-        db.table("agent_skills")
-        .delete()
-        .eq("id", skill_id)
-        .execute()
-    )
+    db.table("agent_skills").delete().eq("id", skill_id).execute()
 
     return {
         "success": True,

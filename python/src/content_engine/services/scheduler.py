@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
+import logging
+from datetime import UTC, datetime
 
-from ..config import settings
 from ..db import get_db
-from ..models import TriggerRequest, ScoringRequest
-from ..orchestrator.research import run_research
+from ..models import ScoringRequest, TriggerRequest
 from ..orchestrator.content import generate_content
+from ..orchestrator.research import run_research
 from ..scoring.engine import run_scoring
 from .feedback_loop import update_feedback_bonus
 
-import logging
 logger = logging.getLogger("content_engine.scheduler")
 
 
@@ -67,10 +65,10 @@ async def daily_research_pipeline(brand_id: str) -> dict:
     # Step 3: Draft generation for recently approved items
     drafts_generated = []
     try:
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta
 
         db = get_db()
-        cutoff = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
         approved_resp = (
             db.table("research_items")
             .select("id")
@@ -119,7 +117,7 @@ async def publish_scheduled_posts(brand_id: str) -> dict:
     db = get_db()
 
     # M-09: use timezone-aware datetime (utcnow() deprecated in Python 3.12)
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     scheduled = db.table("content_drafts").select("id, platform, scheduled_at, metadata").eq(
         "brand_id", brand_id

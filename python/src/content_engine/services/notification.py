@@ -13,7 +13,7 @@ All methods are best-effort: failures are logged but never raise.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -140,7 +140,7 @@ async def send_digest(brand_id: str, pipeline_results: dict[str, Any]) -> None:
         since = (
             last_digest[0]["created_at"]
             if last_digest
-            else (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat()
+            else (datetime.now(UTC) - timedelta(hours=25)).isoformat()
         )
 
         events = (
@@ -160,7 +160,7 @@ async def send_digest(brand_id: str, pipeline_results: dict[str, Any]) -> None:
         )
         brand_name = brand_row["name"] if brand_row else brand_id[:8]
 
-        now_str = datetime.now(timezone.utc).strftime("%-d %B")
+        now_str = datetime.now(UTC).strftime("%-d %B")
         lines = [f"📋 *Daily Report — {_escape_md(brand_name)} — {now_str}*\n"]
 
         # Research section

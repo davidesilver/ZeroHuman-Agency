@@ -8,7 +8,7 @@ Direct table reads are provided for management UIs.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -41,7 +41,7 @@ def _expires_at(tier: MemoryTier) -> str | None:
     days = _TTL_DAYS.get(tier)
     if days is None:
         return None
-    return (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
+    return (datetime.now(UTC) + timedelta(days=days)).isoformat()
 
 
 async def insert_fact(
@@ -65,7 +65,7 @@ async def insert_fact(
         "statement": statement,
         "tier": tier,
         "importance": importance,
-        "asserted_at": datetime.now(timezone.utc).isoformat(),
+        "asserted_at": datetime.now(UTC).isoformat(),
         "metadata": metadata or {},
     }
     if embedding:
@@ -148,7 +148,7 @@ async def list_facts(
             "retrieval_hits,last_retrieved,source_kind,source_id,supersedes_id,metadata"
         )
         .eq("brand_id", brand_id)
-        .or_("expires_at.is.null,expires_at.gt." + datetime.now(timezone.utc).isoformat())
+        .or_("expires_at.is.null,expires_at.gt." + datetime.now(UTC).isoformat())
         .order("asserted_at", desc=True)
         .limit(limit)
     )

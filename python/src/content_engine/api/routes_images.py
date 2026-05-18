@@ -1,12 +1,14 @@
 # routes_images.py
+from datetime import UTC
+
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from ..db import get_db
 from ..services.image_generator import (
     create_image_job,
-    get_image_job,
     generate_carousel_for_draft,
+    get_image_job,
 )
 
 router = APIRouter(prefix="/images", tags=["images"])
@@ -66,8 +68,8 @@ async def get_stats(request: Request):
     brand_id = _get_brand_id(request)
     db = get_db()
 
-    from datetime import datetime, timezone
-    today_start = datetime.now(timezone.utc).replace(
+    from datetime import datetime
+    today_start = datetime.now(UTC).replace(
         hour=0, minute=0, second=0, microsecond=0
     ).isoformat()
 

@@ -12,13 +12,12 @@ Author: AI Engineering Team
 Created: 2026-04-16
 """
 
-import time
 import asyncio
 import logging
-from typing import Dict, Any, Optional
+import time
 from dataclasses import dataclass
 from enum import Enum
-from collections import defaultdict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ class DegradationResponse:
 
     level: DegradationLevel
     message: str
-    data: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
     can_retry: bool = True
     retry_after_seconds: int = 60
 
@@ -80,7 +79,7 @@ class CircuitBreaker:
         self.failure_threshold = failure_threshold
         self.timeout_seconds = timeout_seconds
         self.failure_count = 0
-        self.last_failure_time: Optional[float] = None
+        self.last_failure_time: float | None = None
         self.is_open = False
         self._lock = asyncio.Lock()
 
@@ -132,7 +131,7 @@ class CircuitBreaker:
 
             return False
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         """
         Get current circuit breaker state.
 
@@ -171,8 +170,8 @@ class GracefulDegradationManager:
     """
 
     def __init__(self):
-        self.failure_counts: Dict[str, int] = {}
-        self.circuit_breakers: Dict[str, CircuitBreaker] = {}
+        self.failure_counts: dict[str, int] = {}
+        self.circuit_breakers: dict[str, CircuitBreaker] = {}
         self.current_level = DegradationLevel.NORMAL
         self._lock = asyncio.Lock()
 
@@ -331,8 +330,6 @@ class GracefulDegradationManager:
         )
 
         async with self._lock:
-            previous_level = self.current_level
-
             # Determine if we can recover
             if self.current_level == DegradationLevel.MINIMAL and open_circuits <= 1:
                 self.current_level = DegradationLevel.DEGRADED
@@ -346,7 +343,7 @@ class GracefulDegradationManager:
         """Return the current degradation level."""
         return self.current_level
 
-    def get_system_status(self) -> Dict[str, Any]:
+    def get_system_status(self) -> dict[str, Any]:
         """
         Get current system status.
 

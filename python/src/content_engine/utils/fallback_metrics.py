@@ -12,13 +12,11 @@ Author: AI Engineering Team
 Created: 2026-04-16
 """
 
-import time
-from typing import Dict, List, Optional
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
-from collections import defaultdict
 import json
 import logging
+from collections import defaultdict
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -71,12 +69,12 @@ class FallbackMetrics:
 
     def __init__(self, storage_path: str = "fallback_metrics.json"):
         self.storage_path = storage_path
-        self.events: List[FallbackEvent] = []
-        self._by_model: Dict[str, Dict[str, int]] = defaultdict(
+        self.events: list[FallbackEvent] = []
+        self._by_model: dict[str, dict[str, int]] = defaultdict(
             lambda: {"count": 0, "success": 0}
         )
-        self._by_reason: Dict[str, int] = defaultdict(int)
-        self._by_task: Dict[str, int] = defaultdict(int)
+        self._by_reason: dict[str, int] = defaultdict(int)
+        self._by_task: dict[str, int] = defaultdict(int)
 
     def record_fallback(
         self,
@@ -101,7 +99,7 @@ class FallbackMetrics:
             success: Whether the fallback attempt succeeded
         """
         event = FallbackEvent(
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             primary_model=primary_model,
             fallback_model=fallback_model,
             reason=reason[:100],  # Limit reason length
@@ -127,7 +125,7 @@ class FallbackMetrics:
         if len(self.events) % 10 == 0:
             self._save_events()
 
-    def get_fallback_rate(self, hours: int = 24) -> Dict[str, any]:
+    def get_fallback_rate(self, hours: int = 24) -> dict[str, any]:
         """
         Get fallback rates for the last N hours.
 
@@ -137,7 +135,7 @@ class FallbackMetrics:
         Returns:
             Dictionary with comprehensive fallback metrics
         """
-        cutoff_time = datetime.now(timezone.utc).timestamp() - (hours * 3600)
+        cutoff_time = datetime.now(UTC).timestamp() - (hours * 3600)
 
         recent_events = [
             e for e in self.events
@@ -171,7 +169,7 @@ class FallbackMetrics:
             "time_period_hours": hours,
         }
 
-    def get_problematic_models(self, threshold: float = 0.10) -> List[str]:
+    def get_problematic_models(self, threshold: float = 0.10) -> list[str]:
         """
         Get models with fallback rates above threshold.
 
@@ -194,7 +192,7 @@ class FallbackMetrics:
 
         return [model for model, _ in problematic]
 
-    def get_latency_comparison(self, hours: int = 24) -> Dict[str, any]:
+    def get_latency_comparison(self, hours: int = 24) -> dict[str, any]:
         """
         Get latency comparison between primary and fallback models.
 
@@ -204,7 +202,7 @@ class FallbackMetrics:
         Returns:
             Dictionary with latency statistics
         """
-        cutoff_time = datetime.now(timezone.utc).timestamp() - (hours * 3600)
+        cutoff_time = datetime.now(UTC).timestamp() - (hours * 3600)
 
         recent_events = [
             e for e in self.events
@@ -246,7 +244,7 @@ class FallbackMetrics:
             "fallback_latencies": fallback_latencies,
         }
 
-    def get_fallback_trends(self, hours: int = 24, bucket_minutes: int = 60) -> Dict[str, any]:
+    def get_fallback_trends(self, hours: int = 24, bucket_minutes: int = 60) -> dict[str, any]:
         """
         Get fallback trends over time.
 
@@ -257,7 +255,7 @@ class FallbackMetrics:
         Returns:
             Dictionary with trend data broken into time buckets
         """
-        cutoff_time = datetime.now(timezone.utc).timestamp() - (hours * 3600)
+        cutoff_time = datetime.now(UTC).timestamp() - (hours * 3600)
         bucket_seconds = bucket_minutes * 60
 
         recent_events = [
@@ -296,7 +294,7 @@ class FallbackMetrics:
             "trends": trend_data,
         }
 
-    def get_recent_events(self, limit: int = 10) -> List[Dict[str, any]]:
+    def get_recent_events(self, limit: int = 10) -> list[dict[str, any]]:
         """
         Get most recent fallback events.
 
@@ -309,7 +307,7 @@ class FallbackMetrics:
         recent = self.events[-limit:] if len(self.events) >= limit else self.events
         return [asdict(event) for event in reversed(recent)]
 
-    def get_summary(self, hours: int = 24) -> Dict[str, any]:
+    def get_summary(self, hours: int = 24) -> dict[str, any]:
         """
         Get comprehensive summary of fallback metrics.
 
@@ -360,7 +358,7 @@ class FallbackMetrics:
     def _load_events(self):
         """Load events from file."""
         try:
-            with open(self.storage_path, 'r') as f:
+            with open(self.storage_path) as f:
                 data = json.load(f)
                 self.events = [FallbackEvent(**item) for item in data]
 

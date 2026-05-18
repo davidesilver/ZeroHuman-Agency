@@ -6,7 +6,6 @@ When the caller requests a single image we still ask Pillo for a 1-slide
 carousel and return slide 0. Requires PILLO_API_KEY.
 """
 from __future__ import annotations
-from typing import Optional
 
 import httpx
 
@@ -17,9 +16,9 @@ from .base import GeneratedImage
 class PilloBackend:
     name = "pillo"
 
-    async def generate(self, *, prompt: str, negative_prompt: Optional[str],
+    async def generate(self, *, prompt: str, negative_prompt: str | None,
                        model_id: str, width: int, height: int,
-                       seed: Optional[int]) -> GeneratedImage:
+                       seed: int | None) -> GeneratedImage:
         if not settings.pillo_api_key:
             raise RuntimeError("PILLO_API_KEY not configured")
 
@@ -36,7 +35,8 @@ class PilloBackend:
             r.raise_for_status()
             data = r.json()
             slide_url = data["slides"][0]["image_url"]
-            img = await c.get(slide_url); img.raise_for_status()
+            img = await c.get(slide_url)
+            img.raise_for_status()
 
         return GeneratedImage(
             image_bytes=img.content, mime_type=img.headers.get("content-type","image/png"),

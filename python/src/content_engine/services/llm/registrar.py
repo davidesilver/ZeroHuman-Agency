@@ -11,10 +11,9 @@ Usage:
 from __future__ import annotations
 
 import threading
-from typing import Optional
 
-from .openrouter import OpenRouterProvider
 from .openclaw import OpenClawProvider
+from .openrouter import OpenRouterProvider
 from .provider import LLMProvider
 
 _lock = threading.Lock()
@@ -42,7 +41,7 @@ def register_provider(provider: LLMProvider) -> None:
         _registry[provider.name] = provider
 
 
-def get_provider(name: str) -> Optional[LLMProvider]:
+def get_provider(name: str) -> LLMProvider | None:
     """Return a provider by name, or None if not registered."""
     _ensure_defaults()
     return _registry.get(name)
@@ -63,7 +62,7 @@ def list_providers() -> list[dict]:
 class ProviderRegistrar:
     """High-level registrar with per-brand routing."""
 
-    def get_for_brand(self, brand_id: str, preferred: Optional[str] = None) -> LLMProvider:
+    def get_for_brand(self, brand_id: str, preferred: str | None = None) -> LLMProvider:
         """Return the best available provider for a brand.
 
         Selection order:

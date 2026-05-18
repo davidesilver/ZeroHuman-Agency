@@ -47,7 +47,7 @@ class DuckDuckGoRetriever(BaseRetriever):
         seen_urls: set[str] = set()
 
         try:
-            from duckduckgo_search import DDGS
+            from duckduckgo_search import DDGS  # noqa: F401
         except ImportError:
             logger.warning("duckduckgo-search not installed — DuckDuckGoRetriever disabled")
             return []

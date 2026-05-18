@@ -19,9 +19,9 @@ from __future__ import annotations
 import logging
 import time
 from collections import OrderedDict
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from datetime import datetime
 from threading import Lock
+from typing import Any
 
 logger = logging.getLogger("content_engine.heartbeat")
 
@@ -33,12 +33,12 @@ class HeartbeatCache:
     """
 
     def __init__(self, max_size: int = 1000, ttl_seconds: int = 60):
-        self._cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+        self._cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._max_size = max_size
         self._ttl = ttl_seconds
         self._lock = Lock()
 
-    def get(self, key: str) -> Optional[Dict[str, Any]]:
+    def get(self, key: str) -> dict[str, Any] | None:
         """Get heartbeat from cache if exists and not expired."""
         with self._lock:
             entry = self._cache.get(key)
@@ -54,7 +54,7 @@ class HeartbeatCache:
             self._cache.move_to_end(key)
             return entry
 
-    def set(self, key: str, value: Dict[str, Any]) -> None:
+    def set(self, key: str, value: dict[str, Any]) -> None:
         """Set heartbeat in cache with automatic eviction if full."""
         with self._lock:
             # Remove if exists
@@ -78,7 +78,7 @@ class RateLimiter:
     def __init__(self, max_requests: int = 100, time_window_seconds: int = 60):
         self._max_requests = max_requests
         self._time_window = time_window_seconds
-        self._requests: Dict[str, list] = {}
+        self._requests: dict[str, list] = {}
         self._lock = Lock()
 
     def is_allowed(self, brand_id: str) -> bool:
@@ -112,7 +112,7 @@ _rate_limiting_enabled = False  # DISABLED by default per user request
 
 async def record_agent_heartbeat(
     brand_id: str,
-    llm_meta: Optional[Dict[str, Any]] = None,
+    llm_meta: dict[str, Any] | None = None,
     context: str = "general",
     action: str = "call_llm",
     status: str = "healthy",
@@ -228,7 +228,7 @@ def _should_write_to_db() -> bool:
         return True
 
 
-async def _write_to_db(heartbeat_data: Dict[str, Any], agent_identifier: str) -> None:
+async def _write_to_db(heartbeat_data: dict[str, Any], agent_identifier: str) -> None:
     """Write heartbeat to database with error handling.
 
     This is optional and should never fail the main pipeline.
@@ -239,7 +239,6 @@ async def _write_to_db(heartbeat_data: Dict[str, Any], agent_identifier: str) ->
     """
     try:
         from ..db import get_db
-        from ..config import settings
 
         db = get_db()
 
@@ -280,7 +279,7 @@ async def _write_to_db(heartbeat_data: Dict[str, Any], agent_identifier: str) ->
         logger.debug("DB write failed for heartbeat (non-critical): %s", e)
 
 
-def get_cached_heartbeat(brand_id: str, agent_identifier: str) -> Optional[Dict[str, Any]]:
+def get_cached_heartbeat(brand_id: str, agent_identifier: str) -> dict[str, Any] | None:
     """Get cached heartbeat data for dashboard real-time updates.
 
     Args:
@@ -294,7 +293,7 @@ def get_cached_heartbeat(brand_id: str, agent_identifier: str) -> Optional[Dict[
     return _heartbeat_cache.get(cache_key)
 
 
-def get_all_cached_heartbeats(brand_id: str) -> Dict[str, Dict[str, Any]]:
+def get_all_cached_heartbeats(brand_id: str) -> dict[str, dict[str, Any]]:
     """Get all cached heartbeats for a brand.
 
     Args:
@@ -312,7 +311,7 @@ def get_all_cached_heartbeats(brand_id: str) -> Dict[str, Dict[str, Any]]:
     return result
 
 
-def get_cache_stats() -> Dict[str, Any]:
+def get_cache_stats() -> dict[str, Any]:
     """Get cache statistics for monitoring.
 
     Returns:

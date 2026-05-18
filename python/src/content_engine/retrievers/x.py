@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from ..models import ResearchItemCreate, RetrieverType, SourceType
@@ -100,7 +100,7 @@ def _parse_cli_output(
             try:
                 published_at = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
             except Exception:
-                published_at = datetime.now(timezone.utc)
+                published_at = datetime.now(UTC)
 
         try:
             items.append(
@@ -182,7 +182,7 @@ async def _fetch_direct(
             try:
                 published_at = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
             except Exception:
-                published_at = datetime.now(timezone.utc)
+                published_at = datetime.now(UTC)
 
         try:
             items.append(

@@ -1,12 +1,13 @@
 """Newsletter delivery — routes through the configured EmailProvider adapter."""
 
 from __future__ import annotations
+
 import html as html_lib
 import logging
 
 from ..db import get_db
 from ..utils.audit_trail import log_publish_event
-from .email_providers import get_email_provider, SenderInfo
+from .email_providers import SenderInfo, get_email_provider
 from .notification import emit_event
 
 log = logging.getLogger(__name__)
@@ -112,8 +113,8 @@ async def generate_newsletter_html(brand_id: str, newsletter_id: str) -> str:
 
 
 def _make_resend_fallback(recipients: list[str]):
-    from .email_providers import ResendProvider, ProviderConfig
     from ..config import settings as s
+    from .email_providers import ProviderConfig, ResendProvider
     return ResendProvider(ProviderConfig(
         provider="resend",
         api_key=s.resend_api_key,

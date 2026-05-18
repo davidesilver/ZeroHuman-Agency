@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from urllib.parse import urlparse, urlencode, parse_qs
+from urllib.parse import parse_qs, urlencode, urlparse
 
+from ..config import settings as _settings
 from ..db import get_db
 from ..models import (
     ResearchItemCreate,
@@ -15,13 +16,12 @@ from ..models import (
     RunStatus,
     TriggerRequest,
 )
-from ..config import settings as _settings
 from ..retrievers.base import BaseRetriever
-from ..retrievers.rss import RSSRetriever
-from ..retrievers.serper import SemanticRetriever, KeywordRetriever, PractitionerRetriever
-from ..retrievers.youtube import YouTubeRetriever
 from ..retrievers.duckduckgo import DuckDuckGoRetriever
+from ..retrievers.rss import RSSRetriever
+from ..retrievers.serper import KeywordRetriever, PractitionerRetriever, SemanticRetriever
 from ..retrievers.tavily import TavilyRetriever
+from ..retrievers.youtube import YouTubeRetriever
 
 logger = logging.getLogger("content_engine.research")
 

@@ -20,11 +20,10 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 from ..db import get_db
 from ..memory.retrieval import recall as memory_recall
-from ..utils.llm_client import call_llm
+from ..utils.llm_client import LLMResponse, call_llm
 from ..utils.security_utils import sanitize_for_prompt
 from .agent_loader import get_agent_identity
 
@@ -193,7 +192,7 @@ async def _load_voice_calibration(brand_id: str) -> str:
 {example.get("content", example.get("body", ""))}
 """)
                 logger.info("Using %d manual gold_examples for brand %s", len(gold_examples), brand_id)
-                return f"# Voice Calibration (Manual Gold Examples)\n" + "\n\n".join(samples)
+                return "# Voice Calibration (Manual Gold Examples)\n" + "\n\n".join(samples)
 
         # 3. Fallback: automatic top performers from engagement data
         logger.debug("No manual gold_examples for brand %s, using top performers", brand_id)
@@ -216,7 +215,7 @@ Engagement Score: {g.get('engagement_score', 0)}
 {g.get('body', '')}
 """)
             logger.info("Using %d top performers as voice calibration for brand %s", len(gold.data), brand_id)
-            return f"# Voice Calibration (Top Performers)\n" + "\n\n".join(samples)
+            return "# Voice Calibration (Top Performers)\n" + "\n\n".join(samples)
 
         # 4. Fallback: default natural voice
         logger.warning("No voice calibration data for brand %s, using default", brand_id)
@@ -230,7 +229,7 @@ Engagement Score: {g.get('engagement_score', 0)}
 async def humanize_draft(
     brand_id: str,
     draft_id: str,
-    model_override: Optional[str] = None,
+    model_override: str | None = None,
 ) -> dict:
     """Humanize a content draft using anti-AI patterns and brand voice calibration.
 
@@ -386,7 +385,7 @@ async def _call_llm_with_model(
     context: str,
     action: str,
     temperature: float = 0.7,
-) -> "LLMResponse":
+) -> LLMResponse:
     """Call LLM with explicit model override (bypasses default routing).
 
     This is a lightweight wrapper around the OpenRouter API that uses a specific model
@@ -404,6 +403,7 @@ async def _call_llm_with_model(
         LLMResponse with content and metadata
     """
     import httpx
+
     from ..config import settings
     from .cost_tracker import track_cost
 

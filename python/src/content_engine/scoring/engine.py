@@ -4,12 +4,9 @@ from __future__ import annotations
 
 import json
 
-import httpx
-
 from ..config import settings
 from ..db import get_db
 from ..models import ScoreResult, ScoringRequest
-from ..utils.cost_tracker import track_cost
 
 SCORING_PROMPT = """You are a content scoring agent for an AI content engine.
 Evaluate this research item on 5 parameters (0-10 scale).
@@ -316,6 +313,6 @@ async def run_scoring(brand_id: str, request: ScoringRequest) -> dict:
         "rejected": rejected,
         "errors": errors,
         "total_items": len(items),
-        "archived_duplicates": duplicate_count,
+        "archived_duplicates": 0,
         "anti_hype_discarded": anti_hype_discarded,
     }

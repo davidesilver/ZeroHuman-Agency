@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import copy
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -102,13 +101,13 @@ def _brand_id(request: Request) -> str:
 
 class CreateAutomationRequest(BaseModel):
     template_key: str
-    name: Optional[str] = None
+    name: str | None = None
 
 
 class UpdateAutomationRequest(BaseModel):
-    status: Optional[str] = None
-    steps: Optional[list[dict]] = None
-    name: Optional[str] = None
+    status: str | None = None
+    steps: list[dict] | None = None
+    name: str | None = None
 
 
 @router.get("")
