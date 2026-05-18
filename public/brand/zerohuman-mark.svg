@@ -1,0 +1,17 @@
+<svg width="150" height="150" viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">ZeroHuman mark</title>
+  <desc id="desc">An interlocking capability knot with a central verification gate.</desc>
+  <defs>
+    <mask id="gate-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="150" height="150">
+      <rect width="150" height="150" fill="white"/>
+      <rect x="42" y="58" width="44" height="34" rx="17" fill="black"/>
+      <rect x="64" y="58" width="44" height="34" rx="17" fill="black"/>
+    </mask>
+  </defs>
+  <g mask="url(#gate-cut)" fill="#050505">
+    <rect x="18" y="42" width="84" height="66" rx="33"/>
+    <rect x="48" y="42" width="84" height="66" rx="33"/>
+  </g>
+  <path d="M63 75H87" stroke="#FF7F50" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="75" cy="75" r="3" fill="#FF7F50"/>
+</svg>

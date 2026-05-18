@@ -1,0 +1,19 @@
+<svg width="560" height="150" viewBox="0 0 560 150" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">ZeroHuman logo lockup</title>
+  <desc id="desc">ZeroHuman wordmark with the Signed Gate capability knot.</desc>
+  <defs>
+    <mask id="gate-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="150" height="150">
+      <rect width="150" height="150" fill="white"/>
+      <rect x="42" y="58" width="44" height="34" rx="17" fill="black"/>
+      <rect x="64" y="58" width="44" height="34" rx="17" fill="black"/>
+    </mask>
+  </defs>
+  <g mask="url(#gate-cut)" fill="#050505">
+    <rect x="18" y="42" width="84" height="66" rx="33"/>
+    <rect x="48" y="42" width="84" height="66" rx="33"/>
+  </g>
+  <path d="M63 75H87" stroke="#FF7F50" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="75" cy="75" r="3" fill="#FF7F50"/>
+  <text x="174" y="90" fill="#050505" font-family="Inter, Geist, Arial, sans-serif" font-size="50" font-weight="800" letter-spacing="-1">ZeroHuman</text>
+  <text x="176" y="113" fill="#36454F" font-family="Inter, Geist, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="3">STRUCTURED AI OPERATIONS</text>
+</svg>
