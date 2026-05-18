@@ -33,24 +33,27 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
+        // Coral fill, white text (light mode — white on coral is AA)
         default: cn(
-          "bg-[var(--brand-primary)] text-[var(--canvas)]",
+          "bg-[var(--brand-primary)] text-white",
           "[a]:hover:bg-[var(--brand-primary-hover)]"
         ),
+        // Warm-white bg + hairline border — visible on cream canvas
         secondary: cn(
-          "bg-[var(--surface-2)] text-ink-muted",
+          "bg-[var(--surface-2)] text-ink-muted border-hairline",
           "[a]:hover:bg-[var(--surface-3)]"
         ),
         outline: cn(
           "bg-transparent border-hairline text-ink-muted",
           "[a]:hover:bg-[var(--surface-1)] [a]:hover:text-ink"
         ),
+        // 10% tint — readable on light
         destructive: cn(
-          "bg-[var(--status-error)]/15 text-[var(--status-error)]"
+          "bg-[var(--status-error)]/10 text-[var(--status-error)]"
         ),
         ghost: cn(
           "bg-transparent text-ink-subtle",
-          "hover:bg-[var(--surface-1)] hover:text-ink"
+          "hover:bg-[var(--surface-2)] hover:text-ink"
         ),
       },
     },

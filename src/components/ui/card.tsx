@@ -2,18 +2,18 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 /**
- * Card — Linear feature-card / pricing-card spec.
+ * Card — Light-mode: white on cream canvas with Miro warm shadow.
  *
  * Default:
- *   - Background: surface-1 (#0f1011)
- *   - Border: 1px hairline (#23252a)
- *   - Rounded: lg (12px)
+ *   - Background: surface-1 (white) on cream canvas
+ *   - Border: 1px hairline (warm gray)
+ *   - Rounded: 16px (Figma card radius)
  *   - Padding: 24px (lg)
- *   - NO box-shadow — depth via surface ladder + hairline only
+ *   - Shadow: Miro warm purple-tinted shadow (replaces hairline-only)
  *
  * Variants:
- *   - default: feature-card / pricing-card spec
- *   - featured: surface-2 lift (Linear's pricing-card-featured)
+ *   - default: white card with warm shadow
+ *   - featured: surface-2 (warm-white) with stronger shadow
  *   - sm: tighter padding (16px)
  */
 
@@ -32,15 +32,19 @@ function Card({
       data-variant={variant}
       data-size={size}
       className={cn(
-        // Linear feature-card base spec
-        "group/card flex flex-col gap-4 overflow-hidden rounded-lg",
+        "group/card flex flex-col gap-4 overflow-hidden",
         "text-sm text-card-foreground",
         "border border-hairline",
-        // surface lift
+        // Figma card radius (16px)
+        "rounded-[var(--radius-card)]",
+        // surface
         variant === "featured" ? "bg-[var(--surface-2)]" : "bg-card",
-        // padding (Linear: 24px lg cards, 16px on compact)
+        // Miro warm shadow — replaces hairline-only depth
+        variant === "featured"
+          ? "[box-shadow:var(--shadow-md)]"
+          : "[box-shadow:var(--shadow-sm)]",
+        // padding
         size === "sm" ? "p-4 gap-3" : "p-6 gap-4",
-        // No shadow — Linear principle
         className
       )}
       {...props}

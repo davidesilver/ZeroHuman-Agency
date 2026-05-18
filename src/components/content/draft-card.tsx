@@ -62,8 +62,17 @@ export function DraftCard({ draft, onAction, onMediaChange }: DraftCardProps) {
   const isTerminal = draft.status === 'published' || draft.status === 'archived'
   const isApproved = draft.status === 'approved' || draft.status === 'scheduled'
 
+  // Notion pastel tint strip by status
+  const statusBorderColor =
+    draft.status === 'approved' || draft.status === 'scheduled' ? 'var(--tint-approved)' :
+    draft.status === 'published' ? 'var(--tint-published)' :
+    draft.status === 'archived' ? 'var(--tint-review)' : undefined
+
   return (
-    <Card className="flex flex-col border-hairline">
+    <Card
+      className="flex flex-col border-hairline relative overflow-hidden"
+      style={statusBorderColor ? { borderLeftColor: statusBorderColor, borderLeftWidth: '3px' } : undefined}
+    >
       <CardContent className="pt-4 space-y-3 flex-1 flex flex-col">
         <div className="flex items-start justify-between gap-2">
           <div className="flex gap-1.5 flex-wrap">
@@ -119,7 +128,7 @@ export function DraftCard({ draft, onAction, onMediaChange }: DraftCardProps) {
               size="xs"
               onClick={() => handle('approved')}
               disabled={pendingAction !== null}
-              className="bg-status-success hover:bg-status-success/80 text-[#050505]"
+              className="bg-[var(--status-success)] hover:bg-[var(--status-success)]/90 text-white"
               title="Approve this draft"
             >
               {pendingAction === 'approved'

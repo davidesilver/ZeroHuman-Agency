@@ -6,16 +6,14 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 /**
- * Tabs — Linear pricing-tab spec.
+ * Tabs — Light-mode pill-toggle + line variants.
  *
- * Default (pill-toggle variant, Linear's primary pattern):
- *  - List: canvas bg, no border, no radius (just spacing)
- *  - Tab default: canvas bg, ink-subtle text, rounded-md, padding 6px 14px
- *  - Tab selected: surface-2 bg, ink text — surface lift = selection
+ * Default (pill-toggle):
+ *  - List: surface-2 (warm-white) + hairline border — creates warm container
+ *  - Tab active: surface-1 (white) + warm shadow — pops out of warm container
  *
- * Line variant (Linear bottom-bordered tab pattern):
+ * Line variant:
  *  - List: hairline bottom border
- *  - Tab: transparent bg, ink-muted text
  *  - Tab active: ink text + 2px coral bottom border
  */
 function Tabs({
@@ -46,8 +44,8 @@ const tabsListVariants = cva(
   {
     variants: {
       variant: {
-        // Linear pill-toggle pattern
-        default: "bg-[var(--surface-1)] rounded-md p-1 gap-1",
+        // Pill-toggle: warm-white container + hairline — active tab (white) pops out
+        default: "bg-[var(--surface-2)] border border-hairline rounded-md p-1 gap-1",
         // Linear bottom-line pattern
         line: "border-b border-hairline gap-4 rounded-none",
       },
@@ -90,8 +88,10 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
         "group-data-[variant=default]/tabs-list:h-7",
         "group-data-[variant=default]/tabs-list:text-ink-subtle",
         "group-data-[variant=default]/tabs-list:hover:text-ink",
-        "group-data-[variant=default]/tabs-list:data-active:bg-[var(--surface-2)]",
+        // Active tab: white (surface-1) pops out of warm container
+        "group-data-[variant=default]/tabs-list:data-active:bg-[var(--surface-1)]",
         "group-data-[variant=default]/tabs-list:data-active:text-ink",
+        "group-data-[variant=default]/tabs-list:data-active:[box-shadow:var(--shadow-sm)]",
         // Line variant (bottom-bordered tabs)
         "group-data-[variant=line]/tabs-list:rounded-none",
         "group-data-[variant=line]/tabs-list:px-1",

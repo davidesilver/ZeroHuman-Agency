@@ -4,16 +4,8 @@ import { Input as InputPrimitive } from "@base-ui/react/input"
 import { cn } from "@/lib/utils"
 
 /**
- * Input — Linear text-input spec.
- *
- * Linear spec:
- *  - Background: surface-1 (#0f1011)
- *  - Border: 1px hairline (#23252a)
- *  - Border-focus: hairline-strong (#34343a)
- *  - Rounded: md (8px)
- *  - Padding: 8px 12px
- *  - Type: body (16px / 400)
- *  - Focus: hairline strengthens, no glow ring (Linear uses 2px coral outline)
+ * Input — Light-mode: white bg on cream canvas, warm hairline border.
+ * Focus: hairline-strong + coral outline ring.
  */
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
