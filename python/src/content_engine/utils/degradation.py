@@ -342,6 +342,10 @@ class GracefulDegradationManager:
                 self.current_level = DegradationLevel.NORMAL
                 logger.info(f"System recovered to NORMAL level (service: {service})")
 
+    async def get_current_level(self) -> DegradationLevel:
+        """Return the current degradation level."""
+        return self.current_level
+
     def get_system_status(self) -> Dict[str, Any]:
         """
         Get current system status.

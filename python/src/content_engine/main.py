@@ -20,7 +20,7 @@ app = FastAPI(title="Content Engine Backend", version="0.1.0")
 
 # H-01: CORS configured from ALLOWED_ORIGINS env var (comma-separated)
 # Restrictive methods/headers — no wildcards in production
-_raw_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000")
+_raw_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3080")
 _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 _debug_mode = os.environ.get("DEBUG", "").strip().lower() in ("1", "true", "yes")
 if "*" in _allowed_origins:
@@ -96,6 +96,17 @@ async def _close_shared_clients() -> None:
     """Tear down module-level httpx pools on graceful shutdown."""
     from .services.postiz_client import close_shared_client
     await close_shared_client()
+
+
+def serve() -> None:
+    """Entry point for `uv run serve` — starts uvicorn on port 8082."""
+    import uvicorn
+    uvicorn.run(
+        "content_engine.main:app",
+        host="0.0.0.0",
+        port=8082,
+        reload=os.environ.get("DEBUG", "").strip().lower() in ("1", "true", "yes"),
+    )
 
 
 @app.get("/health")

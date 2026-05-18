@@ -36,9 +36,10 @@ Thumbs.db
 
 # 3rd-party repos (not part of this project)
 superpowers/
+gstack/
 
 # Reference materials (large binary files)
-references/marco-montemagno/
+references/
 
 # Python
 __pycache__/

@@ -99,7 +99,7 @@ async def generate_and_god_and_humanize(
             model_override=model_override,
         )
         logger.info("Humanizer completed for draft %s", draft_id)
-        return {**result, "humanizer": humanizer_result}
+        return {**result, "humanizer": {"status": "completed", **humanizer_result}}
     except Exception as e:
         logger.error("Humanizer failed for draft %s: %s", draft_id, e)
         return {**result, "humanizer": {"status": "failed", "error": str(e)}}

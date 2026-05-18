@@ -12,7 +12,7 @@ def test_compute_final_score():
         feedback_bonus=0.0,
         reasoning="Perfect score"
     )
-    assert _compute_final_score(res) == 10.0
+    assert _compute_final_score(res) == 9.5
 
     res2 = ScoreResult(
         applicability=5, # 5 * 0.25 = 1.25

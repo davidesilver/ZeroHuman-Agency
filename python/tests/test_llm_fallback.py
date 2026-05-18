@@ -22,57 +22,57 @@ from content_engine.utils.fallback_monitor import (
 
 
 class TestEmergencyFallback:
-    """Test emergency fallback when USE_CLAUDE_SUBSCRIPTION=true."""
+    """Test fallback behavior when primary models fail."""
 
     @pytest.mark.asyncio
     async def test_anthropic_failure_triggers_openrouter_fallback(self):
-        """Test that Anthropic API failure triggers emergency fallback to OpenRouter."""
-        with patch("content_engine.utils.llm_client.settings") as mock_settings:
-            mock_settings.use_claude_subscription = True
-            mock_settings.anthropic_api_key = "test-key"
-            mock_settings.openrouter_api_key = "openrouter-key"
+        """Test that primary model failure triggers fallback to alternative models."""
+        from content_engine.utils.llm_client import LLMResponse as LLMResp
+        from content_engine.utils.degradation import DegradationLevel
 
-            # Mock Anthropic API failure
-            with patch("content_engine.utils.llm_client._call_anthropic_direct") as mock_anthropic:
-                mock_anthropic.side_effect = Exception("Anthropic API down")
+        fallback_resp = LLMResp(
+            content="Fallback response",
+            model_used="gemma-4-150b:free",
+            tokens_prompt=100,
+            tokens_completion=50,
+            engine="openrouter",
+        )
 
-                # Mock successful OpenRouter fallback
-                with patch("content_engine.utils.llm_client.httpx.AsyncClient") as mock_httpx:
-                    mock_response = MagicMock()
-                    mock_response.raise_for_status = MagicMock()
-                    mock_response.json.return_value = {
-                        "choices": [{"message": {"content": "Fallback response"}}],
-                        "usage": {"prompt_tokens": 100, "completion_tokens": 50}
-                    }
-                    mock_httpx.return_value.__aenter__.return_value.post.return_value = mock_response
+        with patch("content_engine.utils.llm_client._call_llm_parallel", new_callable=AsyncMock) as mock_parallel, \
+             patch("content_engine.utils.llm_client.record_fallback") as mock_record_fallback, \
+             patch("content_engine.utils.llm_client.record_call"), \
+             patch("content_engine.utils.llm_client.degradation_manager") as mock_deg, \
+             patch("content_engine.utils.llm_client.asyncio"):
 
-                    # Mock logging and alerting
-                    with patch("content_engine.utils.llm_client._log_fallback_attempt", new_callable=AsyncMock), \
-                         patch("content_engine.utils.llm_client._send_fallback_alert", new_callable=AsyncMock), \
-                         patch("content_engine.utils.llm_client.track_cost", new_callable=AsyncMock), \
-                         patch("content_engine.utils.fallback_monitor.record_fallback") as mock_record_fallback:
+            mock_deg.get_current_level = AsyncMock(return_value=DegradationLevel.NORMAL)
+            mock_deg.record_success = AsyncMock()
+            mock_deg.record_failure = AsyncMock()
 
-                        result = await call_llm(
-                            prompt="Test prompt",
-                            brand_id="test-brand",
-                            context="test",
-                            action="test_action",
-                            task_type="creative"
-                        )
+            # Primary models fail, fallback models succeed
+            mock_parallel.side_effect = [Exception("All primary models failed"), fallback_resp]
 
-                        # Verify fallback was recorded
-                        mock_record_fallback.assert_called_once_with(is_emergency=True)
+            result = await call_llm(
+                prompt="Test prompt",
+                brand_id="test-brand",
+                context="test",
+                action="test_action",
+                task_type="creative"
+            )
 
-                        # Verify response came from OpenRouter
-                        assert result.content == "Fallback response"
-                        assert "gemma" in result.model_used.lower()
+            # Verify fallback was recorded (new arch uses is_emergency=False)
+            mock_record_fallback.assert_called_once_with(is_emergency=False)
+
+            # Verify response came from fallback
+            assert result.content == "Fallback response"
+            assert "gemma" in result.model_used.lower()
 
     @pytest.mark.asyncio
     async def test_emergency_fallback_logs_correctly(self):
         """Test that emergency fallback attempts are logged with correct metadata."""
-        with patch("content_engine.utils.llm_client.get_db") as mock_db:
-            mock_db.table.return_value.insert.return_value.execute.return_value = MagicMock()
+        mock_db_instance = MagicMock()
+        mock_db_instance.table.return_value.insert.return_value.execute.return_value = MagicMock()
 
+        with patch("content_engine.utils.llm_client.get_db", return_value=mock_db_instance):
             await _log_fallback_attempt(
                 brand_id="test-brand",
                 context="humanizer_pass1",
@@ -83,8 +83,8 @@ class TestEmergencyFallback:
             )
 
             # Verify log entry
-            mock_db.table.assert_called_once_with("llm_fallback_log")
-            insert_call = mock_db.table.return_value.insert
+            mock_db_instance.table.assert_called_once_with("llm_fallback_log")
+            insert_call = mock_db_instance.table.return_value.insert
             insert_call.assert_called_once()
 
             log_data = insert_call.call_args[0][0]
@@ -97,60 +97,73 @@ class TestEmergencyFallback:
 
 
 class TestNormalFallbackChain:
-    """Test normal OpenRouter fallback chain."""
+    """Test normal fallback chain behavior."""
 
     @pytest.mark.asyncio
     async def test_openrouter_fallback_chain_logs_attempts(self):
-        """Test that normal OpenRouter fallback chain logs each attempt."""
-        with patch("content_engine.utils.llm_client.settings") as mock_settings:
-            mock_settings.use_claude_subscription = False
-            mock_settings.openrouter_api_key = "openrouter-key"
+        """Test that within-pool model fallback logs the attempt."""
+        from content_engine.utils.llm_client import _call_llm_parallel
+        from content_engine.utils.degradation import DegradationLevel
+        from content_engine.config.llm_models import ModelCapability, get_primary_models_for_capability
+        from content_engine.utils.parallel_llm import parallel_llm_caller
 
-            # Mock first model failure, second model success
-            with patch("content_engine.utils.llm_client.httpx.AsyncClient") as mock_httpx:
-                # First call fails
-                first_response = MagicMock()
-                first_response.raise_for_status.side_effect = Exception("Gemma 4 failed")
+        primary_models = get_primary_models_for_capability(ModelCapability.CREATIVE)
+        first_model = primary_models[0]
+        second_model = primary_models[1]
 
-                # Second call succeeds
-                second_response = MagicMock()
-                second_response.raise_for_status = MagicMock()
-                second_response.json.return_value = {
-                    "choices": [{"message": {"content": "Success"}}],
-                    "usage": {"prompt_tokens": 100, "completion_tokens": 50}
-                }
+        call_count = 0
 
-                mock_httpx.return_value.__aenter__.return_value.post.side_effect = [
-                    first_response,
-                    second_response
-                ]
+        async def mock_call_single(model, messages, temperature, brand_id, context, action):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise Exception(f"{first_model} failed")
+            return {
+                "model": second_model,
+                "content": "Success",
+                "tokens_prompt": 100,
+                "tokens_completion": 50,
+            }
 
-                with patch("content_engine.utils.llm_client._log_fallback_attempt", new_callable=AsyncMock) as mock_log, \
-                     patch("content_engine.utils.llm_client.track_cost", new_callable=AsyncMock), \
-                     patch("content_engine.utils.fallback_monitor.record_fallback") as mock_record_fallback, \
-                     patch("content_engine.utils.fallback_monitor.record_call") as mock_record_call:
+        with patch("content_engine.utils.llm_client._call_single_model", side_effect=mock_call_single), \
+             patch.object(parallel_llm_caller, "call_first_success",
+                          new=AsyncMock(side_effect=Exception("parallel failed"))), \
+             patch("content_engine.utils.llm_client._log_fallback_attempt", new_callable=AsyncMock) as mock_log, \
+             patch("content_engine.utils.llm_client.track_cost", new_callable=AsyncMock), \
+             patch("content_engine.utils.llm_client.cost_tracker") as mock_cost_tracker, \
+             patch("content_engine.utils.llm_client.record_fallback") as mock_record_fallback, \
+             patch("content_engine.utils.llm_client.record_call") as mock_record_call, \
+             patch("content_engine.utils.llm_client.degradation_manager") as mock_deg, \
+             patch("content_engine.utils.llm_client.rate_limiter") as mock_rate_limiter, \
+             patch("content_engine.utils.llm_client.asyncio"):
 
-                    result = await call_llm(
-                        prompt="Test prompt",
-                        brand_id="test-brand",
-                        context="test",
-                        action="test_action",
-                        task_type="creative"
-                    )
+            mock_deg.get_current_level = AsyncMock(return_value=DegradationLevel.NORMAL)
+            mock_deg.record_success = AsyncMock()
+            mock_deg.record_failure = AsyncMock()
+            mock_rate_limiter.acquire = AsyncMock(return_value=True)
+            mock_cost_tracker.get_cost_by_model = AsyncMock(return_value=None)
 
-                    # Verify fallback was logged
-                    mock_log.assert_called_once()
-                    log_call = mock_log.call_args[1]
-                    assert log_call["primary_model"] == "google/gemma-4-150b:free"
-                    assert log_call["is_emergency"] is False
+            result = await call_llm(
+                prompt="Test prompt",
+                brand_id="test-brand",
+                context="test",
+                action="test_action",
+                task_type="creative"
+            )
 
-                    # Verify fallback was recorded
-                    mock_record_fallback.assert_called_once_with(is_emergency=False)
+            # Verify within-pool fallback was logged
+            mock_log.assert_called_once()
+            log_call = mock_log.call_args[1]
+            assert log_call["primary_model"] == first_model
+            assert log_call["is_emergency"] is False
 
-                    # Verify successful call was recorded
-                    mock_record_call.assert_called_once()
+            # Verify fallback was recorded
+            mock_record_fallback.assert_called_once_with(is_emergency=False)
 
-                    assert result.content == "Success"
+            # Verify the overall call was recorded as successful
+            mock_record_call.assert_called_once()
+
+            assert result.content == "Success"
 
 
 class TestFallbackMonitor:
@@ -247,7 +260,7 @@ class TestFallbackMonitor:
 
         stats_before = monitor.get_stats()
         assert stats_before["fallback_count"] == 1
-        assert stats_before["total_calls"] == 5
+        assert stats_before["total_calls"] == 6  # 5 record_call + 1 record_fallback
 
         # Simulate date change by mocking _get_current_date
         with patch.object(monitor, "_get_current_date", return_value="2099-01-02"):
@@ -277,9 +290,9 @@ class TestFallbackMonitor:
         assert "fallback_percentage" in stats
         assert "threshold" in stats
 
-        assert stats["total_calls"] == 1
+        assert stats["total_calls"] == 2  # 1 record_call + 1 record_fallback
         assert stats["fallback_count"] == 1
-        assert stats["fallback_percentage"] == 100.0
+        assert stats["fallback_percentage"] == 50.0
 
 
 class TestFallbackAlerting:
@@ -288,6 +301,8 @@ class TestFallbackAlerting:
     @pytest.mark.asyncio
     async def test_alert_sent_on_high_fallback_rate(self):
         """Test that alert is sent when fallback rate exceeds threshold."""
+        import asyncio as _asyncio
+
         with patch("content_engine.utils.fallback_monitor.settings") as mock_settings, \
              patch("content_engine.utils.fallback_monitor.send_telegram_alert", new_callable=AsyncMock) as mock_alert:
 
@@ -296,14 +311,14 @@ class TestFallbackAlerting:
             monitor = get_fallback_monitor()
             monitor.reset()
 
-            # Record 10 calls with 2 fallbacks (20% rate)
+            # Record 8 calls + 2 fallbacks → total=10, fallback%=20% > 10% threshold
             for _ in range(8):
                 record_call()
             record_fallback(is_emergency=False)
-            record_fallback(is_emergency=False)
+            record_fallback(is_emergency=False)  # triggers alert (20% >= 10%)
 
-            # This should trigger alert (20% > 10% threshold)
-            record_call()  # This call triggers the check
+            # Yield control so the background asyncio task can run
+            await _asyncio.sleep(0)
 
             # Verify alert was sent
             mock_alert.assert_called_once()
@@ -311,7 +326,7 @@ class TestFallbackAlerting:
             # Check alert message contains key information
             alert_message = mock_alert.call_args[0][0]
             assert "20.0%" in alert_message
-            assert "10%" in alert_message
+            assert "10.0%" in alert_message
             assert "2" in alert_message  # fallback count
 
     @pytest.mark.asyncio

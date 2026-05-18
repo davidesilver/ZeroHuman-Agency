@@ -9,7 +9,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co http://localhost:8000",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co http://localhost:8082 http://localhost:3080",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

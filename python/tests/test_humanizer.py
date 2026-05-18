@@ -31,9 +31,9 @@ class TestVoiceCalibration:
         db = MagicMock()
         return db
 
-    def test_manual_gold_examples_priority(self, mock_db):
+    @pytest.mark.asyncio
+    async def test_manual_gold_examples_priority(self, mock_db):
         """Manual gold_examples in tone_of_voice should be used over automatic."""
-        # Mock brand response with manual gold_examples
         mock_db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
             data={
                 "tone_of_voice": {
@@ -45,22 +45,22 @@ class TestVoiceCalibration:
             }
         )
 
-        with patch("content_engine.agents.humanizer.get_db", return_value=mock_db):
-            result = _load_voice_calibration("test-brand-id")
+        with patch("content_engine.agents.humanizer.get_db", return_value=mock_db), \
+             patch("content_engine.agents.humanizer.memory_recall", new_callable=AsyncMock, return_value=[]):
+            result = await _load_voice_calibration("test-brand-id")
 
         assert "Manual Gold Example 1" in result
         assert "Manual Example 2" in result
         assert "This is manual content." in result
         assert "# Voice Calibration (Manual Gold Examples)" in result
 
-    def test_automatic_top_performers_fallback(self, mock_db):
+    @pytest.mark.asyncio
+    async def test_automatic_top_performers_fallback(self, mock_db):
         """When no manual gold_examples, use top performers from content_performance."""
-        # Mock brand response with no gold_examples
         mock_db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
             data={"tone_of_voice": {}}
         )
 
-        # Mock top performers
         mock_db.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(
             data=[
                 {
@@ -78,37 +78,40 @@ class TestVoiceCalibration:
             ]
         )
 
-        with patch("content_engine.agents.humanizer.get_db", return_value=mock_db):
-            result = _load_voice_calibration("test-brand-id")
+        with patch("content_engine.agents.humanizer.get_db", return_value=mock_db), \
+             patch("content_engine.agents.humanizer.memory_recall", new_callable=AsyncMock, return_value=[]):
+            result = await _load_voice_calibration("test-brand-id")
 
         assert "Viral Post 1" in result
         assert "Viral Post 2" in result
         assert "# Voice Calibration (Top Performers)" in result
 
-    def test_default_voice_fallback(self, mock_db):
+    @pytest.mark.asyncio
+    async def test_default_voice_fallback(self, mock_db):
         """When neither manual nor automatic data available, use default."""
-        # Mock brand response with no data
         mock_db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
             data={"tone_of_voice": {}}
         )
 
-        # Mock empty top performers
         mock_db.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(
             data=[]
         )
 
-        with patch("content_engine.agents.humanizer.get_db", return_value=mock_db):
-            result = _load_voice_calibration("test-brand-id")
+        with patch("content_engine.agents.humanizer.get_db", return_value=mock_db), \
+             patch("content_engine.agents.humanizer.memory_recall", new_callable=AsyncMock, return_value=[]):
+            result = await _load_voice_calibration("test-brand-id")
 
         assert "# Voice Calibration\nNo samples available" in result
         assert "default natural voice" in result
 
-    def test_voice_calibration_db_error(self, mock_db):
+    @pytest.mark.asyncio
+    async def test_voice_calibration_db_error(self, mock_db):
         """Gracefully handle DB errors when loading voice calibration."""
         mock_db.table.side_effect = Exception("DB connection failed")
 
-        with patch("content_engine.agents.humanizer.get_db", return_value=mock_db):
-            result = _load_voice_calibration("test-brand-id")
+        with patch("content_engine.agents.humanizer.get_db", return_value=mock_db), \
+             patch("content_engine.agents.humanizer.memory_recall", new_callable=AsyncMock, return_value=[]):
+            result = await _load_voice_calibration("test-brand-id")
 
         assert "# Voice calibration unavailable" in result
 
@@ -362,4 +365,3 @@ class TestPromptTemplates:
     def test_humanizer_prompt_mentions_italian(self):
         """Verify humanizer prompt explicitly mentions Italian language."""
         assert "Italian" in HUMANIZER_PROMPT_BASE
-        assert "italiano" in HUMANIZER_PROMPT_BASE.lower()

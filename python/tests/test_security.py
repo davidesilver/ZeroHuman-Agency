@@ -103,7 +103,8 @@ class TestScheduledAtValidation:
             self._validate(past)
 
     def test_accepts_with_timezone_offset(self):
-        future = (datetime.now(timezone.utc) + timedelta(hours=2)).strftime(
+        # Add 4h UTC then format with +02:00 suffix: net result is 2h in the future (UTC).
+        future = (datetime.now(timezone.utc) + timedelta(hours=4)).strftime(
             "%Y-%m-%dT%H:%M:%S+02:00"
         )
         # Should not raise

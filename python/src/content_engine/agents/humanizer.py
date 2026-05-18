@@ -370,6 +370,7 @@ async def humanize_draft(
 
     return {
         "draft_id": draft_id,
+        "status": "humanized",
         "version": new_version,
         "ai_patterns_found_count": len(ai_patterns_found),
         "remaining_ai_tells_count": len(remaining_tells),
@@ -449,7 +450,7 @@ def _strip_json(raw: str) -> str:
     text = raw.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1] if "\n" in text else text[3:]
-        text = text.rsplit("```", 1)[0]
+        text = text.rsplit("```", 1)[0].strip()
     return text
 
 
