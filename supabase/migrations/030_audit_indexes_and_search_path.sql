@@ -87,11 +87,11 @@ SET search_path = public, pg_temp AS $$
   )
   SELECT jsonb_build_object(
     'total',    (SELECT total FROM totals),
-    'pending',  coalesce((SELECT n FROM base WHERE status = 'pending'),  0),
+    'new',      coalesce((SELECT n FROM base WHERE status = 'new'),      0),
+    'scored',   coalesce((SELECT n FROM base WHERE status = 'scored'),   0),
     'approved', coalesce((SELECT n FROM base WHERE status = 'approved'), 0),
     'rejected', coalesce((SELECT n FROM base WHERE status = 'rejected'), 0),
-    'archived', coalesce((SELECT n FROM base WHERE status = 'archived'), 0),
-    'top_pick', coalesce((SELECT n FROM base WHERE status = 'top_pick'), 0)
+    'archived', coalesce((SELECT n FROM base WHERE status = 'archived'), 0)
   )
 $$;
 

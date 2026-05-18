@@ -1,0 +1,29 @@
+# docker-compose.dev.yml — open-source services for local development
+#
+# Starts automatically via `npm run dev`.
+# Requires Docker Desktop to be running.
+#
+# Services included:
+#   ldr  — local-deep-research (port 5000)  → enables Deep Research feature flag
+#
+# Postiz (social publishing) is NOT included here — it needs OAuth app setup.
+# Start it separately when needed:
+#   docker compose -f docker-compose.postiz.yaml up -d
+
+services:
+  ldr:
+    image: ghcr.io/learningcircuit/local-deep-research:latest
+    container_name: zerohuman-ldr
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      # Optional: add a search API key for better results
+      # SEARCH_API_KEY: ${SERPER_API_KEY:-}
+      LOG_LEVEL: INFO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s

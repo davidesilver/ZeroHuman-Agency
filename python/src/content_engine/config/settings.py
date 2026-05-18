@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     use_claude_subscription: bool = False  # If TRUE, uses Claude via Anthropic API (your subscription)
                                             # If FALSE, uses OpenRouter free models (default)
 
+    # Brand secrets encryption
+    # Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    brand_secrets_encryption_key: str = ""
+
     # Fallback Monitoring
     fallback_alert_threshold: float = 10.0  # Alert if fallbacks exceed X% of daily calls
     fallback_daily_reset_hour: int = 0       # Hour when daily fallback counter resets (UTC)

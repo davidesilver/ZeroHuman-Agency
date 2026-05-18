@@ -16,6 +16,8 @@ dependencies = [
     "resend>=2.0.0",
     "brevo-python>=4.0.0",
     "mailchimp-marketing>=3.0.0",
+    "cryptography>=44.0.0",
+    "scrapling>=0.2.0",
     "supabase>=2.28.3",
     "uvicorn>=0.44.0",
     "pypdf>=4.0.0",
@@ -24,7 +26,9 @@ dependencies = [
     "duckduckgo-search>=6.0.0",
     "tavily-python>=0.3.0",
     "trafilatura>=2.0.0",
-    "cryptography>=44.0.0",
+    # Security pins — force patched transitive deps to safe minimum versions
+    "urllib3>=2.7.0",           # CVE-2026-44431, CVE-2026-44432
+    "python-multipart>=0.0.27", # CVE-2026-42561
 ]
 
 [project.scripts]

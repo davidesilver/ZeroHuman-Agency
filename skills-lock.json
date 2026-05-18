@@ -5,6 +5,30 @@
       "source": "supabase/agent-skills",
       "sourceType": "github",
       "computedHash": "f4cd7570115d97af6bcb2946eb891a958c8d04a43b479871c9ccadbc670ad058"
+    },
+    "obra-superpowers": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "pinnedCommit": "f2cbfbefebbfef77321e4c9abc9e949826bea9d7",
+      "computedHash": "56a4535b0bd898b22a298870c12b2e44239e474a383667c861a107050bc2b655"
+    },
+    "thedotmack-claude-mem": {
+      "source": "thedotmack/claude-mem",
+      "sourceType": "github",
+      "pinnedCommit": "37d24944af5f4afaa0de2b0bd0034bb432f2b714",
+      "computedHash": "18b1074bdebae8be6c915e67141081ce808f95a1c4b86cc8285c59cb4132a058"
+    },
+    "yamadashy-repomix": {
+      "source": "yamadashy/repomix",
+      "sourceType": "github",
+      "pinnedCommit": "e27d8be1c4cb8cab511070724cb7f030a84e1fe2",
+      "computedHash": "8271b9f7e58149d47f7ce352cf07f51c42db1ec7aa363ed7f614d76785fea56c"
+    },
+    "leonxlnx-taste-skill": {
+      "source": "leonxlnx/taste-skill",
+      "sourceType": "github",
+      "pinnedCommit": "c8075169cd63d1430bbf492dd4ddd478ea9fa4da",
+      "computedHash": "62b2390705c98131723b9744d70d53684e09c856dc69d4632f9247ac8c244131"
     }
   }
 }

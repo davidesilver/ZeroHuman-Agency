@@ -3,7 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently --names \"next,api,ldr\" --prefix-colors \"cyan,yellow,magenta\" \"next dev\" \"npm run dev:api\" \"npm run dev:ldr\"",
+    "dev:next": "next dev",
+    "dev:api": "cd python && uv run uvicorn src.content_engine.main:app --reload --port 8000",
+    "dev:ldr": "docker info > /dev/null 2>&1 && docker compose -f docker-compose.dev.yml up ldr || echo '[ldr] Docker not running — skipping local-deep-research (enable deep_research feature flag when Docker is up)'",
+    "services:up": "docker compose -f docker-compose.dev.yml up -d",
+    "services:down": "docker compose -f docker-compose.dev.yml down",
+    "postiz:up": "docker compose -f docker-compose.postiz.yaml up -d",
+    "postiz:down": "docker compose -f docker-compose.postiz.yaml down",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -16,8 +23,9 @@
     "@supabase/supabase-js": "^2.103.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "hyperframes": "0.6.12",
     "lucide-react": "^1.8.0",
-    "next": "16.2.3",
+    "next": "^16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
@@ -30,9 +38,14 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
     "eslint": "^9",
-    "eslint-config-next": "16.2.3",
+    "eslint-config-next": "^16.2.6",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "fast-uri": "^3.1.2",
+    "postcss": "^8.5.10"
   }
 }

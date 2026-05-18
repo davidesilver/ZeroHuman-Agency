@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import {
   Settings as SettingsIcon, Bot, Mail, Clock,
   Building, Plus, Loader2, ExternalLink, Brain, ImageIcon, Link2,
-  Server, Bell, Search,
+  Server, Bell, Search, Video as VideoIcon,
 } from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
 import Link from 'next/link'
@@ -263,6 +263,153 @@ function ModelChip({ model, kind = 'fallback' }: { model: ModelRef; kind?: 'prim
       <ProviderDot provider={model.provider} />
       {model.model_id}
     </span>
+  )
+}
+
+// ── Provider Stats card (Phase 4) ───────────────────────────────────────────
+interface ProviderStat {
+  provider: string
+  window: string
+  total_calls: number
+  error_rate: number
+  avg_latency_ms: number | null
+  total_cost_usd: number
+  cost_per_1k_tokens: number | null
+}
+
+function OpenClawShareCard() {
+  const { activeBrand } = useBrand()
+  const [share, setShare] = useState(0)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    if (!activeBrand) return
+    fetch('/api/feature-flags?key=llm_provider_openclaw_share')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.value != null) setShare(Math.round(parseFloat(d.value) * 100)) })
+      .catch(() => {})
+  }, [activeBrand])
+
+  async function save() {
+    if (!activeBrand) return
+    setSaving(true)
+    setSaved(false)
+    try {
+      await fetch('/api/feature-flags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: 'llm_provider_openclaw_share',
+          value: share / 100,
+          brand_id: activeBrand.id,
+        }),
+      })
+      setSaved(true)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Bot className="size-4 text-muted-foreground" />
+          OpenClaw A/B Split
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Route a percentage of LLM calls to OpenClaw for cost and latency comparison. Requires an OpenClaw API key in brand integrations.
+        </p>
+        <div className="flex items-center gap-4">
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={share}
+            onChange={e => setShare(Number(e.target.value))}
+            className="flex-1"
+          />
+          <span className="text-sm font-mono w-12 text-right">{share}%</span>
+        </div>
+        <div className="flex gap-2 items-center">
+          <Button size="sm" onClick={save} disabled={saving || !activeBrand}>
+            {saving ? <Loader2 className="size-3 animate-spin mr-1" /> : null}
+            Save
+          </Button>
+          {saved && <span className="text-xs text-green-600">Saved</span>}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function ProviderStatsCard() {
+  const [stats, setStats] = useState<ProviderStat[]>([])
+  const [loading, setLoading] = useState(true)
+  const [window, setWindow] = useState<'24h' | '7d' | '30d'>('7d')
+
+  useEffect(() => {
+    setLoading(true)
+    fetch(`/api/llm/providers/metrics?window=${window}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setStats)
+      .catch(() => setStats([]))
+      .finally(() => setLoading(false))
+  }, [window])
+
+  if (!loading && stats.length === 0) return null
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Bot className="size-4 text-muted-foreground" />
+            Provider Stats
+          </CardTitle>
+          <div className="flex gap-1">
+            {(['24h', '7d', '30d'] as const).map(w => (
+              <button
+                key={w}
+                onClick={() => setWindow(w)}
+                className={`text-xs px-2 py-0.5 rounded ${
+                  window === w ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {w}
+              </button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" /> Loading...
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {stats.map(s => (
+              <div key={s.provider} className="text-xs grid grid-cols-4 gap-2 items-center">
+                <span className="font-mono font-medium">{s.provider}</span>
+                <span className="text-muted-foreground">{s.total_calls} calls</span>
+                <span className="text-muted-foreground">
+                  {s.avg_latency_ms != null ? `${s.avg_latency_ms}ms` : '—'}
+                </span>
+                <span className="text-muted-foreground">
+                  {s.cost_per_1k_tokens != null
+                    ? `$${s.cost_per_1k_tokens.toFixed(4)}/1k`
+                    : `$${s.total_cost_usd.toFixed(4)}`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -619,6 +766,12 @@ export default function SettingsPage() {
       {/* ── Agent Model Routing (primary + fallback chain per capability) ───── */}
       <LLMRoutingMatrix routing={routing} />
 
+      {/* ── Provider Stats (Phase 4 telemetria) ─────────────────────────────── */}
+      <ProviderStatsCard />
+
+      {/* ── OpenClaw A/B Traffic Split (Phase 14) ────────────────────────────── */}
+      <OpenClawShareCard />
+
       {/* ── Research APIs ───────────────────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
@@ -736,6 +889,30 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* ── Video (HyperFrames) ──────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <VideoIcon className="size-4 text-muted-foreground" />
+              Video (HyperFrames)
+            </CardTitle>
+            <Link
+              href="/settings/video-templates"
+              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+            >
+              <ExternalLink className="size-3" /> Templates
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Create and manage video composition templates. Render animated recaps and motion graphics via HyperFrames CLI.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* ── Social Publishing (Postiz) ──────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
@@ -773,6 +950,40 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* ── Email Marketing (Brevo) ──────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Mail className="size-4 text-muted-foreground" />
+              Email Marketing (Brevo)
+            </CardTitle>
+            <div className="flex gap-1">
+              <Link
+                href="/settings/audience"
+                className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                           hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+              >
+                <ExternalLink className="size-3" /> Audience
+              </Link>
+              <Link
+                href="/settings/automations"
+                className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                           hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+              >
+                <ExternalLink className="size-3" /> Automations
+              </Link>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Connect Brevo for contact management, campaigns, and automations.
+            Resend remains the default for transactional email.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* ── Email Provider ──────────────────────────────────────────────────── */}
       <EmailProviderCard />
 
@@ -805,6 +1016,31 @@ export default function SettingsPage() {
               </Link>
             </Row>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Feature Flags ──────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <SettingsIcon className="size-4 text-muted-foreground" />
+              Feature Flags
+            </CardTitle>
+            <Link
+              href="/settings/feature-flags"
+              className="inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-lg
+                         hover:bg-muted hover:text-foreground transition-colors text-muted-foreground"
+            >
+              <ExternalLink className="size-3" /> Manage
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Enable or disable capabilities (video, email marketing, deep research, competitor monitoring) per brand.
+            Changes take effect immediately.
+          </p>
         </CardContent>
       </Card>
 

@@ -4,9 +4,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Trash2, Loader2 } from 'lucide-react'
+import { ArrowLeft, Trash2, Loader2, Film } from 'lucide-react'
 import { GenerateVisualButton } from '@/components/content-hub/generate-visual-button'
 import { PublishButton } from '@/components/content-hub/publish-button'
+import { useBrand } from '@/lib/brand-context'
 
 interface Draft {
   id: string
@@ -25,9 +26,12 @@ export default function DraftDetailPage() {
   const params = useParams()
   const router = useRouter()
   const draftId = params.id as string
+  const { activeBrand } = useBrand()
   const [draft, setDraft] = useState<Draft | null>(null)
   const [loading, setLoading] = useState(true)
   const [deletingMedia, setDeletingMedia] = useState<string | null>(null)
+  const [convertingReel, setConvertingReel] = useState(false)
+  const [reelVideoId, setReelVideoId] = useState<string | null>(null)
 
   const fetchDraft = useCallback(async () => {
     try {
@@ -42,6 +46,31 @@ export default function DraftDetailPage() {
   }, [draftId])
 
   useEffect(() => { fetchDraft() }, [fetchDraft])
+
+  async function convertToReel() {
+    if (!draft?.media_urls?.length) return
+    setConvertingReel(true)
+    try {
+      const res = await fetch('/api/video/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          template_slug: 'carousel-to-reel',
+          render_props: {
+            slide_urls: JSON.stringify(draft.media_urls),
+            brand_name: activeBrand?.name ?? '',
+          },
+          title: `${draft.title ?? 'Carousel'} — Reel`,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setReelVideoId(data.video_id)
+      }
+    } finally {
+      setConvertingReel(false)
+    }
+  }
 
   async function deleteMedia(url: string) {
     if (!draft) return
@@ -112,6 +141,27 @@ export default function DraftDetailPage() {
           platform={draft.platform}
           onGenerated={fetchDraft}
         />
+        {draft.content_type === 'carousel' && (draft.media_urls?.length ?? 0) >= 2 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={convertToReel}
+            disabled={convertingReel || !!reelVideoId}
+          >
+            {convertingReel
+              ? <Loader2 className="size-4 mr-1 animate-spin" />
+              : <Film className="size-4 mr-1" />}
+            {reelVideoId ? 'Reel queued ✓' : 'Convert to reel'}
+          </Button>
+        )}
+        {reelVideoId && (
+          <a
+            href="/videos"
+            className="text-xs text-muted-foreground hover:underline"
+          >
+            View in Videos →
+          </a>
+        )}
       </div>
 
       <div className="space-y-3">
