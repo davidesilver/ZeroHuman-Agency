@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   Check, ChevronRight, AlertCircle, Loader2,
   DollarSign, SkipForward, ArrowLeft, Zap, Globe, BarChart3,
-  CheckCircle2, Circle, ExternalLink,
+  CheckCircle2, Circle, ExternalLink, Key, Eye, EyeOff,
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -282,6 +282,87 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
 
 // ── Step 1: LLM ───────────────────────────────────────────────────────────────
 
+const WIZARD_PROVIDERS = [
+  { id: 'anthropic',  label: 'Anthropic Claude',  icon: '🔷', keyPrefix: 'sk-ant-', docsUrl: 'https://console.anthropic.com/settings/keys' },
+  { id: 'openai',     label: 'OpenAI',            icon: '🟢', keyPrefix: 'sk-',     docsUrl: 'https://platform.openai.com/api-keys' },
+  { id: 'groq',       label: 'Groq (Free)',        icon: '⚡', keyPrefix: 'gsk_',   docsUrl: 'https://console.groq.com/keys' },
+  { id: 'openrouter', label: 'OpenRouter',         icon: '🌐', keyPrefix: 'sk-or-', docsUrl: 'https://openrouter.ai/keys' },
+]
+
+function InlineKeyEntry({ provider, onSaved }: {
+  provider: typeof WIZARD_PROVIDERS[0]
+  onSaved: () => void
+}) {
+  const { activeBrand } = useBrand()
+  const [key, setKey] = useState('')
+  const [visible, setVisible] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'ok' | 'error'>('idle')
+  const [msg, setMsg] = useState('')
+
+  async function save() {
+    if (!key.trim() || !activeBrand?.id) return
+    setSaving(true)
+    setStatus('idle')
+    try {
+      const res = await fetch(`/api/llm/providers/${provider.id}/key`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: key.trim() }),
+      })
+      const json = await res.json()
+      if (res.ok && json.valid) {
+        setStatus('ok')
+        setMsg(`Saved — ${json.latency_ms}ms`)
+        setKey('')
+        onSaved()
+      } else {
+        setStatus('error')
+        setMsg(json.detail || json.error?.message || 'Save failed')
+      }
+    } catch {
+      setStatus('error')
+      setMsg('Network error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <div className="relative">
+        <input
+          type={visible ? 'text' : 'password'}
+          value={key}
+          onChange={e => { setKey(e.target.value); setStatus('idle') }}
+          onKeyDown={e => { if (e.key === 'Enter' && key) save() }}
+          placeholder={`${provider.keyPrefix}…`}
+          className="w-full font-mono text-xs pr-16 pl-3 py-2 rounded-md border bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          <button type="button" onClick={() => setVisible(v => !v)} className="text-muted-foreground hover:text-foreground">
+            {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            type="button"
+            onClick={save}
+            disabled={!key.trim() || saving}
+            className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded disabled:opacity-40"
+          >
+            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+          </button>
+        </div>
+      </div>
+      {status !== 'idle' && (
+        <p className={`text-xs flex items-center gap-1 ${status === 'ok' ? 'text-green-600' : 'text-destructive'}`}>
+          {status === 'ok' ? <Check className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+          {msg}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function StepLlm({
   config, loading, hasLlm, onNext, onBack,
 }: {
@@ -291,6 +372,29 @@ function StepLlm({
   onNext: () => void
   onBack: () => void
 }) {
+  const [byokConfigured, setByokConfigured] = useState<Set<string>>(new Set())
+  const [expandedProvider, setExpandedProvider] = useState<string | null>(null)
+  const [loadingByok, setLoadingByok] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/llm/providers/configured')
+      .then(r => r.json())
+      .then((data: Array<{ id: string; configured: boolean }>) => {
+        if (Array.isArray(data)) {
+          setByokConfigured(new Set(data.filter(p => p.configured).map(p => p.id)))
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingByok(false))
+  }, [])
+
+  const hasAnyLlm = hasLlm || byokConfigured.size > 0
+
+  function handleSaved(providerId: string) {
+    setByokConfigured(prev => new Set([...prev, providerId]))
+    setExpandedProvider(null)
+  }
+
   return (
     <div className="space-y-5">
       <div>
@@ -300,33 +404,77 @@ function StepLlm({
         </p>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-6"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
-      ) : (
-        <div className="space-y-2">
-          <ProviderRow label="Anthropic Claude" active={!!config?.api_keys.anthropic} />
-          <ProviderRow label="OpenRouter" active={!!config?.api_keys.openrouter} />
+      {/* System env vars */}
+      {!loading && (config?.api_keys.anthropic || config?.api_keys.openrouter) && (
+        <div className="flex gap-2 p-3 rounded-md status-success-soft border border-[var(--status-success)]/30 text-sm">
+          <Check className="size-4 shrink-0 mt-0.5" />
+          <span>
+            System LLM configured via env vars
+            {config?.api_keys.anthropic ? ' (Anthropic)' : ''}
+            {config?.api_keys.openrouter ? ' (OpenRouter)' : ''}.
+          </span>
         </div>
       )}
 
-      {!loading && !hasLlm && (
+      {/* BYOK section */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {hasLlm ? 'Or add your own API keys (BYOK)' : 'Add your own API key'}
+        </p>
+        {loadingByok ? (
+          <div className="flex items-center gap-2 py-2 text-muted-foreground text-sm">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />Loading…
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {WIZARD_PROVIDERS.map(p => {
+              const configured = byokConfigured.has(p.id)
+              const expanded = expandedProvider === p.id
+              return (
+                <div key={p.id} className="rounded-md border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedProvider(expanded ? null : p.id)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>{p.icon}</span>
+                      <span className="text-sm font-medium">{p.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {configured ? (
+                        <Badge className="status-success-soft border-0 text-xs">Configured</Badge>
+                      ) : (
+                        <Key className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </button>
+                  {expanded && !configured && (
+                    <div className="px-3 pb-3 border-t bg-muted/20">
+                      <div className="flex items-center justify-between mt-2 mb-1.5">
+                        <span className="text-xs text-muted-foreground">Paste your API key</span>
+                        <a href={p.docsUrl} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                          Get key <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                      <InlineKeyEntry provider={p} onSaved={() => handleSaved(p.id)} />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {!loading && !loadingByok && !hasAnyLlm && (
         <div className="flex gap-2 p-3 rounded-md status-warning-soft border border-[var(--status-warning)]/30 text-sm">
           <AlertCircle className="size-4 shrink-0 mt-0.5" />
           <div>
             <p className="font-medium">No LLM configured</p>
-            <p className="text-xs mt-0.5">
-              Add <code className="font-mono bg-[var(--surface-2)] px-1 rounded">ANTHROPIC_API_KEY</code> or{' '}
-              <code className="font-mono bg-[var(--surface-2)] px-1 rounded">OPENROUTER_API_KEY</code> to your{' '}
-              <code className="font-mono bg-[var(--surface-2)] px-1 rounded">.env.local</code> and restart the server.
-            </p>
+            <p className="text-xs mt-0.5">Add a key above, or set an env var and restart.</p>
           </div>
-        </div>
-      )}
-
-      {!loading && hasLlm && (
-        <div className="flex gap-2 p-3 rounded-md status-success-soft border border-[var(--status-success)]/30 text-sm">
-          <Check className="size-4 shrink-0 mt-0.5" />
-          <span>LLM provider is configured and ready.</span>
         </div>
       )}
 
@@ -334,9 +482,9 @@ function StepLlm({
         <Button variant="outline" onClick={onBack} className="w-24">
           <ArrowLeft className="size-3.5 mr-1" /> Back
         </Button>
-        <Button className="flex-1" onClick={onNext} disabled={!hasLlm && !loading}>
-          {!hasLlm && !loading ? 'Configure LLM to continue' : 'Next'}
-          {hasLlm && <ChevronRight className="size-4 ml-2" />}
+        <Button className="flex-1" onClick={onNext} disabled={!hasAnyLlm && !loading}>
+          {!hasAnyLlm && !loading ? 'Configure LLM to continue' : 'Next'}
+          {hasAnyLlm && <ChevronRight className="size-4 ml-2" />}
         </Button>
       </div>
     </div>
