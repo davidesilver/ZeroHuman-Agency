@@ -15,6 +15,7 @@ interface VideoTemplate {
   slug: string
   description?: string
   composition_path: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   props_schema: Record<string, any>
   thumbnail_url?: string
   brand_id: string | null

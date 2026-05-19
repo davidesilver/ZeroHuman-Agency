@@ -195,6 +195,106 @@ MODEL_CONFIGS: dict[str, ModelConfig] = {
         provider="openrouter",
         cost_tier="free",
     ),
+
+    # ── Google Gemini ──────────────────────────────────────────────────────────
+    "gemini-2.5-pro": ModelConfig(
+        model_id="gemini-2.5-pro",
+        capabilities=[ModelCapability.GENERAL, ModelCapability.RESEARCH, ModelCapability.REASONING, ModelCapability.CREATIVE],
+        max_tokens=8192, temperature=0.7, timeout_seconds=30, priority=1, provider="google", cost_tier="medium",
+    ),
+    "gemini-2.5-flash": ModelConfig(
+        model_id="gemini-2.5-flash",
+        capabilities=[ModelCapability.GENERAL, ModelCapability.EDITING],
+        max_tokens=8192, temperature=0.7, timeout_seconds=20, priority=2, provider="google", cost_tier="low",
+    ),
+
+    # ── Groq ──────────────────────────────────────────────────────────────────
+    "llama-3.3-70b-versatile": ModelConfig(
+        model_id="llama-3.3-70b-versatile",
+        capabilities=[ModelCapability.GENERAL, ModelCapability.EDITING, ModelCapability.CREATIVE],
+        max_tokens=8192, temperature=0.7, timeout_seconds=15, priority=3, provider="groq", cost_tier="free",
+    ),
+    "llama-3.1-8b-instant": ModelConfig(
+        model_id="llama-3.1-8b-instant",
+        capabilities=[ModelCapability.GENERAL, ModelCapability.EDITING],
+        max_tokens=8192, temperature=0.7, timeout_seconds=10, priority=5, provider="groq", cost_tier="free",
+    ),
+
+    # ── DeepSeek ──────────────────────────────────────────────────────────────
+    "deepseek-chat": ModelConfig(
+        model_id="deepseek-chat",
+        capabilities=[ModelCapability.GENERAL, ModelCapability.RESEARCH, ModelCapability.EDITING],
+        max_tokens=8192, temperature=0.7, timeout_seconds=30, priority=2, provider="deepseek", cost_tier="low",
+    ),
+    "deepseek-reasoner": ModelConfig(
+        model_id="deepseek-reasoner",
+        capabilities=[ModelCapability.REASONING, ModelCapability.FACT_CHECK],
+        max_tokens=8192, temperature=0.6, timeout_seconds=60, priority=2, provider="deepseek", cost_tier="low",
+    ),
+
+    # ── Mistral AI ─────────────────────────────────────────────────────────────
+    "mistral-large-latest": ModelConfig(
+        model_id="mistral-large-latest",
+        capabilities=[ModelCapability.GENERAL, ModelCapability.CREATIVE, ModelCapability.RESEARCH],
+        max_tokens=8192, temperature=0.7, timeout_seconds=30, priority=2, provider="mistral", cost_tier="medium",
+    ),
+    "mistral-small-latest": ModelConfig(
+        model_id="mistral-small-latest",
+        capabilities=[ModelCapability.GENERAL, ModelCapability.EDITING],
+        max_tokens=8192, temperature=0.7, timeout_seconds=20, priority=3, provider="mistral", cost_tier="low",
+    ),
+
+    # ── xAI ───────────────────────────────────────────────────────────────────
+    "grok-3": ModelConfig(
+        model_id="grok-3",
+        capabilities=[ModelCapability.GENERAL, ModelCapability.RESEARCH, ModelCapability.CREATIVE],
+        max_tokens=8192, temperature=0.7, timeout_seconds=30, priority=2, provider="xai", cost_tier="medium",
+    ),
+    "grok-3-mini": ModelConfig(
+        model_id="grok-3-mini",
+        capabilities=[ModelCapability.GENERAL, ModelCapability.EDITING],
+        max_tokens=8192, temperature=0.7, timeout_seconds=20, priority=3, provider="xai", cost_tier="low",
+    ),
+
+    # ── Together AI ───────────────────────────────────────────────────────────
+    "meta-llama/Llama-3.3-70B-Instruct-Turbo": ModelConfig(
+        model_id="meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        capabilities=[ModelCapability.GENERAL, ModelCapability.CREATIVE, ModelCapability.EDITING],
+        max_tokens=8192, temperature=0.7, timeout_seconds=30, priority=3, provider="together", cost_tier="low",
+    ),
+
+    # ── Perplexity (search-augmented) ──────────────────────────────────────────
+    "sonar-pro": ModelConfig(
+        model_id="sonar-pro",
+        capabilities=[ModelCapability.RESEARCH, ModelCapability.FACT_CHECK],
+        max_tokens=8192, temperature=0.5, timeout_seconds=30, priority=2, provider="perplexity", cost_tier="medium",
+    ),
+
+    # ── Moonshot / Kimi ────────────────────────────────────────────────────────
+    "moonshot-v1-128k": ModelConfig(
+        model_id="moonshot-v1-128k",
+        capabilities=[ModelCapability.GENERAL, ModelCapability.RESEARCH],
+        max_tokens=4096, temperature=0.7, timeout_seconds=30, priority=3, provider="moonshot", cost_tier="low",
+    ),
+
+    # ── Cerebras (ultra-fast free) ─────────────────────────────────────────────
+    "llama3.1-70b": ModelConfig(
+        model_id="llama3.1-70b",
+        capabilities=[ModelCapability.GENERAL, ModelCapability.EDITING],
+        max_tokens=8192, temperature=0.7, timeout_seconds=10, priority=4, provider="cerebras", cost_tier="free",
+    ),
+
+    # ── Qwen ──────────────────────────────────────────────────────────────────
+    "qwen-max": ModelConfig(
+        model_id="qwen-max",
+        capabilities=[ModelCapability.GENERAL, ModelCapability.CREATIVE, ModelCapability.RESEARCH],
+        max_tokens=8192, temperature=0.7, timeout_seconds=30, priority=3, provider="qwen", cost_tier="medium",
+    ),
+    "qwq-32b": ModelConfig(
+        model_id="qwq-32b",
+        capabilities=[ModelCapability.REASONING],
+        max_tokens=8192, temperature=0.6, timeout_seconds=60, priority=3, provider="qwen", cost_tier="low",
+    ),
 }
 
 # Model routing: map capabilities to models
@@ -203,40 +303,66 @@ MODEL_ROUTING: dict[ModelCapability, list[ModelConfig]] = {
     ModelCapability.GENERAL: [
         MODEL_CONFIGS["claude-sonnet-4-20250514"],
         MODEL_CONFIGS["gpt-4o"],
+        MODEL_CONFIGS["gemini-2.5-pro"],
         MODEL_CONFIGS["claude-haiku-4-20250514"],
         MODEL_CONFIGS["gpt-4o-mini"],
+        MODEL_CONFIGS["gemini-2.5-flash"],
+        MODEL_CONFIGS["llama-3.3-70b-versatile"],  # Groq free
+        MODEL_CONFIGS["deepseek-chat"],
+        MODEL_CONFIGS["llama3.1-70b"],  # Cerebras free
     ],
     ModelCapability.RESEARCH: [
         MODEL_CONFIGS["claude-sonnet-4-20250514"],
+        MODEL_CONFIGS["sonar-pro"],  # Perplexity search-augmented
         MODEL_CONFIGS["gpt-4o"],
+        MODEL_CONFIGS["gemini-2.5-pro"],
         MODEL_CONFIGS["claude-opus-4-20250514"],
+        MODEL_CONFIGS["deepseek-chat"],
+        MODEL_CONFIGS["moonshot-v1-128k"],
         MODEL_CONFIGS["gpt-4-turbo"],
     ],
     ModelCapability.SCORING: [
         MODEL_CONFIGS["claude-sonnet-4-20250514"],
         MODEL_CONFIGS["gpt-4o"],
         MODEL_CONFIGS["claude-haiku-4-20250514"],
+        MODEL_CONFIGS["gpt-4o-mini"],
+        MODEL_CONFIGS["gemini-2.5-flash"],
+        MODEL_CONFIGS["llama-3.1-8b-instant"],  # Groq fast
     ],
     ModelCapability.FACT_CHECK: [
         MODEL_CONFIGS["claude-sonnet-4-20250514"],
+        MODEL_CONFIGS["sonar-pro"],  # Perplexity with web search
         MODEL_CONFIGS["gpt-4o"],
+        MODEL_CONFIGS["deepseek-reasoner"],
     ],
     ModelCapability.CREATIVE: [
         MODEL_CONFIGS["claude-opus-4-20250514"],
         MODEL_CONFIGS["gpt-4-turbo"],
         MODEL_CONFIGS["claude-sonnet-4-20250514"],
+        MODEL_CONFIGS["mistral-large-latest"],
         MODEL_CONFIGS["gpt-4o"],
+        MODEL_CONFIGS["grok-3"],
+        MODEL_CONFIGS["qwen-max"],
+        MODEL_CONFIGS["meta-llama/Llama-3.3-70B-Instruct-Turbo"],
     ],
     ModelCapability.EDITING: [
         MODEL_CONFIGS["claude-sonnet-4-20250514"],
         MODEL_CONFIGS["gpt-4o"],
         MODEL_CONFIGS["claude-haiku-4-20250514"],
         MODEL_CONFIGS["gpt-4o-mini"],
+        MODEL_CONFIGS["mistral-small-latest"],
+        MODEL_CONFIGS["llama-3.3-70b-versatile"],  # Groq free
+        MODEL_CONFIGS["deepseek-chat"],
+        MODEL_CONFIGS["gemini-2.5-flash"],
     ],
     ModelCapability.REASONING: [
         MODEL_CONFIGS["claude-sonnet-4-20250514"],
         MODEL_CONFIGS["claude-opus-4-20250514"],
+        MODEL_CONFIGS["deepseek-reasoner"],
         MODEL_CONFIGS["gpt-4o"],
+        MODEL_CONFIGS["gemini-2.5-pro"],
+        MODEL_CONFIGS["qwq-32b"],
+        MODEL_CONFIGS["grok-3"],
     ],
 }
 

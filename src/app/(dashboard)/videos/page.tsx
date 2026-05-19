@@ -19,6 +19,7 @@ interface Template {
   name: string
   slug: string
   description?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   props_schema: Record<string, any>
 }
 
@@ -74,6 +75,7 @@ function VideosContent() {
     if (!selectedTemplate) return
     const schema = selectedTemplate.props_schema?.properties ?? {}
     const defaults: Record<string, string> = {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const [k, v] of Object.entries(schema as Record<string, any>)) {
       defaults[k] = String(v.default ?? '')
     }
@@ -166,6 +168,7 @@ function VideosContent() {
           </div>
 
           {/* Dynamic prop fields */}
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {Object.entries(schema as Record<string, any>).map(([key, field]) => (
             <div key={key}>
               <Label>
@@ -215,6 +218,7 @@ function VideosContent() {
                     {v.duration_secs && ` · ${v.duration_secs}s`}
                   </p>
                 </div>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 <Badge variant={(getStatusVariant(v.status)) as any}>
                   {v.status}
                 </Badge>

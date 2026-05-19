@@ -34,8 +34,10 @@ function DeepResearchContent() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [results, setResults] = useState<Record<string, any>>({})
   const [generatingIdeas, setGeneratingIdeas] = useState<Record<string, boolean>>({})
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [ideaResults, setIdeaResults] = useState<Record<string, { created: number; items: any[] }>>({})
 
   const loadJobs = useCallback(async () => {
@@ -194,6 +196,7 @@ function DeepResearchContent() {
                     Depth {job.depth} · {new Date(job.created_at).toLocaleString()}
                   </p>
                 </div>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 <Badge variant={(getStatusVariant(job.status)) as any}>
                   {job.status}
                 </Badge>
@@ -218,6 +221,7 @@ function DeepResearchContent() {
                   {results[job.id].sources?.length > 0 && (
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-muted-foreground">Sources ({results[job.id].sources.length})</p>
+                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                       {results[job.id].sources.slice(0, 10).map((s: any, i: number) => (
                         <div key={i} className="flex items-center gap-1 text-xs text-muted-foreground">
                           <ExternalLink className="h-3 w-3 shrink-0" />
@@ -246,6 +250,7 @@ function DeepResearchContent() {
                         <p className="text-xs text-muted-foreground">
                           {ideaResults[job.id].created} ideas added to Research pipeline
                         </p>
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                         {ideaResults[job.id].items.map((item: any, i: number) => (
                           <div key={i} className="rounded border bg-background p-2">
                             <p className="text-xs font-medium">{item.title}</p>

@@ -736,11 +736,19 @@ export default function SettingsPage() {
       {/* ── LLM Providers ───────────────────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Bot className="size-4 text-muted-foreground" />
-            LLM Providers
-            <Badge variant="secondary" className="text-[10px] ml-1">at least one required</Badge>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Bot className="size-4 text-muted-foreground" />
+              LLM Providers
+              <Badge variant="secondary" className="text-[10px] ml-1">at least one required</Badge>
+            </CardTitle>
+            <Link href="/settings/ai-providers">
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                <ExternalLink className="h-3 w-3" />
+                Manage BYOK keys
+              </Button>
+            </Link>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-0">
