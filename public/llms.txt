@@ -1,0 +1,33 @@
+# ZeroHuman — Content Engine
+
+> Open-source, self-hosted AI content operations platform (MIT license)
+
+## What it does
+
+ZeroHuman automates the full content lifecycle: research, scoring, draft generation, multi-agent review, humanization, and publishing — across multiple brands from a single instance.
+
+## Key features
+
+- Research pipeline with 10+ retrievers (RSS, search APIs, YouTube, competitors)
+- Multi-dimensional content scoring (relevance, credibility, trend signal, brand alignment)
+- Platform-native draft generation (LinkedIn, Twitter/X, Instagram, blog, newsletter)
+- 4-agent GOD Mode review (critic, fact-checker, creative enhancer, synthesis)
+- Content humanizer that strips AI patterns and applies brand voice
+- Writing Lab with challenger/champion A/B rounds
+- Native multi-tenancy with per-brand isolated data, credentials, and configuration
+- Social publishing via self-hosted Postiz satellite
+- Newsletter composition and delivery (Resend, Brevo, Mailchimp)
+- Deep research via local-deep-research Docker sidecar
+- Competitor content monitoring
+- AI image generation per draft
+- Feedback loop: social metrics influence future content scoring
+- Cost tracking and LLM provider observability
+
+## Tech stack
+
+Next.js 16 (frontend) + Python FastAPI (backend) + Supabase (database + auth) + Docker
+
+## Links
+
+- GitHub: https://github.com/davidesilver/ZeroHuman-Agency
+- License: MIT
