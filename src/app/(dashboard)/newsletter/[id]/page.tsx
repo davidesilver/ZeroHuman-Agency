@@ -202,13 +202,13 @@ export default function NewsletterEditPage() {
           <CardContent className="space-y-2">
             {draft.subject_variant_a && (
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-muted-foreground w-4">A</span>
+                <span className="text-[11px] font-bold text-muted-foreground w-4">A</span>
                 <span className="text-sm">{draft.subject_variant_a}</span>
               </div>
             )}
             {draft.subject_variant_b && (
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-muted-foreground w-4">B</span>
+                <span className="text-[11px] font-bold text-muted-foreground w-4">B</span>
                 <span className="text-sm text-muted-foreground">{draft.subject_variant_b}</span>
               </div>
             )}
@@ -274,7 +274,7 @@ export default function NewsletterEditPage() {
                 ].map(({ label, value }) => (
                   <div key={label} className="text-center p-3 bg-secondary/30 rounded-lg">
                     <div className="text-lg font-bold">{value}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{label}</div>
                   </div>
                 ))}
               </div>

@@ -47,7 +47,7 @@ export function Sidebar({ logoutAction }: { logoutAction: () => Promise<void> })
             ZeroHuman
           </span>
           <span
-            className="text-[10px] font-semibold uppercase tracking-[0.15em]"
+            className="text-[11px] font-semibold uppercase tracking-[0.15em]"
             style={{ color: 'rgba(226,226,230,0.45)' }}
           >
             Content Engine
@@ -65,7 +65,7 @@ export function Sidebar({ logoutAction }: { logoutAction: () => Promise<void> })
             return (
               <div
                 key={index}
-                className="text-[10px] font-semibold uppercase tracking-[0.15em] mt-5 mb-1.5 px-3"
+                className="text-[11px] font-semibold uppercase tracking-[0.15em] mt-5 mb-1.5 px-3"
                 style={{ color: 'rgba(226,226,230,0.40)' }}
               >
                 {item.label}

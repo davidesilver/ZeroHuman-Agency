@@ -37,7 +37,27 @@ This document lists all database migrations that build up the complete Content E
 | 030 | `030_audit_indexes_and_search_path.sql` | Final audit indexes and search path configuration | - |
 | 031 | `031_research_retriever_enum_expansion.sql` | Research retriever enum expansion | - |
 | 032 | `032_brand_discovery_urls.sql` | Brand discovery URL tracking | - |
-| 033 | `033_brand_service_credentials.sql` | Per-brand API credential vault (encrypted, RLS) | - |
+| 030 | `030_audit_indexes_and_search_path.sql` | Security hardening: SECURITY DEFINER helpers with explicit search_path; missing indexes on hot query paths | - |
+| 031 | `031_feature_flags.sql` | Per-brand feature flags table (default-OFF gating for new capabilities) | - |
+| 031 | `031_research_retriever_enum_expansion.sql` | Adds `duckduckgo` and `tavily` to `retriever_type` enum | - |
+| 032 | `032_brand_integrations.sql` | Per-brand encrypted API key vault (`brand_integrations` table, Fernet-encrypted) | - |
+| 032 | `032_brand_discovery_urls.sql` | Adds `discovery_urls` column to `brands` table | - |
+| 033 | `033_brand_service_credentials.sql` | Per-brand external service credential vault (Fernet-encrypted, RLS) | - |
+| 033 | `033_brevo_foundation.sql` | Local mirror of Brevo contacts per brand (`brevo_contacts` table) | - |
+| 033 | `033_email_provider_config.sql` | Per-brand email provider configuration (Brevo, Mailchimp, Resend) | - |
+| 034 | `034_llm_provider_metrics.sql` | Per-call LLM telemetry table (`llm_provider_metrics`) for cost/latency comparison | - |
+| 034 | `034_newsletter_layout_type.sql` | Adds `layout_type` column to `newsletters` (digest \| single_story \| announcement) | - |
+| 035 | `035_deep_research_jobs.sql` | Async deep research job queue (`deep_research_jobs`) for local-deep-research sidecar | - |
+| 035 | `035_newsletter_subject_variants.sql` | Adds A/B subject line variant columns to `newsletters` | - |
+| 036 | `036_competitor_snapshots.sql` | Competitor page snapshots table (`competitor_snapshots`) via Scrapling spider | - |
+| 036 | `036_newsletter_ab_and_events.sql` | A/B campaign tracking columns on `newsletters`; `newsletter_events` table for ESP webhooks | - |
+| 037 | `037_deep_research_retriever_type.sql` | Adds `deep_research` value to `retriever_type` enum | - |
+| 037 | `037_notification_events.sql` | System-level pipeline events table (`notification_events`) for Telegram digest and activity feed | - |
+| 038 | `038_video_tables.sql` | `video_templates` and `videos` tables for HyperFrames rendering pipeline | - |
+| 039 | `039_carousel_to_reel_template.sql` | Seeds the system-level carousel-to-reel video template | - |
+| 040 | `040_heygen_quota.sql` | `heygen_usage` table for per-brand monthly quota tracking; adds `kind` and `heygen_video_id` to `videos` | - |
+| 041 | `041_brevo_campaigns.sql` | `brevo_campaigns` table for email campaign tracking and metrics | - |
+| 042 | `042_email_automations.sql` | `email_automations` table for Brevo multi-step workflow definitions | - |
 
 ## Complete Schema
 

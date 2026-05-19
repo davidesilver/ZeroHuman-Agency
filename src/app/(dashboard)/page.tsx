@@ -212,7 +212,7 @@ async function PipelineCard() {
               >
                 {stage.count}
               </p>
-              <p className="eyebrow mt-1 text-[10px]">{stage.label}</p>
+              <p className="eyebrow mt-1 text-[11px]">{stage.label}</p>
             </div>
             {i < stages.length - 1 && (
               <span className="mx-6 text-ink-tertiary text-lg">→</span>
@@ -256,7 +256,7 @@ async function ActivityCard() {
                     : '—'}
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="text-[10px] font-medium">
+                  <Badge variant="outline" className="text-[11px] font-medium">
                     {a.type.toUpperCase()}
                   </Badge>
                 </TableCell>
@@ -303,8 +303,8 @@ async function AgentStatusCard() {
                     <span
                       className={
                         a.status === 'healthy'
-                          ? 'status-success-soft text-[10px] font-medium px-1.5 py-0.5 rounded'
-                          : 'status-warning-soft text-[10px] font-medium px-1.5 py-0.5 rounded'
+                          ? 'status-success-soft text-[11px] font-medium px-1.5 py-0.5 rounded'
+                          : 'status-warning-soft text-[11px] font-medium px-1.5 py-0.5 rounded'
                       }
                     >
                       {a.status === 'healthy'
@@ -314,7 +314,7 @@ async function AgentStatusCard() {
                         : 'Offline'}
                     </span>
                     {isUsingFallback && (
-                      <span className="status-error-soft text-[10px] font-medium px-1.5 py-0.5 rounded">
+                      <span className="status-error-soft text-[11px] font-medium px-1.5 py-0.5 rounded">
                         Fallback
                       </span>
                     )}

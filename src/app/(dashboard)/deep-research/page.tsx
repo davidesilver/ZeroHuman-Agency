@@ -24,6 +24,21 @@ interface Job {
   completed_at?: string
 }
 
+interface ResearchSource {
+  url?: string
+  title?: string
+}
+
+interface ResearchResult {
+  result?: unknown
+  sources?: ResearchSource[]
+}
+
+interface IdeaItem {
+  title: string
+  summary?: string
+}
+
 function DeepResearchContent() {
   const { activeBrand } = useBrand()
   const [jobs, setJobs] = useState<Job[]>([])
@@ -34,9 +49,9 @@ function DeepResearchContent() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [results, setResults] = useState<Record<string, any>>({})
+  const [results, setResults] = useState<Record<string, ResearchResult>>({})
   const [generatingIdeas, setGeneratingIdeas] = useState<Record<string, boolean>>({})
-  const [ideaResults, setIdeaResults] = useState<Record<string, { created: number; items: any[] }>>({})
+  const [ideaResults, setIdeaResults] = useState<Record<string, { created: number; items: IdeaItem[] }>>({})
 
   const loadJobs = useCallback(async () => {
     try {
@@ -150,7 +165,8 @@ function DeepResearchContent() {
                 <button
                   key={d}
                   onClick={() => setDepth(d)}
-                  className={`h-8 w-8 rounded text-sm font-medium transition-colors ${
+                  aria-pressed={depth === d}
+                  className={`h-8 w-8 rounded text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 ${
                     depth === d
                       ? 'bg-primary text-primary-foreground'
                       : 'border hover:bg-muted'
@@ -211,18 +227,18 @@ function DeepResearchContent() {
                   <div className="prose prose-sm max-w-none">
                     <pre className="whitespace-pre-wrap text-xs leading-relaxed max-h-96 overflow-y-auto">
                       {typeof results[job.id].result === 'string'
-                        ? results[job.id].result
+                        ? (results[job.id].result as string)
                         : JSON.stringify(results[job.id].result, null, 2)}
                     </pre>
                   </div>
-                  {results[job.id].sources?.length > 0 && (
+                  {(results[job.id].sources?.length ?? 0) > 0 && (
                     <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground">Sources ({results[job.id].sources.length})</p>
-                      {results[job.id].sources.slice(0, 10).map((s: any, i: number) => (
+                      <p className="text-xs font-medium text-muted-foreground">Sources ({results[job.id].sources?.length})</p>
+                      {(results[job.id].sources ?? []).slice(0, 10).map((s: ResearchSource, i: number) => (
                         <div key={i} className="flex items-center gap-1 text-xs text-muted-foreground">
                           <ExternalLink className="h-3 w-3 shrink-0" />
-                          <a href={s.url ?? s} target="_blank" rel="noopener" className="hover:underline truncate">
-                            {s.title ?? s.url ?? s}
+                          <a href={s.url} target="_blank" rel="noopener" className="hover:underline truncate">
+                            {s.title ?? s.url ?? ''}
                           </a>
                         </div>
                       ))}
@@ -246,7 +262,7 @@ function DeepResearchContent() {
                         <p className="text-xs text-muted-foreground">
                           {ideaResults[job.id].created} ideas added to Research pipeline
                         </p>
-                        {ideaResults[job.id].items.map((item: any, i: number) => (
+                        {ideaResults[job.id].items.map((item: IdeaItem, i: number) => (
                           <div key={i} className="rounded border bg-background p-2">
                             <p className="text-xs font-medium">{item.title}</p>
                             {item.summary && (

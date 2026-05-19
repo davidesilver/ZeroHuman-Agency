@@ -277,32 +277,32 @@ function FactRow({
         <div className="flex flex-wrap items-center gap-1.5 mb-1">
           <Badge
             variant="outline"
-            className={`text-[10px] px-1.5 py-0 ${KIND_COLORS[fact.kind]}`}
+            className={`text-[11px] px-1.5 py-0 ${KIND_COLORS[fact.kind]}`}
           >
             {fact.kind.replace(/_/g, ' ')}
           </Badge>
           <Badge
             variant="outline"
-            className={`text-[10px] px-1.5 py-0 ${TIER_COLORS[fact.tier]}`}
+            className={`text-[11px] px-1.5 py-0 ${TIER_COLORS[fact.tier]}`}
           >
             {fact.tier}
           </Badge>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-[11px] text-muted-foreground">
             imp {fact.importance.toFixed(2)}
           </span>
           {fact.retrieval_hits > 0 && (
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-[11px] text-muted-foreground">
               {fact.retrieval_hits} hits
             </span>
           )}
           {isExpiringSoon && (
-            <span className="text-[10px] text-[var(--status-warning)] flex items-center gap-0.5">
+            <span className="text-[11px] text-[var(--status-warning)] flex items-center gap-0.5">
               <AlertTriangle className="size-3" /> expiring
             </span>
           )}
         </div>
         <p className="text-sm leading-snug">{fact.statement}</p>
-        <p className="text-[10px] text-muted-foreground mt-0.5">
+        <p className="text-[11px] text-muted-foreground mt-0.5">
           {new Date(fact.asserted_at).toLocaleDateString('en-GB', {
             day: '2-digit', month: 'short', year: 'numeric',
           })}
@@ -562,7 +562,7 @@ export default function MemoryInspectorPage() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <CardTitle className="text-sm">
                   Semantic Facts
-                  <Badge variant="secondary" className="ml-2 text-[10px]">
+                  <Badge variant="secondary" className="ml-2 text-[11px]">
                     {filteredFacts.length}
                   </Badge>
                 </CardTitle>
@@ -648,7 +648,7 @@ export default function MemoryInspectorPage() {
               <CardTitle className="text-sm flex items-center gap-2">
                 <Activity className="size-4 text-muted-foreground" />
                 Episodic Feed
-                <Badge variant="secondary" className="text-[10px]">
+                <Badge variant="secondary" className="text-[11px]">
                   {events.length}
                 </Badge>
               </CardTitle>

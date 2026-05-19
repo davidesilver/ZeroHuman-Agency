@@ -14,8 +14,8 @@ All tasks for open source publication have been completed successfully. The Cont
 - ✅ Enhanced `.gitignore` with best practices
 
 ### 2. Database Schema Unification
-- ✅ Created `supabase/schema_complete.sql` - unified schema file with all 30 migrations
-- ✅ Created `supabase/MIGRATIONS_LIST.md` - complete migration inventory
+- ✅ Created `supabase/schema_complete.sql` - unified schema file with all 42 migrations
+- ✅ Created `docs/database/MIGRATIONS_LIST.md` - complete migration inventory
 - ✅ Updated documentation to reference both individual and unified schema options
 
 ### 3. Documentation Updates
@@ -40,10 +40,12 @@ All tasks for open source publication have been completed successfully. The Cont
 
 ### Database Files
 - `supabase/schema_complete.sql` - Unified database schema
-- `supabase/MIGRATIONS_LIST.md` - Migration inventory and guide
+- `docs/database/MIGRATIONS_LIST.md` - Migration inventory and guide
 
 ### Documentation
 - `OPEN_SOURCE_PREPARATION_SUMMARY.md` - This file
+
+> **Note**: The `plans/` directory was retained as it contains active project planning documents.
 
 ## 🔄 Files Modified
 
@@ -63,7 +65,6 @@ All tasks for open source publication have been completed successfully. The Cont
 
 ### Internal Documentation
 - Entire `docs/internal/` directory (contained GitLab references and internal analysis)
-- `plans/` directory (project-specific planning documents)
 - `references/` directory (internal reference materials)
 
 ### Project-Specific
@@ -147,7 +148,7 @@ All placeholders have been replaced with actual repository references. No furthe
 ## 📊 Project Statistics
 
 - **Total Files**: Multiple source, config, and documentation files
-- **Migrations**: 30 database migrations
+- **Migrations**: 42 database migrations (001-042)
 - **Lines of Code**: ~4,500 lines in SQL schema alone
 - **Documentation**: Comprehensive guides and references
 - **License**: MIT (commercial-friendly)

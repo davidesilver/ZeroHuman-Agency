@@ -7,6 +7,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { z } from "zod"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -43,11 +44,24 @@ type AgentSkill = {
   updated_at: string
 }
 
+const AgentConfigSchema = z.object({
+  agent_name: z.string().min(1, 'Name is required').max(80, 'Max 80 characters'),
+  identity: z.string().min(1, 'Identity / system prompt is required'),
+})
+
+const AgentSkillSchema = z.object({
+  skill_name: z.string().min(1, 'Skill name is required').max(80, 'Max 80 characters'),
+  description: z.string().min(1, 'Description is required'),
+  instructions: z.string().min(1, 'Instructions are required'),
+})
+
 export default function AgentSettingsPage() {
   const [configs, setConfigs] = useState<AgentConfig[]>([])
   const [skills, setSkills] = useState<AgentSkill[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [configErrors, setConfigErrors] = useState<Record<string, string>>({})
+  const [skillErrors, setSkillErrors] = useState<Record<string, string>>({})
 
   // Form states
   const [newConfig, setNewConfig] = useState<{
@@ -100,13 +114,21 @@ export default function AgentSettingsPage() {
       }
     } catch (err) {
       setError("Failed to load agent data")
-      console.error(err)
+      if (process.env.NODE_ENV !== 'production') console.error(err)
     } finally {
       setLoading(false)
     }
   }
 
   const createConfig = async () => {
+    const parsed = AgentConfigSchema.safeParse(newConfig)
+    if (!parsed.success) {
+      const errs: Record<string, string> = {}
+      for (const issue of parsed.error.issues) errs[String(issue.path[0])] = issue.message
+      setConfigErrors(errs)
+      return
+    }
+    setConfigErrors({})
     try {
       const response = await fetch("/api/v1/agent-configs", {
         method: "POST",
@@ -120,11 +142,20 @@ export default function AgentSettingsPage() {
         setNewConfig({ agent_key: "writer", agent_name: "", identity: "" })
       }
     } catch (err) {
-      console.error("Failed to create config:", err)
+      setError("Failed to create agent config")
+      if (process.env.NODE_ENV !== 'production') console.error(err)
     }
   }
 
   const createSkill = async () => {
+    const parsed = AgentSkillSchema.safeParse(newSkill)
+    if (!parsed.success) {
+      const errs: Record<string, string> = {}
+      for (const issue of parsed.error.issues) errs[String(issue.path[0])] = issue.message
+      setSkillErrors(errs)
+      return
+    }
+    setSkillErrors({})
     try {
       const response = await fetch("/api/v1/agent-skills", {
         method: "POST",
@@ -145,7 +176,8 @@ export default function AgentSettingsPage() {
         })
       }
     } catch (err) {
-      console.error("Failed to create skill:", err)
+      setError("Failed to create agent skill")
+      if (process.env.NODE_ENV !== 'production') console.error(err)
     }
   }
 
@@ -164,7 +196,8 @@ export default function AgentSettingsPage() {
         fetchAgentData()
       }
     } catch (err) {
-      console.error("Failed to toggle config:", err)
+      setError("Failed to update agent config")
+      if (process.env.NODE_ENV !== 'production') console.error(err)
     }
   }
 
@@ -178,7 +211,8 @@ export default function AgentSettingsPage() {
         fetchAgentData()
       }
     } catch (err) {
-      console.error("Failed to delete config:", err)
+      setError("Failed to delete agent config")
+      if (process.env.NODE_ENV !== 'production') console.error(err)
     }
   }
 
@@ -201,7 +235,8 @@ export default function AgentSettingsPage() {
         fetchAgentData()
       }
     } catch (err) {
-      console.error("Failed to toggle skill:", err)
+      setError("Failed to update agent skill")
+      if (process.env.NODE_ENV !== 'production') console.error(err)
     }
   }
 
@@ -215,7 +250,8 @@ export default function AgentSettingsPage() {
         fetchAgentData()
       }
     } catch (err) {
-      console.error("Failed to delete skill:", err)
+      setError("Failed to delete agent skill")
+      if (process.env.NODE_ENV !== 'production') console.error(err)
     }
   }
 

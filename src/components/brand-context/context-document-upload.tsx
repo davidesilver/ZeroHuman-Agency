@@ -322,7 +322,7 @@ export function ContextDocumentUpload({ onIngested }: { onIngested?: () => void 
             <span className="text-xs text-muted-foreground truncate flex-1">
               From <span className="font-mono">{sourceLabel}</span>
             </span>
-            <Badge variant="secondary" className="text-[10px]">
+            <Badge variant="secondary" className="text-[11px]">
               {candidates.length} candidate{candidates.length === 1 ? '' : 's'}
             </Badge>
           </div>
@@ -391,7 +391,7 @@ function CandidateRow({
       <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-green-50 border border-green-200 text-xs">
         <CheckCircle2 className="size-3.5 text-green-600 shrink-0" />
         <span className="flex-1 truncate text-green-900">{c.statement}</span>
-        <Badge variant="outline" className={`text-[10px] ${KIND_BADGE[c.kind]}`}>
+        <Badge variant="outline" className={`text-[11px] ${KIND_BADGE[c.kind]}`}>
           {KIND_LABEL[c.kind]}
         </Badge>
       </div>
@@ -433,7 +433,7 @@ function CandidateRow({
         </Select>
 
         <div className="flex items-center gap-1.5">
-          <Label className="text-[10px] text-muted-foreground">imp</Label>
+          <Label className="text-[11px] text-muted-foreground">imp</Label>
           <input
             type="range"
             min={0}
@@ -443,7 +443,7 @@ function CandidateRow({
             onChange={(e) => onPatch({ importance: parseFloat(e.target.value) })}
             className="w-20 accent-primary"
           />
-          <span className="text-[10px] text-muted-foreground w-7 text-right">
+          <span className="text-[11px] text-muted-foreground w-7 text-right">
             {c.importance.toFixed(2)}
           </span>
         </div>
@@ -451,7 +451,7 @@ function CandidateRow({
         {!c.verified && (
           <Badge
             variant="outline"
-            className="text-[10px] text-amber-700 border-amber-300 bg-amber-50"
+            className="text-[11px] text-amber-700 border-amber-300 bg-amber-50"
             title={(c.verification_failures || []).join(' · ') || 'failed verifier'}
           >
             <AlertTriangle className="size-3 mr-1" /> low confidence
@@ -460,7 +460,7 @@ function CandidateRow({
 
         <div className="ml-auto flex items-center gap-1">
           {c._error && (
-            <span className="text-[10px] text-destructive">{c._error}</span>
+            <span className="text-[11px] text-destructive">{c._error}</span>
           )}
           <Button
             variant="ghost"

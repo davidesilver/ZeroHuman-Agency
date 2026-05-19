@@ -46,18 +46,32 @@ Set this as environment variable in your backend:
 SCHEDULER_SECRET=your-generated-secret-here
 ```
 
-### Step 3: Update Migration File
+### Step 3: Configure the cron job URL and secret
 
-Edit `/supabase/migrations/009_feedback_loop_cron_jobs.sql`:
+The migration uses placeholders for the backend URL and scheduler secret. **Do not put the actual secret value inside the migration file** — SQL migrations are committed to version control.
 
-Replace these placeholders with your actual values:
-```sql
--- Replace with your actual backend URL
-url := 'https://backend.yourdomain.com/api/analytics/pull-metrics',
+Instead, use one of these approaches:
 
--- Replace with your actual scheduler secret
-'X-Scheduler-Secret', 'your-generated-secret-here'
+**Option A — Supabase Vault (recommended for production)**
+
+Store the secret in [Supabase Vault](https://supabase.com/docs/guides/database/vault), then reference it in the cron job body via `vault.decrypted_secrets`.
+
+**Option B — Apply via psql with substitution**
+
+```bash
+# Export the values you need
+export BACKEND_URL="https://backend.yourdomain.com"
+export SCHEDULER_SECRET="your-generated-secret-here"
+
+# Apply the migration with envsubst substitution
+envsubst < supabase/migrations/009_feedback_loop_cron_jobs.sql | psql "$DATABASE_URL"
 ```
+
+**Option C — Supabase pg_net with Edge Function secret**
+
+Proxy the cron call through a Supabase Edge Function. The function reads the secret from its own env vars, never exposing it in the SQL layer.
+
+After choosing an option, apply the migration:
 
 ### Step 4: Apply Migration
 
@@ -352,7 +366,6 @@ Configure Supabase to send alerts for:
 ## Support
 
 ### Documentation
-- **Cron Jobs Setup**: `/references/docs/cron-jobs.md` — Complete guide
 - **Analytics Service**: `/python/src/content_engine/services/postiz_analytics.py`
 - **Feedback Service**: `/python/src/content_engine/services/feedback_loop.py`
 - **Migration**: `/supabase/migrations/009_feedback_loop_cron_jobs.sql`

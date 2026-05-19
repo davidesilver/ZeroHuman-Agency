@@ -97,7 +97,7 @@ export function GettingStartedBanner() {
     {
       label: 'Run first research',
       done: status?.research ?? false,
-      href: '/ricerca',
+      href: '/research',
       detail: 'Discover and score content ideas from the web',
     },
     {

@@ -65,7 +65,7 @@ brew install supabase/tap/supabase
 # Link to your project
 supabase link --project-ref YOUR_PROJECT_REF
 
-# Apply all migrations (001-033)
+# Apply all migrations (001-042)
 supabase db push
 ```
 
@@ -79,7 +79,7 @@ export DATABASE_URL="postgresql://user:password@host:port/database"
 psql "$DATABASE_URL" -f supabase/schema_complete.sql
 ```
 
-For detailed migration information, see [`supabase/MIGRATIONS_LIST.md`](../supabase/MIGRATIONS_LIST.md).
+For detailed migration information, see [`docs/database/MIGRATIONS_LIST.md`](../docs/database/MIGRATIONS_LIST.md).
 
 ---
 
@@ -110,32 +110,6 @@ ALLOWED_ORIGINS=http://localhost:3000
 ```
 
 Everything else is optional and can be added later. See [`.env.example`](../.env.example) for the full reference with descriptions.
-
----
-
-## 3. Database
-
-Link the Supabase CLI to your project, then push all migrations:
-
-```bash
-supabase link --project-ref YOUR_PROJECT_REF
-supabase db push
-```
-
-This applies all 42 migrations in [`supabase/migrations/`](../supabase/migrations/), which creates:
-
-- Tenant tables: `brands`, `users`, `brand_members`
-- Content pipeline: `research_items`, `scores`, `content_drafts`, `newsletters`
-- Agent system: `agent_configs`, `agent_skills`
-- Observability: `api_costs`, `pipeline_health`, `llm_fallback_log`
-- Feature flags and brand secrets: `feature_flags`, `brand_integrations`
-- Email marketing: `brevo_contacts`, `brevo_campaigns`, `email_automations`
-- Research extensions: `deep_research_jobs`, `competitor_snapshots`
-- Video pipeline: `video_templates`, `videos`, `heygen_usage`
-- LLM telemetry: `llm_provider_metrics`
-- Enums, SQL helper functions, RLS policies, and views
-
-If you see an error like `relation does not exist`, make sure you are pushing from a clean database. Run `supabase migration list` to verify all migrations are applied.
 
 ---
 
@@ -301,7 +275,7 @@ BRAND_SECRETS_ENCRYPTION_KEY=<output-from-command-above>
 
 ```bash
 # Set brand-specific Serper key
-curl -X PUT http://localhost:8082/api/brands/credentials/serper \
+curl -X PUT http://localhost:8000/api/brands/credentials/serper \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"credentials": {"api_key": "sk-serper-xxxx"}}'
@@ -443,7 +417,7 @@ When both are set, the backend sends alerts for pipeline errors and daily summar
 
 ---
 
-## 10. Optional: local-deep-research sidecar
+## 12. Optional: local-deep-research sidecar
 
 Run the research sidecar alongside the backend to enable async multi-source research jobs.
 
@@ -465,7 +439,7 @@ VALUES ('<brand-id>', 'deep_research_enabled', true);
 
 ---
 
-## 11. Optional: Agency agents
+## 13. Optional: Agency agents
 
 Install community agent collections from the bundled submodule:
 
@@ -498,6 +472,6 @@ Agents are installed to `agents/`. See [`docs/AGENTS.md`](AGENTS.md) for the ful
 | `Feature not enabled for this brand` | Feature flag is OFF | Insert the flag via SQL or the feature-flags API endpoint |
 | Deep research jobs stay `pending` | local-deep-research sidecar not running | Start the Docker container and verify `DEEP_RESEARCH_URL` |
 | Brevo sync fails with `401` | Brevo API key not set or wrong | Set it via **Settings → Audience** → save API key |
-| `BRAND_SECRETS_ENCRYPTION_KEY not configured` | Missing env var | Generate the key and add to `.env.local` (see section 9) |
+| `BRAND_SECRETS_ENCRYPTION_KEY not configured` | Missing env var | Generate the key and add to `.env.local` (see section 8) |
 | Video jobs stay `pending` | HyperFrames CLI not on PATH | Install HyperFrames and verify `hyperframes --version` works |
 | `Scrapling not installed, using httpx fallback` | scrapling optional dep missing | `cd python && uv sync` (scrapling is in pyproject.toml) |
