@@ -52,6 +52,11 @@ python/.venv/
 
 # Supabase
 supabase/.temp/
+supabase/migrations/
+
+# Rules
+AGENTS.md
+CLAUDE.md
 
 # Claude
 .claude/
