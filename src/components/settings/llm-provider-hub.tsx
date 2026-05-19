@@ -502,7 +502,7 @@ function AutoDiscoverButton() {
 
 // ── Main hub ───────────────────────────────────────────────────────────────────
 
-export function LLMProviderHub() {
+export function LLMProviderHub({ wizardMode = false }: { wizardMode?: boolean }) {
   const { activeBrand } = useBrand()
   const [providers, setProviders] = useState<ProviderDef[]>([])
   const [loading, setLoading] = useState(true)
