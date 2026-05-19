@@ -30,8 +30,8 @@ def _ensure_defaults() -> None:
         return
     with _lock:
         if not _initialized:
-            from .openrouter import OpenRouterProvider
             from .openclaw import OpenClawProvider
+            from .openrouter import OpenRouterProvider
             _registry["openrouter"] = OpenRouterProvider()
             _registry["openclaw"] = OpenClawProvider()
             _initialized = True
@@ -88,15 +88,15 @@ def invalidate_brand_preference_cache(brand_id: str) -> None:
 
 # ── Build a provider instance from a catalog entry + brand secrets ─────────────
 
-def _build_byok_provider(provider_id: str, brand_id: str) -> Optional[LLMProvider]:
+def _build_byok_provider(provider_id: str, brand_id: str) -> LLMProvider | None:
     from .provider_catalog import PROVIDER_CATALOG
     defn = PROVIDER_CATALOG.get(provider_id)
     if not defn:
         return None
 
     if defn.api_type == "anthropic_native":
-        from .anthropic_direct import AnthropicDirectProvider
         from ..brand_secrets import get_brand_secret
+        from .anthropic_direct import AnthropicDirectProvider
         api_key = get_brand_secret(brand_id, provider_id, "api_key")
         if not api_key:
             return None
@@ -119,8 +119,8 @@ class ProviderRegistrar:
     def get_for_brand(self, brand_id: str, preferred: str | None = None) -> LLMProvider:
         """Return the best available provider for a brand using the 7-level cascade."""
         _ensure_defaults()
-        from .provider_catalog import PROVIDER_CATALOG
         from ..config import settings
+        from .provider_catalog import PROVIDER_CATALOG
 
         # ── Level 1: caller-specified preferred ─────────────────────────────
         if preferred:
@@ -164,7 +164,7 @@ class ProviderRegistrar:
 
         # ── Level 6: system Anthropic env var ───────────────────────────────
         if settings.anthropic_api_key:
-            from .anthropic_direct import AnthropicDirectProvider, _DEFAULT_MODEL
+            from .anthropic_direct import _DEFAULT_MODEL, AnthropicDirectProvider
             return AnthropicDirectProvider(settings.anthropic_api_key, _DEFAULT_MODEL)
 
         # ── Level 7: system OpenRouter env var (always-on fallback) ─────────

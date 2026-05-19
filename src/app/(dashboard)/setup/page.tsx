@@ -910,7 +910,7 @@ function StepReview({
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold mb-1">Review & Launch</h2>
-        <p className="text-sm text-muted-foreground">Here's your setup summary. Missing items can be configured in Settings.</p>
+        <p className="text-sm text-muted-foreground">Here&apos;s your setup summary. Missing items can be configured in Settings.</p>
       </div>
 
       <div className="space-y-1.5">

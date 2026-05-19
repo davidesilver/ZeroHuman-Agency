@@ -23,9 +23,9 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from ..db import get_db
+from ..services.brand_secrets import delete_brand_secret, set_brand_secret
+from ..services.llm.provider_catalog import PROVIDER_CATALOG
 from ..services.llm.registrar import list_providers
-from ..services.llm.provider_catalog import PROVIDER_CATALOG, list_providers_by_category
-from ..services.brand_secrets import get_brand_secret, set_brand_secret, delete_brand_secret
 
 _logger = logging.getLogger("content_engine.llm_providers")
 
@@ -192,7 +192,8 @@ async def probe_gateway(body: ProbeBody, request: Request):
 async def auto_discover_gateways(request: Request):
     """Probe all default gateway ports and return which ones are online."""
     _brand_id(request)
-    import concurrent.futures, time
+    import concurrent.futures
+    import time
 
     defaults = [
         {"id": "ollama",    "display_name": "Ollama",     "url": "http://localhost:11434"},

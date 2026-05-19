@@ -5,10 +5,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.auth_middleware import JWTAuthMiddleware
-from .api.setup_mode_middleware import SetupModeMiddleware
 from .api.routes import router
 from .api.routes_agents import router as agents_router
 from .api.routes_images import router as images_router
+from .api.setup_mode_middleware import SetupModeMiddleware
 from .utils.logging_config import setup_logging
 from .utils.rate_limiter_persistent import PersistentRateLimitMiddleware
 

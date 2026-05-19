@@ -14,6 +14,7 @@ export async function GET(request: Request) {
   if (!key) return NextResponse.json({ error: 'key is required' }, { status: 400 })
 
   const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase as any).from('feature_flags').select('key, value, brand_id').eq('key', key)
   if (brandId) query = query.eq('brand_id', brandId)
 
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
     .from('feature_flags')
     .upsert({ brand_id: body.brand_id, key: body.key, value: body.value }, { onConflict: 'brand_id,key' })

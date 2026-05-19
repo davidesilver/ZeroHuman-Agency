@@ -335,7 +335,7 @@ export async function runInit(opts: InitOptions = {}): Promise<void> {
   printSection('Step 7 / 8  Database')
 
   if (!opts.noMigrations) {
-    let runMigrations = !nonInteractive
+    const runMigrations = !nonInteractive
       ? ((await p.confirm({ message: 'Apply Supabase migrations now?' })) as boolean)
       : true
 
