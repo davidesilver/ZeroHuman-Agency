@@ -17,15 +17,15 @@ Stack:
 - Integrazioni vive: Postiz (satellite), Resend, Replicate/OpenAI/Pillo (immagini), Serper, YouTube, Firecrawl, MCP, Telegram
 - Skills system in `skills-lock.json` (oggi: solo Supabase best practices)
 
-Modalità di integrazione possibili (importante distinguerle):
+Possible integration modes (important to distinguish them):
 
-| Modalità | Cosa significa | Quando usarla |
-|----------|----------------|---------------|
-| **Skill / plugin Claude** | Aggiunto a `.claude/skills/` o `skills-lock.json` o `/plugin marketplace add`. Disponibile solo all'agente Claude Code in dev | Knowledge / workflow per noi sviluppatori, non per gli utenti finali |
-| **MCP server** | Esposto come tool MCP a Claude (e teoricamente al backend Python via `mcp>=1.0.0` già presente) | Capability runtime che il sistema agentico deve usare (es. scraping, ricerca) |
-| **Dipendenza Python/Node nel codice** | `pip add` / `npm add` e import diretto | Funzionalità di prodotto che diventa parte del Content Engine |
-| **Satellite esterno (come Postiz)** | Container separato, comunica via HTTP API | Sistema pesante con UI propria, ciclo di rilascio indipendente, multi-tenant lateralmente |
-| **Riferimento / pattern** | Solo studio, niente codice importato | Repo educativi (es. awesome-lists, prompt guides) |
+| Mode | What it means | When to use it |
+|------|---------------|----------------|
+| **Skill / Claude plugin** | Added to `.claude/skills/` or `skills-lock.json` or `/plugin marketplace add`. Available only to the Claude Code agent in dev | Knowledge / workflow for us as developers, not for end users |
+| **MCP server** | Exposed as an MCP tool to Claude (and theoretically to the Python backend via `mcp>=1.0.0` already present) | Runtime capability that the agentic system must use (e.g. scraping, research) |
+| **Python/Node dependency in code** | `pip add` / `npm add` and direct import | Product functionality that becomes part of the Content Engine |
+| **External satellite (like Postiz)** | Separate container, communicates via HTTP API | Heavy system with its own UI, independent release cycle, laterally multi-tenant |
+| **Reference / pattern** | Study only, no code imported | Educational repos (e.g. awesome-lists, prompt guides) |
 
 ---
 

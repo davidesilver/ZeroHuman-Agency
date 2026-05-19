@@ -152,7 +152,7 @@ export default function RevenuePage() {
                       {deal.end_date ? new Date(deal.end_date).toLocaleDateString('en-US') : 'Ongoing'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={deal.status === 'active' ? 'default' : 'outline'} className="text-[10px]">
+                      <Badge variant={deal.status === 'active' ? 'default' : 'outline'} className="text-[11px]">
                         {deal.status.toUpperCase()}
                       </Badge>
                     </TableCell>

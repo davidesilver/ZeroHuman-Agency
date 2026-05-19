@@ -309,7 +309,7 @@ export function BrandDiscovery({ onFactsSaved }: BrandDiscoveryProps) {
               <CardHeader className="py-2.5 px-4">
                 <CardTitle className="text-xs font-medium flex items-center gap-2">
                   <span>{meta.label}</span>
-                  <Badge className={`text-[10px] ${meta.badgeClass} border-0`}>{kindFacts.length}</Badge>
+                  <Badge className={`text-[11px] ${meta.badgeClass} border-0`}>{kindFacts.length}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 space-y-2">
@@ -342,7 +342,7 @@ export function BrandDiscovery({ onFactsSaved }: BrandDiscoveryProps) {
                         </button>
                       )}
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[11px] text-muted-foreground">
                           confidence {Math.round(confidence * 100)}%
                         </span>
                       </div>
@@ -402,7 +402,7 @@ export function BrandDiscovery({ onFactsSaved }: BrandDiscoveryProps) {
                 >
                   <div className="text-base mb-0.5">{t.emoji}</div>
                   <div className="text-xs font-medium">{t.name}</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{t.description}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{t.description}</div>
                 </button>
               ))}
             </div>

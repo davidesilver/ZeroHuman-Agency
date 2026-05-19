@@ -144,7 +144,7 @@ export function EmailProviderCard() {
         <CardTitle className="text-sm flex items-center gap-2">
           <Mail className="size-4 text-muted-foreground" />
           Email Provider
-          <Badge variant="secondary" className="text-[10px] ml-1">newsletter delivery</Badge>
+          <Badge variant="secondary" className="text-[11px] ml-1">newsletter delivery</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -169,7 +169,7 @@ export function EmailProviderCard() {
                     }`}
                   >
                     <div className="font-medium">{p.label}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">{p.description}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{p.description}</div>
                   </button>
                 ))}
               </div>
@@ -184,7 +184,7 @@ export function EmailProviderCard() {
                     href={PROVIDER_DOCS[provider]}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Get key ↗
                   </a>
@@ -252,7 +252,7 @@ export function EmailProviderCard() {
                     <button
                       onClick={loadLists}
                       disabled={loadingLists}
-                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                     >
                       {loadingLists ? 'Loading…' : 'Refresh lists'}
                     </button>
@@ -298,7 +298,7 @@ export function EmailProviderCard() {
                     onChange={e => setAbSplitPct(Number(e.target.value))}
                     className="h-8 text-sm"
                   />
-                  <p className="text-[10px] text-muted-foreground">% of list for split (5–50)</p>
+                  <p className="text-[11px] text-muted-foreground">% of list for split (5–50)</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Winner wait (hours)</Label>
@@ -310,7 +310,7 @@ export function EmailProviderCard() {
                     onChange={e => setAbWaitHours(Number(e.target.value))}
                     className="h-8 text-sm"
                   />
-                  <p className="text-[10px] text-muted-foreground">Hours before auto-selecting winner</p>
+                  <p className="text-[11px] text-muted-foreground">Hours before auto-selecting winner</p>
                 </div>
               </div>
             )}
@@ -325,7 +325,7 @@ export function EmailProviderCard() {
                   </code>
                   <button
                     onClick={() => navigator.clipboard.writeText(webhookUrl)}
-                    className="text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors shrink-0"
                   >
                     Copy
                   </button>

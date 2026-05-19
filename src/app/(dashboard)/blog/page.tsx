@@ -203,7 +203,7 @@ export default function BlogPage() {
                   {post.created_at ? new Date(post.created_at).toLocaleDateString('en-US') : '—'}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={post.status === 'published' ? 'default' : 'outline'} className="text-[10px]">
+                  <Badge variant={post.status === 'published' ? 'default' : 'outline'} className="text-[11px]">
                     {post.status.toUpperCase()}
                   </Badge>
                 </TableCell>
@@ -225,7 +225,7 @@ export default function BlogPage() {
               </SheetHeader>
               <div className="mt-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <Badge variant={selectedPost.status === 'published' ? 'default' : 'outline'} className="text-[10px]">
+                  <Badge variant={selectedPost.status === 'published' ? 'default' : 'outline'} className="text-[11px]">
                     {selectedPost.status.toUpperCase()}
                   </Badge>
                   {selectedPost.seo_score && (

@@ -100,7 +100,7 @@ export function PublishButton({ draftId, onPublished }: PublishButtonProps) {
           <button
             key={intg.platform}
             onClick={() => togglePlatform(intg.platform)}
-            className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
+            className={`px-2 py-0.5 rounded text-[11px] border transition-colors ${
               selected.has(intg.platform)
                 ? 'bg-primary text-primary-foreground border-primary'
                 : 'bg-surface-card text-muted-foreground border-hairline hover:border-hairline-strong'
@@ -122,13 +122,13 @@ export function PublishButton({ draftId, onPublished }: PublishButtonProps) {
            success ? <Check size={12} /> : <Send size={12} />}
           {loading ? 'Publishing…' : success ? 'Published!' : 'Publish now'}
         </button>
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-[11px] text-muted-foreground">
           {selected.size} platform{selected.size !== 1 ? 's' : ''} selected
         </span>
       </div>
 
       {error && (
-        <div className="flex items-center gap-1 text-[10px] text-status-error">
+        <div className="flex items-center gap-1 text-[11px] text-status-error">
           <AlertCircle size={10} />
           {error}
         </div>

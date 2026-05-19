@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { z } from 'zod'
 import { useBrand } from '@/lib/brand-context'
 import { Save, TestTube, BarChart3, ChevronLeft, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
@@ -14,6 +15,13 @@ const BACKENDS = [
 ]
 
 const STYLES = ['editorial-minimal','tech-futuristic','warm-human','illustration-flat']
+
+const ImageSettingsSchema = z.object({
+  backend: z.enum(['replicate', 'openai', 'openrouter', 'anthropic', 'pillo', 'mock'], { message: 'Invalid backend' }),
+  model: z.string().min(1, 'Model is required'),
+  style: z.string().min(1, 'Style is required'),
+  template: z.string().optional(),
+})
 
 const MODEL_SUGGESTIONS: Record<string, string[]> = {
   replicate: ['black-forest-labs/flux-schnell','black-forest-labs/flux-dev','stability-ai/sdxl'],
@@ -31,6 +39,7 @@ export default function ImageGenerationSettingsPage() {
   const [style, setStyle] = useState('editorial-minimal')
   const [template, setTemplate] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saveErr, setSaveErr] = useState<string | null>(null)
   const [testUrl, setTestUrl] = useState<string | null>(null)
   const [testErr, setTestErr] = useState<string | null>(null)
   type RecentJob = {
@@ -63,6 +72,12 @@ export default function ImageGenerationSettingsPage() {
 
   async function save() {
     if (!activeBrand) return
+    const parsed = ImageSettingsSchema.safeParse({ backend, model, style, template })
+    if (!parsed.success) {
+      setSaveErr(parsed.error.issues.map(i => i.message).join('; '))
+      return
+    }
+    setSaveErr(null)
     setSaving(true)
     await fetch(`/api/brands/${activeBrand.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -194,7 +209,7 @@ export default function ImageGenerationSettingsPage() {
                       job.status === 'failed' ? 'bg-[var(--status-error)]' :
                       job.status === 'running' ? 'bg-[var(--status-warning)]' : 'bg-ink-tertiary'
                     }`} />
-                    <span className="font-mono text-[10px] text-muted-foreground">{job.id.slice(0,8)}</span>
+                    <span className="font-mono text-[11px] text-muted-foreground">{job.id.slice(0,8)}</span>
                     <span className="capitalize">{job.status}</span>
                     <span className="text-muted-foreground">{job.backend}:{job.model_id}</span>
                     {job.cost_usd != null && <span className="text-muted-foreground">${Number(job.cost_usd).toFixed(4)}</span>}

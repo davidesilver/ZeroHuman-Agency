@@ -61,7 +61,7 @@ Everything is **multi-tenant**: each brand has isolated data, its own sources, t
 ┌──────────▼───────────┐     ┌─────────────▼─────────────┐
 │   Supabase / Postgres │     │    FastAPI Backend         │
 │   Auth · RLS · Storage│     │  Research · Scoring       │
-│   Migrations 001-029  │     │  Generation · Agents      │
+│   Migrations 001-042  │     │  Generation · Agents      │
 │   pgvector · pg_cron  │     │  Scheduler · Analytics    │
 └──────────────────────┘     └─────────────┬─────────────┘
                                             │ HTTP (optional)
@@ -110,7 +110,7 @@ Create multiple brands, each with its own sources, tone, agents, scoring weights
 ### Prerequisites
 
 - Node.js 20+
-- Python 3.11+
+- Python 3.14+
 - [uv](https://docs.astral.sh/uv/) (`pip install uv` or `brew install uv`)
 - A Supabase project (free tier works)
 - At least one LLM provider API key
@@ -126,7 +126,7 @@ brew install supabase/tap/supabase   # or: npm i -g supabase
 # Link to your project (get the ref from your Supabase dashboard)
 supabase link --project-ref YOUR_PROJECT_REF
 
-# Apply all migrations (001-030)
+# Apply all migrations (001-042)
 supabase db push
 
 # Or use the complete schema file for fresh setup
@@ -154,8 +154,8 @@ npm run dev
 ```bash
 cd python
 uv sync
-uv run uvicorn src.content_engine.main:app --reload --port 8082
-# → http://localhost:8082
+uv run uvicorn src.content_engine.main:app --reload --port 8000
+# → http://localhost:8000
 ```
 
 ### 5 — First brand
@@ -180,7 +180,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # Backend location (frontend proxies heavy ops here)
-PYTHON_BACKEND_URL=http://localhost:8082
+PYTHON_BACKEND_URL=http://localhost:8000
 
 # At least one LLM provider
 ANTHROPIC_API_KEY=
@@ -218,7 +218,7 @@ REPLICATE_API_TOKEN=
 ### Operations
 
 ```bash
-ALLOWED_ORIGINS=http://localhost:3080   # comma-separated — must match the Next.js port you use
+ALLOWED_ORIGINS=http://localhost:3000   # comma-separated — must match the Next.js port you use
 NEWSLETTER_FROM_EMAIL=hello@yourdomain.com
 NEWSLETTER_FROM_NAME=Your Newsletter
 TELEGRAM_BOT_TOKEN=          # optional: alert channel
@@ -297,11 +297,11 @@ Every table that holds operational data has a `brand_id` foreign key. Row Level 
 │   │   ├── (dashboard)/          # All dashboard pages
 │   │   │   ├── page.tsx          # Home / overview
 │   │   │   ├── content-hub/      # Draft listing and editor
-│   │   │   ├── ricerca/          # Research runs and item management
+│   │   │   ├── research/         # Research runs and item management
 │   │   │   ├── newsletter/       # Newsletter composition
 │   │   │   ├── social/           # Social publishing
 │   │   │   ├── writing-lab/      # Experimental writing sessions
-│   │   │   ├── metriche/         # Analytics
+│   │   │   ├── metrics/          # Analytics
 │   │   │   ├── settings/         # Brand settings, agents, social connections
 │   │   │   └── ...
 │   │   └── api/                  # Next.js route handlers
@@ -331,7 +331,7 @@ Every table that holds operational data has a `brand_id` foreign key. Row Level 
 │   └── config/settings.py        # Pydantic settings (all from env)
 │
 ├── supabase/
-│   ├── migrations/               # 001–029: canonical schema source of truth
+│   ├── migrations/               # 001–042: canonical schema source of truth
 │   └── functions/                # Edge functions (analytics sync)
 │
 ├── docker-compose.postiz.yaml    # Optional social publishing satellite
@@ -468,6 +468,8 @@ Add the platform to the `platform` enum in a new migration, add platform-specifi
 5. Ensure the build passes: `npm run lint && npm run build`
 6. Ensure backend tests pass: `cd python && uv run pytest`
 7. Open a pull request with a clear description of what changed and why
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ---
 

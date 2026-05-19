@@ -34,7 +34,7 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
         return (
           <div key={i} className="flex items-center gap-1">
             <div
-              className={`size-6 rounded-full flex items-center justify-center text-[10px] font-semibold transition-colors
+              className={`size-6 rounded-full flex items-center justify-center text-[11px] font-semibold transition-colors
                 ${done ? 'bg-primary text-white' : active ? 'bg-primary/20 text-primary border border-primary' : 'bg-muted text-muted-foreground'}`}
             >
               {done ? <Check className="size-3" /> : i + 1}

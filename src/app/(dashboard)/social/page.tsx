@@ -92,11 +92,11 @@ export default function SocialPage() {
             <Card key={post.id}>
               <CardContent className="pt-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Badge className={`text-[10px] ${platformColor(post.platform)}`}>
+                  <Badge className={`text-[11px] ${platformColor(post.platform)}`}>
                     {post.platform.toUpperCase()}
                   </Badge>
                   <span className="text-sm font-medium">{post.title || 'Untitled'}</span>
-                  <Badge variant="outline" className="text-[10px]">{post.status}</Badge>
+                  <Badge variant="outline" className="text-[11px]">{post.status}</Badge>
                 </div>
                 <div className="flex items-center gap-2">
                   {post.status === 'approved' && post.platform === 'linkedin' && (

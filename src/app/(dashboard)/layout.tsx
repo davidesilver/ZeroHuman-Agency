@@ -37,12 +37,18 @@ export default async function DashboardLayout({
   return (
     <BrandProvider>
       <div className="h-screen flex flex-col overflow-hidden bg-background">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:rounded focus:ring-2 focus:ring-primary"
+        >
+          Skip to content
+        </a>
         <StagingBar />
 
         <div className="flex flex-1 overflow-hidden">
           <Sidebar logoutAction={logout} />
 
-          <main className="flex-1 flex flex-col overflow-hidden">
+          <main id="main-content" className="flex-1 flex flex-col overflow-hidden">
             {/* Top context bar — URL input + API spend pills */}
             <div className="border-b border-hairline px-6 py-3 space-y-2 shrink-0">
               <URLBar />

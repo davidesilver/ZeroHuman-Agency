@@ -76,14 +76,14 @@ export function DraftCard({ draft, onAction, onMediaChange }: DraftCardProps) {
       <CardContent className="pt-4 space-y-3 flex-1 flex flex-col">
         <div className="flex items-start justify-between gap-2">
           <div className="flex gap-1.5 flex-wrap">
-            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${platformClass(draft.platform)}`}>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${platformClass(draft.platform)}`}>
               {draft.platform.toUpperCase()}
             </span>
-            <Badge variant="secondary" className="text-[10px]">
+            <Badge variant="secondary" className="text-[11px]">
               {draft.content_type}
             </Badge>
           </div>
-          <Badge variant={statusVariant(draft.status)} className="text-[10px]">
+          <Badge variant={statusVariant(draft.status)} className="text-[11px]">
             {draft.status.toUpperCase().replace('_', ' ')}
           </Badge>
         </div>

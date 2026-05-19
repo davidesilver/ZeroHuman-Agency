@@ -44,8 +44,29 @@ supabase gen types typescript --linked > src/lib/types/database.types.ts
 | 027 | `image_backend_providers.sql` | Expands `image_backend` constraint to include `openrouter`, `anthropic` |
 | 028 | `brand_social_integrations.sql` | `brand_social_integrations`; Postiz integration ID storage |
 | 029 | `content_drafts_metadata.sql` | `content_drafts.metadata` jsonb column (stores `postiz_post_ids`) |
+| 030 | `audit_indexes_and_search_path.sql` | SECURITY DEFINER hardening (explicit `search_path`); missing indexes on hot paths |
+| 031 | `feature_flags.sql` | `feature_flags` per-brand capability gating table |
+| 031 | `research_retriever_enum_expansion.sql` | `retriever_type` expanded with `duckduckgo`, `tavily` |
+| 032 | `brand_integrations.sql` | `brand_integrations` encrypted key vault (Fernet) |
+| 032 | `brand_discovery_urls.sql` | `brands.discovery_urls` column |
+| 033 | `brand_service_credentials.sql` | `brand_service_credentials` per-service credential vault |
+| 033 | `brevo_foundation.sql` | `brevo_contacts` table |
+| 033 | `email_provider_config.sql` | Per-brand email provider config |
+| 034 | `llm_provider_metrics.sql` | `llm_provider_metrics` per-call LLM telemetry |
+| 034 | `newsletter_layout_type.sql` | `newsletters.layout_type` column |
+| 035 | `deep_research_jobs.sql` | `deep_research_jobs` async job queue |
+| 035 | `newsletter_subject_variants.sql` | `newsletters.subject_variant_a/b` columns |
+| 036 | `competitor_snapshots.sql` | `competitor_snapshots` table |
+| 036 | `newsletter_ab_and_events.sql` | `newsletters.ab_winner`, `newsletter_events` table |
+| 037 | `deep_research_retriever_type.sql` | `retriever_type` += `deep_research` |
+| 037 | `notification_events.sql` | `notification_events` pipeline event table |
+| 038 | `video_tables.sql` | `video_templates`, `videos` tables |
+| 039 | `carousel_to_reel_template.sql` | Seeds carousel-to-reel system template |
+| 040 | `heygen_quota.sql` | `heygen_usage` table; `videos.kind`, `videos.heygen_video_id` |
+| 041 | `brevo_campaigns.sql` | `brevo_campaigns` email campaign tracking table |
+| 042 | `email_automations.sql` | `email_automations` multi-step workflow table |
 
-> Migration 003 was never created — it was consolidated into 005 during the initial schema review. The gap is intentional.
+> Migration 003 was never created — it was consolidated into 005 during the initial schema review. The gap is intentional. Some migration numbers (031–037) have multiple files due to parallel feature development; all apply in alphabetical order within each number.
 
 ---
 
@@ -103,6 +124,50 @@ supabase gen types typescript --linked > src/lib/types/database.types.ts
 | `memory_semantic` | Long-term semantic memory with pgvector embeddings. TTL-tiered (core: infinite, persistent: 365d, standard: 90d) |
 | `memory_events` | Supplementary event log for memory graph |
 | `memory_archive` | Cold storage for expired memory. Partitioned by month |
+
+### Feature flags and secrets
+
+| Table | Purpose |
+|---|---|
+| `feature_flags` | Per-brand feature flags. New capabilities are default-OFF and gated here |
+| `brand_integrations` | Per-brand encrypted API keys (Fernet AES-128-CBC). Stores ciphertext only |
+| `brand_service_credentials` | Per-service credential vault (Fernet-encrypted). Keyed by `(brand_id, service_name)` |
+
+### Email marketing
+
+| Table | Purpose |
+|---|---|
+| `brevo_contacts` | Local mirror of Brevo contacts per brand |
+| `brevo_campaigns` | Brevo email campaigns with status lifecycle and engagement metrics |
+| `email_automations` | Multi-step Brevo workflow definitions (welcome, nurture, win-back) |
+| `newsletter_events` | ESP webhook events per newsletter (delivered, opened, clicked, bounced, unsubscribed) |
+
+### Research extensions
+
+| Table | Purpose |
+|---|---|
+| `deep_research_jobs` | Async job queue for local-deep-research Docker sidecar (port 5000) |
+| `competitor_snapshots` | Periodic competitor page snapshots captured via Scrapling spider |
+
+### Video pipeline
+
+| Table | Purpose |
+|---|---|
+| `video_templates` | Reusable HyperFrames composition specs. `brand_id IS NULL` = system-level template |
+| `videos` | Render jobs and output artefacts. `kind`: `hyperframes` \| `heygen` |
+| `heygen_usage` | Per-brand monthly Heygen minute-quota tracking |
+
+### LLM telemetry
+
+| Table | Purpose |
+|---|---|
+| `llm_provider_metrics` | Per-call LLM telemetry: provider, model, tokens, latency, cost, fallback flag |
+
+### Notifications
+
+| Table | Purpose |
+|---|---|
+| `notification_events` | System-level pipeline events for Telegram digest and dashboard activity feed |
 
 ### Operations and observability
 
@@ -197,7 +262,7 @@ supabase link --project-ref <project-ref>
 supabase db push
 
 # 4. Verify
-supabase migration list   # all 29 should show Local = Remote
+supabase migration list   # all 42 should show Local = Remote
 
 # 5. Generate TypeScript types
 supabase gen types typescript --linked > src/lib/types/database.types.ts

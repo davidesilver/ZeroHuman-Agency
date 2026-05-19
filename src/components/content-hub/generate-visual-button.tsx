@@ -83,22 +83,22 @@ export function GenerateVisualButton({
     <div className="space-y-1">
       <div className="flex gap-1">
         <button onClick={() => run('image')} disabled={!!busy}
-                className="px-2 py-1 rounded bg-primary text-primary-foreground text-[10px] inline-flex items-center gap-1 disabled:opacity-50">
+                className="px-2 py-1 rounded bg-primary text-primary-foreground text-[11px] inline-flex items-center gap-1 disabled:opacity-50">
           {busy === 'image' ? <Loader2 className="animate-spin" size={12}/> : <Sparkles size={12}/>}
           {jobId && !busy ? 'Working…' : 'Image'}
         </button>
         {canCarousel && (
           <button onClick={() => run('carousel')} disabled={!!busy}
-                  className="px-2 py-1 rounded border text-[10px] inline-flex items-center gap-1 disabled:opacity-50">
+                  className="px-2 py-1 rounded border text-[11px] inline-flex items-center gap-1 disabled:opacity-50">
             {busy === 'carousel' ? <Loader2 className="animate-spin" size={12}/> : <Sparkles size={12}/>}
             Carousel
           </button>
         )}
       </div>
       {jobStatus && jobStatus !== 'succeeded' && jobStatus !== 'failed' && (
-        <p className="text-[10px] text-muted-foreground">Status: {jobStatus}</p>
+        <p className="text-[11px] text-muted-foreground">Status: {jobStatus}</p>
       )}
-      {err && <p className="text-[10px] text-status-error">{err}</p>}
+      {err && <p className="text-[11px] text-status-error">{err}</p>}
     </div>
   )
 }

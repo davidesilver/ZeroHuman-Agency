@@ -260,7 +260,7 @@ function SocialTab() {
           {['LinkedIn', 'Twitter/X', 'Instagram', 'TikTok'].map(p => (
             <div key={p} className="flex items-center justify-between py-2 border-b border-border last:border-0">
               <span className="text-sm">{p}</span>
-              <Badge variant="outline" className="text-[10px] text-muted-foreground">Not connected</Badge>
+              <Badge variant="outline" className="text-[11px] text-muted-foreground">Not connected</Badge>
             </div>
           ))}
           <p className="text-xs text-muted-foreground mt-3">

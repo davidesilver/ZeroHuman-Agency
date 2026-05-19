@@ -68,7 +68,7 @@ function PlatformCard({
           <span className="font-medium text-sm">{plat.label}</span>
         </div>
         {isConnected && (
-          <span className="status-success-soft text-[10px] font-medium px-2 py-0.5 rounded-full">
+          <span className="status-success-soft text-[11px] font-medium px-2 py-0.5 rounded-full">
             Connected
           </span>
         )}
