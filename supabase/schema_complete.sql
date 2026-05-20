@@ -1551,7 +1551,7 @@ DO $$ DECLARE t text;
 BEGIN
   FOR t IN SELECT unnest(ARRAY[
     'api_costs','feedback','audit_trail','humanizer_performance',
-    'llm_fallback_log','feedback_loop_audit','social_metrics'
+    'llm_fallback_log','feedback_loop_audit'
   ]) LOOP
     EXECUTE format('DROP POLICY IF EXISTS "%1$s_select" ON %1$s', t);
     EXECUTE format('CREATE POLICY "%1$s_select" ON %1$s FOR SELECT USING (user_has_brand(brand_id))', t);
@@ -1559,6 +1559,26 @@ BEGIN
     EXECUTE format('CREATE POLICY "%1$s_insert" ON %1$s FOR INSERT WITH CHECK (user_has_brand(brand_id))', t);
   END LOOP;
 END; $$;
+
+-- social_metrics: no direct brand_id — joins through content_drafts
+DROP POLICY IF EXISTS "social_metrics_select" ON social_metrics;
+CREATE POLICY "social_metrics_select" ON social_metrics
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM content_drafts cd
+      WHERE cd.id = social_metrics.draft_id
+        AND user_has_brand(cd.brand_id)
+    )
+  );
+DROP POLICY IF EXISTS "social_metrics_insert" ON social_metrics;
+CREATE POLICY "social_metrics_insert" ON social_metrics
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM content_drafts cd
+      WHERE cd.id = draft_id
+        AND user_has_brand(cd.brand_id)
+    )
+  );
 
 -- Pipeline health (select + insert + update, no delete)
 DROP POLICY IF EXISTS "pipeline_health_select" ON pipeline_health;
