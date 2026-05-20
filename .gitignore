@@ -9,6 +9,8 @@ out/
 
 # Production
 build/
+plans/
+content/
 
 # Environment
 .env
@@ -53,6 +55,7 @@ python/.venv/
 # Supabase
 supabase/.temp/
 supabase/migrations/
+supabase/seed-demo.sql
 
 # Rules
 AGENTS.md
