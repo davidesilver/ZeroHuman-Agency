@@ -902,6 +902,7 @@ def _check_unsubscribe_spike(db, newsletter_id: str, current_unsubs: int) -> Non
             import asyncio
 
 
+
             async def _alert():
                 from ..services.notification import emit_event
                 await emit_event(
