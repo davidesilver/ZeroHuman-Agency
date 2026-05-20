@@ -8,7 +8,16 @@
  * Security: only returns whether sensitive keys are SET (boolean), never
  * their actual values. Non-sensitive config values (model names, thresholds,
  * URLs that the user already pastes themselves) are returned as strings.
+ *
+ * PATCH /api/system/config
+ *
+ * Writes one or more env-var key/value pairs to .env.local (local dev only).
+ * Used by the Setup Wizard to save API keys without manual file editing.
+ * Only whitelisted keys are accepted.
  */
+import { NextRequest } from 'next/server'
+import { writeFileSync, renameSync, existsSync, readFileSync } from 'fs'
+import { resolve } from 'path'
 import { requireAuth } from '@/lib/supabase/auth-helpers'
 import { jsonResponse } from '@/lib/api-helpers'
 
@@ -106,4 +115,81 @@ export async function GET() {
       tiktok:    isSet('TIKTOK_TOKEN'),
     },
   })
+}
+
+// ── PATCH: write env vars to .env.local ───────────────────────────────────────
+
+/** Keys that the Setup Wizard is allowed to write via PATCH. */
+const WRITABLE_KEYS = new Set([
+  'ANTHROPIC_API_KEY',
+  'OPENROUTER_API_KEY',
+  'OPENAI_API_KEY',
+  'SERPER_API_KEY',
+  'TAVILY_API_KEY',
+  'YOUTUBE_API_KEY',
+  'STABILITY_API_KEY',
+  'REPLICATE_API_TOKEN',
+  'FIRECRAWL_API_KEY',
+  'RESEND_API_KEY',
+  'BREVO_API_KEY',
+  'SENDGRID_API_KEY',
+  'NEWSLETTER_FROM_EMAIL',
+  'NEWSLETTER_FROM_NAME',
+  'FROM_EMAIL',
+  'FROM_NAME',
+  'TELEGRAM_BOT_TOKEN',
+  'TELEGRAM_CHAT_ID',
+  'POSTIZ_API_KEY',
+  'POSTIZ_API_URL',
+])
+
+function getEnvPath(): string {
+  return resolve(process.cwd(), '.env.local')
+}
+
+function parseEnvFile(content: string): Record<string, string> {
+  const result: Record<string, string> = {}
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const idx = trimmed.indexOf('=')
+    if (idx === -1) continue
+    result[trimmed.slice(0, idx).trim()] = trimmed.slice(idx + 1).trim()
+  }
+  return result
+}
+
+function serializeEnvFile(entries: Record<string, string>): string {
+  return Object.entries(entries).map(([k, v]) => `${k}=${v}`).join('\n') + '\n'
+}
+
+export async function PATCH(req: NextRequest) {
+  const { auth, response } = await requireAuth()
+  if (!auth) return response
+
+  let body: Record<string, string>
+  try {
+    body = await req.json()
+  } catch {
+    return jsonResponse({ error: 'Invalid JSON' }, 400)
+  }
+
+  // Reject unknown keys
+  const rejected = Object.keys(body).filter(k => !WRITABLE_KEYS.has(k))
+  if (rejected.length > 0) {
+    return jsonResponse({ error: `Disallowed keys: ${rejected.join(', ')}` }, 400)
+  }
+
+  try {
+    const envPath = getEnvPath()
+    const existing = existsSync(envPath) ? parseEnvFile(readFileSync(envPath, 'utf-8')) : {}
+    const updated = { ...existing, ...body }
+    const tmpPath = envPath + '.tmp'
+    writeFileSync(tmpPath, serializeEnvFile(updated), 'utf-8')
+    renameSync(tmpPath, envPath)
+    return jsonResponse({ success: true, updated: Object.keys(body) })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return jsonResponse({ success: false, error: msg }, 500)
+  }
 }

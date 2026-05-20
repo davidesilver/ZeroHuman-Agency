@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     "superpowers/**",
     "postiz/**",
     "python/**",
+    // CLI has its own tsconfig + lint setup; Next.js ESLint rules don't apply
+    "cli/**",
   ]),
   // Rule overrides
   {

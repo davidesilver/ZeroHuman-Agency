@@ -6,8 +6,6 @@ import { CheckCircle2, Circle, X, ChevronRight, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-const DISMISS_KEY = 'getting_started_dismissed'
-
 interface SetupStatus {
   llm: boolean
   brand: boolean
@@ -25,16 +23,16 @@ async function fetchStatus(): Promise<SetupStatus> {
     fetch('/api/content?limit=1').then(r => r.json()),
   ])
 
-  const config = configResp.status === 'fulfilled' ? configResp.value?.data : null
-  const brands = brandsResp.status === 'fulfilled' ? brandsResp.value?.data : null
-  const facts  = factsResp.status === 'fulfilled'  ? factsResp.value?.data  : null
+  const config   = configResp.status   === 'fulfilled' ? configResp.value?.data   : null
+  const brands   = brandsResp.status   === 'fulfilled' ? brandsResp.value?.data   : null
+  const facts    = factsResp.status    === 'fulfilled' ? factsResp.value?.data    : null
   const research = researchResp.status === 'fulfilled' ? researchResp.value?.data : null
-  const drafts = draftsResp.status === 'fulfilled'  ? draftsResp.value?.data  : null
+  const drafts   = draftsResp.status   === 'fulfilled' ? draftsResp.value?.data   : null
 
   return {
     llm:      !!(config?.api_keys?.anthropic || config?.api_keys?.openrouter),
     brand:    Array.isArray(brands) && brands.length > 0,
-    voice:    Array.isArray(facts) && facts.length > 0,
+    voice:    Array.isArray(facts)  && facts.length  > 0,
     research: Array.isArray(research) && research.length > 0,
     draft:    Array.isArray(drafts) && drafts.length > 0,
   }
@@ -46,26 +44,62 @@ export function GettingStartedBanner() {
   const [status, setStatus] = useState<SetupStatus | null>(null)
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && localStorage.getItem(DISMISS_KEY) === 'true') {
-      setDismissed(true)
-      return
-    }
-    setDismissed(false)
-    fetchStatus()
-      .then(s => {
-        setStatus(s)
-        // Auto-dismiss if everything is complete
-        if (s.llm && s.brand && s.voice && s.research && s.draft) {
+    // Check server-side dismissed flag first, fall back to localStorage
+    fetch('/api/setup/progress')
+      .then(r => r.json())
+      .then(data => {
+        if (data?.dismissed) {
           setDismissed(true)
+          setLoading(false)
+          return
         }
+        // Not dismissed server-side — also check localStorage for immediate UX
+        if (typeof window !== 'undefined' && localStorage.getItem('getting_started_dismissed') === 'true') {
+          // Sync to server and hide
+          fetch('/api/setup/progress', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dismissed: true }),
+          }).catch(() => {})
+          setDismissed(true)
+          setLoading(false)
+          return
+        }
+        setDismissed(false)
+        return fetchStatus()
+          .then(s => {
+            setStatus(s)
+            if (s.llm && s.brand && s.voice && s.research && s.draft) {
+              setDismissed(true)
+            }
+          })
+          .catch(() => setStatus(null))
+          .finally(() => setLoading(false))
       })
-      .catch(() => setStatus(null))
-      .finally(() => setLoading(false))
+      .catch(() => {
+        // If setup/progress fails (no brand yet), fall back to localStorage
+        if (typeof window !== 'undefined' && localStorage.getItem('getting_started_dismissed') === 'true') {
+          setDismissed(true)
+          setLoading(false)
+          return
+        }
+        setDismissed(false)
+        fetchStatus()
+          .then(s => setStatus(s))
+          .catch(() => {})
+          .finally(() => setLoading(false))
+      })
   }, [])
 
   function dismiss() {
-    if (typeof window !== 'undefined') localStorage.setItem(DISMISS_KEY, 'true')
     setDismissed(true)
+    if (typeof window !== 'undefined') localStorage.setItem('getting_started_dismissed', 'true')
+    // Persist to server
+    fetch('/api/setup/progress', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dismissed: true }),
+    }).catch(() => {})
   }
 
   if (dismissed) return null
@@ -79,13 +113,13 @@ export function GettingStartedBanner() {
     {
       label: 'Configure LLM provider',
       done: status?.llm ?? false,
-      href: '/settings',
-      detail: 'Add ANTHROPIC_API_KEY or OPENROUTER_API_KEY to .env.local',
+      href: '/setup',
+      detail: 'Add an API key via the Setup Wizard',
     },
     {
       label: 'Create your first brand',
       done: status?.brand ?? false,
-      href: '/brands',
+      href: '/setup',
       detail: 'Scopes all research, content, and settings',
     },
     {

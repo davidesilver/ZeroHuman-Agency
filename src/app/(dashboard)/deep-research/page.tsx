@@ -210,6 +210,7 @@ function DeepResearchContent() {
                     Depth {job.depth} · {new Date(job.created_at).toLocaleString()}
                   </p>
                 </div>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 <Badge variant={(getStatusVariant(job.status)) as any}>
                   {job.status}
                 </Badge>

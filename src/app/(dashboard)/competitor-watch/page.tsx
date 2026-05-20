@@ -159,6 +159,7 @@ function CompetitorWatchContent() {
                       : new Date(s.created_at).toLocaleString()}
                   </p>
                 </div>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 <Badge variant={(getStatusVariant(s.status)) as any}>
                   {s.status}
                 </Badge>

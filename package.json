@@ -15,7 +15,10 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "zh": "node cli/dist/index.js",
+    "zh:dev": "tsx cli/src/index.ts",
+    "cli:build": "cd cli && npm install && npm run build"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

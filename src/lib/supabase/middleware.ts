@@ -2,8 +2,6 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Public paths that bypass authentication (marketing site, SEO assets).
-// Next.js route groups like (marketing) don't appear in the URL, so we
-// match on the actual path segments served to users.
 const PUBLIC_PREFIXES = [
   '/features',
   '/blog',
@@ -13,15 +11,30 @@ const PUBLIC_PREFIXES = [
 ]
 
 function isPublicPath(pathname: string): boolean {
-  // Root "/" will be the marketing landing page once the (marketing) route group exists.
-  // Until then the dashboard layout handles its own auth redirect, so letting
-  // "/" through here is safe — unauthenticated users hitting the dashboard layout
-  // are redirected to /login by its server-side check.
   if (pathname === '/') return true
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 }
 
+// Paths that bypass the bootstrap redirect even without Supabase configured
+const BOOTSTRAP_EXEMPT = ['/bootstrap', '/api/bootstrap']
+
 export async function updateSession(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // If Supabase is not configured, redirect everything to /bootstrap
+  // (except the bootstrap page itself and its API routes)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!supabaseUrl || !supabaseKey) {
+    const isExempt = BOOTSTRAP_EXEMPT.some(p => pathname.startsWith(p))
+    if (!isExempt) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/bootstrap'
+      return NextResponse.redirect(url)
+    }
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   // Skip Supabase session refresh for public pages — avoids an unnecessary
@@ -31,8 +44,8 @@ export async function updateSession(request: NextRequest) {
   }
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         getAll() {
