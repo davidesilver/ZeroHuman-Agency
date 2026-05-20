@@ -10,9 +10,10 @@ import os
 
 import pytest
 
-# Skip the entire module when no real Supabase is available (CI)
+# Skip the entire module when no real Supabase is available (CI uses placeholder URLs)
+_supa_url = os.environ.get("SUPABASE_URL", "")
 pytestmark = pytest.mark.skipif(
-    not os.environ.get("SUPABASE_URL") and not os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
+    not _supa_url or "placeholder" in _supa_url,
     reason="Requires a live Supabase instance (skipped in CI)",
 )
 
