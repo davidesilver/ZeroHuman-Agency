@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional
 
 import httpx
 
@@ -62,8 +61,8 @@ class GenericOpenAIProvider(LLMProvider):
         self,
         provider_id: str,
         base_url: str,
-        api_key: Optional[str] = None,
-        default_model: Optional[str] = None,
+        api_key: str | None = None,
+        default_model: str | None = None,
     ) -> None:
         self._provider_id = provider_id
         self._base_url = base_url.rstrip("/")
@@ -164,8 +163,8 @@ class GenericOpenAIProvider(LLMProvider):
         cls,
         provider_id: str,
         brand_id: str,
-        custom_base_url: Optional[str] = None,
-    ) -> "GenericOpenAIProvider | None":
+        custom_base_url: str | None = None,
+    ) -> GenericOpenAIProvider | None:
         """Build from brand_integrations + optional custom URL.
 
         Returns None if the provider requires an api_key and none is found.
@@ -178,7 +177,7 @@ class GenericOpenAIProvider(LLMProvider):
 
         base_url = custom_base_url or get_brand_secret(brand_id, provider_id, "base_url") or defn.default_base_url
 
-        api_key: Optional[str] = None
+        api_key: str | None = None
         if defn.auth_type in ("api_key", "optional_key"):
             api_key = get_brand_secret(brand_id, provider_id, "api_key")
             if defn.auth_type == "api_key" and not api_key:

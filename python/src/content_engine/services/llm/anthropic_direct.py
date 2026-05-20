@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional
 
 from .provider import LLMProvider, LLMRequest, LLMResult
 
@@ -99,10 +98,10 @@ class AnthropicDirectProvider(LLMProvider):
             )
 
     @classmethod
-    def from_brand_config(cls, brand_id: str) -> Optional["AnthropicDirectProvider"]:
+    def from_brand_config(cls, brand_id: str) -> AnthropicDirectProvider | None:
         """Build from BYOK key if available, else system env var."""
-        from ..brand_secrets import get_brand_secret
         from ...config import settings
+        from ..brand_secrets import get_brand_secret
 
         api_key = get_brand_secret(brand_id, "anthropic", "api_key") or settings.anthropic_api_key
         if not api_key:

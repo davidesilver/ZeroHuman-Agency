@@ -12,7 +12,7 @@ vi.mock('next/link', () => ({
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
-const INCOMPLETE_STATUS = {
+const INCOMPLETE_STATUS: Record<string, { data: unknown }> = {
   config: { data: {} },
   brands: { data: [] },
   facts: { data: [] },
