@@ -32,14 +32,14 @@ export const navigationItems = [
   { label: 'Videos', href: '/videos', icon: Video },
 
   { type: 'separator' as const, label: 'Intelligence' },
-  { label: 'Research', href: '/ricerca', icon: Search },
+  { label: 'Research', href: '/research', icon: Search },
   { label: 'Deep Research', href: '/deep-research', icon: Microscope },
   { label: 'Competitor Watch', href: '/competitor-watch', icon: Eye },
   { label: 'Writing Lab', href: '/writing-lab', icon: FlaskConical },
   { label: 'Memory', href: '/memory', icon: Brain },
 
   { type: 'separator' as const, label: 'Analytics' },
-  { label: 'Metrics', href: '/metriche', icon: BarChart3 },
+  { label: 'Metrics', href: '/metrics', icon: BarChart3 },
   { label: 'Revenue', href: '/revenue', icon: Activity },
   { label: 'API Costs', href: '/costi-api', icon: DollarSign },
 

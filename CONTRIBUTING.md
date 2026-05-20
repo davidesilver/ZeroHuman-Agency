@@ -4,19 +4,15 @@ Thank you for your interest in contributing to Content Engine! This document pro
 
 ## Code of Conduct
 
-Be respectful, inclusive, and collaborative. We expect all contributors to adhere to these principles:
-
-- Treat others with respect and professionalism
-- Welcome newcomers and help them learn
-- Focus on constructive feedback and solutions
-- Respect different viewpoints and experiences
+This project follows the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md).
+For security-related contributions, see [SECURITY.md](SECURITY.md).
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 20+
-- Python 3.11+
+- Python 3.14+
 - [uv](https://docs.astral.sh/uv/) for Python package management
 - A Supabase project for local development
 

@@ -264,8 +264,8 @@ export default function WritingLabPage() {
         <Card className="relative">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between mb-3">
-              <Badge variant="outline" className="text-[10px] font-medium">CURRENT CHAMPION</Badge>
-              {currentRound && <Badge className="bg-staging-bg text-white text-[10px]">A</Badge>}
+              <Badge variant="outline" className="text-[11px] font-medium">CURRENT CHAMPION</Badge>
+              {currentRound && <Badge className="bg-staging-bg text-white text-[11px]">A</Badge>}
             </div>
             <div className="min-h-[200px] rounded-md bg-secondary/50 p-4 text-sm whitespace-pre-wrap">
               {currentRound?.champion_text || (session?.current_champion || 'Start a session to generate champion text.')}
@@ -279,8 +279,8 @@ export default function WritingLabPage() {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center justify-between mb-3">
-              <Badge variant="outline" className="text-[10px] font-medium">NEW VERSION</Badge>
-              {currentRound && <Badge variant="outline" className="text-[10px]">B</Badge>}
+              <Badge variant="outline" className="text-[11px] font-medium">NEW VERSION</Badge>
+              {currentRound && <Badge variant="outline" className="text-[11px]">B</Badge>}
             </div>
             <div className="min-h-[200px] rounded-md bg-secondary/50 p-4 text-sm whitespace-pre-wrap">
               {currentRound?.challenger_text || 'The challenger will be generated automatically each round.'}
@@ -362,7 +362,7 @@ export default function WritingLabPage() {
               <Badge
                 variant={godReview.final_verdict === 'pass' ? 'default' : 'outline'}
                 className={cn(
-                  'text-[10px]',
+                  'text-[11px]',
                   godReview.final_verdict === 'pass' && 'bg-[var(--status-success)] text-[var(--canvas)]',
                   godReview.final_verdict === 'reject' && 'bg-[var(--status-error)] text-white'
                 )}
@@ -382,14 +382,14 @@ export default function WritingLabPage() {
                   <div className={cn('size-2 rounded-full', agent.color)} />
                   <span className="text-xs font-medium">{agent.name}</span>
                   {'score' in agent && agent.score != null && (
-                    <span className="text-[10px] text-muted-foreground">({agent.score}/10)</span>
+                    <span className="text-[11px] text-muted-foreground">({agent.score}/10)</span>
                   )}
                 </div>
                 <div className="rounded-md bg-secondary/50 p-3 text-xs text-muted-foreground min-h-[60px]">
                   {agent.feedback || (godLoading ? 'Running analysis...' : 'Run GOD Mode to get feedback.')}
                 </div>
                 {'extra' in agent && agent.extra && (
-                  <p className="text-[10px] text-muted-foreground">{agent.extra}</p>
+                  <p className="text-[11px] text-muted-foreground">{agent.extra}</p>
                 )}
               </div>
             ))}

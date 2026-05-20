@@ -106,12 +106,12 @@ export function ItemsTable({ items, onAction, isLoading }: ItemsTableProps) {
           return (
             <TableRow key={item.id}>
               <TableCell>
-                <Badge variant="secondary" className="text-[10px]">
+                <Badge variant="secondary" className="text-[11px]">
                   {retrieverLabel(item.retriever_type)}
                 </Badge>
               </TableCell>
               <TableCell>
-                <Badge variant={statusBadgeVariant(item.status)} className="text-[10px]">
+                <Badge variant={statusBadgeVariant(item.status)} className="text-[11px]">
                   {item.status.toUpperCase()}
                 </Badge>
               </TableCell>

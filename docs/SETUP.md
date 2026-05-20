@@ -65,7 +65,7 @@ brew install supabase/tap/supabase
 # Link to your project
 supabase link --project-ref YOUR_PROJECT_REF
 
-# Apply all migrations (001-033)
+# Apply all migrations (001-042)
 supabase db push
 ```
 
@@ -79,7 +79,7 @@ export DATABASE_URL="postgresql://user:password@host:port/database"
 psql "$DATABASE_URL" -f supabase/schema_complete.sql
 ```
 
-For detailed migration information, see [`supabase/MIGRATIONS_LIST.md`](../supabase/MIGRATIONS_LIST.md).
+For detailed migration information, see [`docs/database/MIGRATIONS_LIST.md`](../docs/database/MIGRATIONS_LIST.md).
 
 ---
 
@@ -115,29 +115,17 @@ Everything else is optional and can be added later. See [`.env.example`](../.env
 
 ## 3. Database
 
-Link the Supabase CLI to your project, then push all migrations:
+Run the consolidated schema against your Supabase project:
 
 ```bash
 supabase link --project-ref YOUR_PROJECT_REF
-supabase db push
+psql "$DATABASE_URL" -f supabase/schema_complete.sql
 ```
 
-This applies all 42 migrations in [`supabase/migrations/`](../supabase/migrations/), which creates:
-
-- Tenant tables: `brands`, `users`, `brand_members`
-- Content pipeline: `research_items`, `scores`, `content_drafts`, `newsletters`
-- Agent system: `agent_configs`, `agent_skills`
-- Observability: `api_costs`, `pipeline_health`, `llm_fallback_log`
-- Feature flags and brand secrets: `feature_flags`, `brand_integrations`
-- Email marketing: `brevo_contacts`, `brevo_campaigns`, `email_automations`
-- Research extensions: `deep_research_jobs`, `competitor_snapshots`
-- Video pipeline: `video_templates`, `videos`, `heygen_usage`
-- LLM telemetry: `llm_provider_metrics`
-- Enums, SQL helper functions, RLS policies, and views
-
-If you see an error like `relation does not exist`, make sure you are pushing from a clean database. Run `supabase migration list` to verify all migrations are applied.
+The single `schema_complete.sql` file creates all tables, enums, functions, RLS policies, views, storage buckets, cron jobs, and seed data.
 
 ---
+
 
 ## 4. Create your first brand
 
@@ -301,7 +289,7 @@ BRAND_SECRETS_ENCRYPTION_KEY=<output-from-command-above>
 
 ```bash
 # Set brand-specific Serper key
-curl -X PUT http://localhost:8082/api/brands/credentials/serper \
+curl -X PUT http://localhost:8000/api/brands/credentials/serper \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"credentials": {"api_key": "sk-serper-xxxx"}}'

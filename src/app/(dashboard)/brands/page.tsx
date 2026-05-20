@@ -256,7 +256,7 @@ export default function BrandsPage() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">{brand.name}</CardTitle>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-[10px] font-mono">{brand.slug}</Badge>
+                    <Badge variant="outline" className="text-[11px] font-mono">{brand.slug}</Badge>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -288,7 +288,7 @@ export default function BrandsPage() {
                   <span className="text-xs font-medium text-muted-foreground">Topics</span>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {(brand.topics || []).map(t => (
-                      <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>
+                      <Badge key={t} variant="secondary" className="text-[11px]">{t}</Badge>
                     ))}
                     {(!brand.topics || brand.topics.length === 0) && (
                       <span className="text-xs text-muted-foreground">No topics configured</span>

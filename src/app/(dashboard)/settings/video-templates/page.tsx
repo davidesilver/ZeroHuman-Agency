@@ -15,6 +15,7 @@ interface VideoTemplate {
   slug: string
   description?: string
   composition_path: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   props_schema: Record<string, any>
   thumbnail_url?: string
   brand_id: string | null
@@ -146,7 +147,7 @@ export default function VideoTemplatesPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium">{t.name}</p>
-                    <Badge variant={t.brand_id ? 'outline' : 'secondary'} className="text-[10px]">
+                    <Badge variant={t.brand_id ? 'outline' : 'secondary'} className="text-[11px]">
                       {t.brand_id ? 'per-brand' : 'system'}
                     </Badge>
                   </div>

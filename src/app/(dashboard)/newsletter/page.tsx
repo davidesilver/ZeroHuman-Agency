@@ -181,7 +181,7 @@ export default function NewsletterPage() {
                 <TableCell>{nl.open_rate ? `${(nl.open_rate * 100).toFixed(1)}%` : '—'}</TableCell>
                 <TableCell>{nl.click_rate ? `${(nl.click_rate * 100).toFixed(1)}%` : '—'}</TableCell>
                 <TableCell>
-                  <Badge variant={statusVariant(nl.status)} className="text-[10px]">
+                  <Badge variant={statusVariant(nl.status)} className="text-[11px]">
                     {nl.status.toUpperCase()}
                   </Badge>
                 </TableCell>

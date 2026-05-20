@@ -160,7 +160,7 @@ export default function AutomationsPage() {
                   <div className="space-y-1">
                     {auto.steps.map(step => (
                       <div key={step.step} className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-medium">
+                        <span className="w-6 h-6 rounded-full border flex items-center justify-center text-[11px] font-medium">
                           {step.step}
                         </span>
                         <span className="text-muted-foreground w-20 shrink-0">

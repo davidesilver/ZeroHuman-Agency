@@ -8,6 +8,7 @@ from .api.auth_middleware import JWTAuthMiddleware
 from .api.routes import router
 from .api.routes_agents import router as agents_router
 from .api.routes_images import router as images_router
+from .api.setup_mode_middleware import SetupModeMiddleware
 from .utils.logging_config import setup_logging
 from .utils.rate_limiter_persistent import PersistentRateLimitMiddleware
 
@@ -40,6 +41,10 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type", "X-Scheduler-Secret", "X-Request-ID"],
 )
+
+# Setup mode guard — short-circuits all non-health routes when Supabase
+# URL is not configured. Must be outermost (added last in LIFO stack).
+app.add_middleware(SetupModeMiddleware)
 
 # H-03: Persistent rate limiting — Supabase-backed sliding window
 # Falls back to in-memory if DB unavailable (fail-open with warning logged)
@@ -99,6 +104,11 @@ app.include_router(automations_router)
 from .api.routes_brand_discovery import router as brand_discovery_router
 
 app.include_router(brand_discovery_router)
+
+# Setup wizard progress tracking
+from .api.routes_setup import router as setup_router
+
+app.include_router(setup_router)
 
 
 @app.on_event("shutdown")

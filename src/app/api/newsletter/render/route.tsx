@@ -14,6 +14,12 @@ const LAYOUTS = {
 
 type LayoutKey = keyof typeof LAYOUTS
 
+// Extracted so JSX is not constructed inside a try/catch block
+async function renderLayout(Layout: (typeof LAYOUTS)[LayoutKey], content: EmailContent, theme: BrandTheme) {
+  const html = await render(<Layout content={content} theme={theme} />)
+  return NextResponse.json({ html })
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -41,9 +47,7 @@ export async function POST(request: NextRequest) {
 
     const theme: BrandTheme = { ...DEFAULT_THEME, ...brand_theme }
     const Layout = LAYOUTS[layoutKey]
-    const html = await render(<Layout content={content} theme={theme} />)
-
-    return NextResponse.json({ html })
+    return renderLayout(Layout, content, theme)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Render failed'
     return NextResponse.json({ error: message }, { status: 500 })

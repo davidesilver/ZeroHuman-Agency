@@ -1,8 +1,8 @@
 """Per-brand credential vault.
 
 Credentials (API keys, tokens) for external services are stored encrypted in
-brand_service_credentials. Encryption uses Fernet symmetric keys — plaintext
-never leaves this module.
+brand_integrations (one row per key). Encryption uses Fernet symmetric keys —
+plaintext never leaves this module.
 
 Usage:
     from .credential_vault import get_credentials, set_credentials
@@ -45,12 +45,12 @@ def _get_fernet():
     return Fernet(key.encode())
 
 
-def _encrypt(data: dict) -> str:
+def _encrypt(data: str | dict) -> str:
     f = _get_fernet()
     return f.encrypt(json.dumps(data).encode()).decode()
 
 
-def _decrypt(ciphertext: str) -> dict:
+def _decrypt(ciphertext: str) -> str | dict:
     f = _get_fernet()
     return json.loads(f.decrypt(ciphertext.encode()).decode())
 
@@ -73,17 +73,16 @@ async def get_credentials(brand_id: str, service_name: str) -> dict | None:
         return None
     try:
         db = get_db()
-        row = (
-            db.table("brand_service_credentials")
-            .select("encrypted_creds")
+        rows = (
+            db.table("brand_integrations")
+            .select("key_name, encrypted_value")
             .eq("brand_id", brand_id)
-            .eq("service_name", service_name)
-            .maybe_single()
+            .eq("provider", service_name)
             .execute()
         )
-        if not row.data:
+        if not rows.data:
             return None
-        return _decrypt(row.data["encrypted_creds"])
+        return {r["key_name"]: _decrypt(r["encrypted_value"]) for r in rows.data}
     except Exception as exc:
         logger.warning("credential_vault.get_credentials failed for brand=%s service=%s: %s", brand_id, service_name, exc)
         return None
@@ -93,23 +92,24 @@ async def set_credentials(brand_id: str, service_name: str, credentials: dict) -
     """Encrypt and upsert credentials for a brand/service pair."""
     if not _vault_available():
         raise RuntimeError(f"{_KEY_ENV} is not set — cannot store credentials")
-    ciphertext = _encrypt(credentials)
     db = get_db()
-    db.table("brand_service_credentials").upsert(
-        {
-            "brand_id": brand_id,
-            "service_name": service_name,
-            "encrypted_creds": ciphertext,
-        },
-        on_conflict="brand_id,service_name",
-    ).execute()
+    for key_name, value in credentials.items():
+        db.table("brand_integrations").upsert(
+            {
+                "brand_id": brand_id,
+                "provider": service_name,
+                "key_name": key_name,
+                "encrypted_value": _encrypt(value),
+            },
+            on_conflict="brand_id,provider,key_name",
+        ).execute()
     logger.info("credential_vault: upserted credentials for brand=%s service=%s", brand_id, service_name)
 
 
 async def delete_credentials(brand_id: str, service_name: str) -> None:
     """Delete credentials for a brand/service pair."""
     db = get_db()
-    db.table("brand_service_credentials").delete().eq("brand_id", brand_id).eq("service_name", service_name).execute()
+    db.table("brand_integrations").delete().eq("brand_id", brand_id).eq("provider", service_name).execute()
     logger.info("credential_vault: deleted credentials for brand=%s service=%s", brand_id, service_name)
 
 
@@ -118,12 +118,12 @@ async def list_configured_services(brand_id: str) -> list[str]:
     try:
         db = get_db()
         rows = (
-            db.table("brand_service_credentials")
-            .select("service_name")
+            db.table("brand_integrations")
+            .select("provider")
             .eq("brand_id", brand_id)
             .execute()
         )
-        return [r["service_name"] for r in (rows.data or [])]
+        return list({r["provider"] for r in (rows.data or [])})
     except Exception as exc:
         logger.warning("credential_vault.list_configured_services failed: %s", exc)
         return []

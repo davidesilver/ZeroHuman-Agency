@@ -1,12 +1,22 @@
 # Backend
 
-The backend service documentation lives in the repository root:
+The FastAPI backend powering the Content Engine research, scoring, and generation pipeline.
 
-- [Setup Guide](/Users/claw/Progetti/ai-automation/docs/SETUP.md)
-- [Architecture](/Users/claw/Progetti/ai-automation/docs/ARCHITECTURE.md)
-- [API Guide](/Users/claw/Progetti/ai-automation/docs/API.md)
-- [Deployment](/Users/claw/Progetti/ai-automation/docs/DEPLOYMENT.md)
+## Running the backend
 
-Entrypoint:
+```bash
+uv sync
+uv run uvicorn src.content_engine.main:app --reload --port 8000
+# → http://localhost:8000
+```
 
-- [`src/content_engine/main.py`](/Users/claw/Progetti/ai-automation/python/src/content_engine/main.py)
+## Documentation
+
+- [Setup Guide](../docs/SETUP.md)
+- [Architecture](../docs/ARCHITECTURE.md)
+- [API Guide](../docs/API.md)
+- [Deployment](../docs/DEPLOYMENT.md)
+
+## Entrypoint
+
+[`src/content_engine/main.py`](src/content_engine/main.py)

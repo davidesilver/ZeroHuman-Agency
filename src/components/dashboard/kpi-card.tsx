@@ -25,9 +25,9 @@ export function KPICard({ title, value, subtitle, trend, variant = 'default' }: 
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="eyebrow text-[10px]">{title}</span>
+        <span className="eyebrow text-[11px]">{title}</span>
         {trend && (
-          <span className="status-success-soft text-[10px] font-medium px-1.5 py-0.5 rounded">
+          <span className="status-success-soft text-[11px] font-medium px-1.5 py-0.5 rounded">
             {trend}
           </span>
         )}

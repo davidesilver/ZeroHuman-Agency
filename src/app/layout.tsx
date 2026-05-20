@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
+import { JsonLd } from "@/components/seo/json-ld";
 import "./globals.css";
 
 const inter = Inter({
@@ -13,9 +14,66 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://zerohuman.vercel.app'
+
 export const metadata: Metadata = {
-  title: "ZeroHuman — Content Engine",
-  description: "Autonomous AI content operations — research, draft, review, publish across every brand.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'ZeroHuman — Content Engine',
+    template: '%s | ZeroHuman',
+  },
+  description:
+    'Open-source AI content operations platform. Research, draft, review, and publish across every brand — with multi-agent review, humanizer, and full pipeline automation.',
+  keywords: [
+    'AI content automation',
+    'content operations platform',
+    'multi-agent content review',
+    'AI content engine',
+    'open source content platform',
+    'multi-tenant content management',
+    'AI brand voice',
+    'content pipeline automation',
+    'self-hosted AI content',
+  ],
+  authors: [{ name: 'ZeroHuman', url: SITE_URL }],
+  creator: 'ZeroHuman',
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: SITE_URL,
+    siteName: 'ZeroHuman',
+    title: 'ZeroHuman — Open-Source AI Content Engine',
+    description:
+      'Autonomous AI content operations — research, draft, review, publish across every brand. Multi-agent review, humanizer, self-hosted.',
+    images: [
+      {
+        url: '/brand/zerohuman-logo-showcase.png',
+        width: 1200,
+        height: 630,
+        alt: 'ZeroHuman Content Engine',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'ZeroHuman — Open-Source AI Content Engine',
+    description:
+      'Autonomous AI content operations — research, draft, review, publish across every brand.',
+    images: ['/brand/zerohuman-logo-showcase.png'],
+  },
+  icons: {
+    icon: [
+      { url: '/brand/zerohuman-mark-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/brand/zerohuman-mark-64.png', sizes: '64x64', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/brand/zerohuman-mark-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
@@ -33,11 +91,12 @@ export default function RootLayout({
   // Don't blanket-suppress descendants — that would mask real hydration bugs.
   return (
     <html
-      lang="it"
+      lang="en"
       className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        <JsonLd />
         {children}
       </body>
     </html>

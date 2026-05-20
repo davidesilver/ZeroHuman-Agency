@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { z } from 'zod'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -103,12 +105,12 @@ interface LLMRouting {
 
 function StatusBadge({ configured, label }: { configured: boolean | null; label?: string }) {
   if (configured === null) {
-    return <Badge variant="outline" className="text-[10px] text-muted-foreground">Loading…</Badge>
+    return <Badge variant="outline" className="text-[11px] text-muted-foreground">Loading…</Badge>
   }
   if (configured) {
-    return <Badge className="text-[10px] bg-[var(--status-success)] hover:bg-[var(--status-success)] text-[var(--canvas)]">{label || 'Configured'}</Badge>
+    return <Badge className="text-[11px] bg-[var(--status-success)] hover:bg-[var(--status-success)] text-[var(--canvas)]">{label || 'Configured'}</Badge>
   }
-  return <Badge variant="outline" className="text-[10px] text-[var(--status-warning)] border-[var(--status-warning)]/40">Not set</Badge>
+  return <Badge variant="outline" className="text-[11px] text-[var(--status-warning)] border-[var(--status-warning)]/40">Not set</Badge>
 }
 
 function PostizModeBadge({ mode }: { mode: string }) {
@@ -118,7 +120,7 @@ function PostizModeBadge({ mode }: { mode: string }) {
     cloud:       { label: 'Cloud',       cls: 'bg-[var(--surface-3)] text-ink border-hairline' },
   }
   const m = map[mode] ?? map.disabled
-  return <Badge variant="outline" className={`text-[10px] ${m.cls}`}>{m.label}</Badge>
+  return <Badge variant="outline" className={`text-[11px] ${m.cls}`}>{m.label}</Badge>
 }
 
 function Row({ label, envKey, hint, children }: {
@@ -132,7 +134,7 @@ function Row({ label, envKey, hint, children }: {
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-sm whitespace-nowrap">{label}</span>
         {envKey && (
-          <code className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded shrink-0">
+          <code className="text-[11px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded shrink-0">
             {envKey}
           </code>
         )}
@@ -246,7 +248,7 @@ function ProviderDot({ provider }: { provider: string }) {
     google:     'bg-[var(--status-info)]',
   }
   const cls = map[provider] ?? 'bg-ink-tertiary'
-  return <span className={`size-1.5 rounded-full ${cls} shrink-0`} title={provider} />
+  return <span className={`size-1.5 rounded-full ${cls} shrink-0`} role="img" aria-label={provider}><span className="sr-only">{provider}</span></span>
 }
 
 function ModelChip({ model, kind = 'fallback' }: { model: ModelRef; kind?: 'primary' | 'fallback' }) {
@@ -258,7 +260,7 @@ function ModelChip({ model, kind = 'fallback' }: { model: ModelRef; kind?: 'prim
           ? 'bg-[var(--status-success)]/10 text-[var(--status-success)] border border-[var(--status-success)]/30'
           : 'bg-[var(--surface-2)] text-ink-muted border border-hairline'
       }`}
-      title={`${model.provider} · ${model.cost_tier}`}
+      aria-label={`${model.model_id} (${model.provider} · ${model.cost_tier})`}
     >
       <ProviderDot provider={model.provider} />
       {model.model_id}
@@ -326,13 +328,15 @@ function OpenClawShareCard() {
         <div className="flex items-center gap-4">
           <input
             type="range"
+            id="openclaw-share"
+            aria-label="OpenClaw traffic share percentage"
             min={0}
             max={100}
             value={share}
             onChange={e => setShare(Number(e.target.value))}
             className="flex-1"
           />
-          <span className="text-sm font-mono w-12 text-right">{share}%</span>
+          <span className="text-sm font-mono w-12 text-right" aria-live="polite">{share}%</span>
         </div>
         <div className="flex gap-2 items-center">
           <Button size="sm" onClick={save} disabled={saving || !activeBrand}>
@@ -375,7 +379,8 @@ function ProviderStatsCard() {
               <button
                 key={w}
                 onClick={() => setWindow(w)}
-                className={`text-xs px-2 py-0.5 rounded ${
+                aria-pressed={window === w}
+                className={`text-xs px-2 py-0.5 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 ${
                   window === w ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -437,7 +442,7 @@ function LLMRoutingMatrix({ routing }: { routing: LLMRouting | null }) {
           <CardTitle className="text-sm flex items-center gap-2">
             <Brain className="size-4 text-muted-foreground" />
             Agent Model Routing
-            <Badge variant="outline" className="text-[10px] text-[var(--status-warning)] border-[var(--status-warning)]/40">
+            <Badge variant="outline" className="text-[11px] text-[var(--status-warning)] border-[var(--status-warning)]/40">
               Backend offline
             </Badge>
           </CardTitle>
@@ -460,11 +465,11 @@ function LLMRoutingMatrix({ routing }: { routing: LLMRouting | null }) {
           <CardTitle className="text-sm flex items-center gap-2">
             <Brain className="size-4 text-muted-foreground" />
             Agent Model Routing
-            <Badge variant="secondary" className="text-[10px] ml-1">
+            <Badge variant="secondary" className="text-[11px] ml-1">
               {routing.capabilities.length} capabilities
             </Badge>
           </CardTitle>
-          <code className="text-[10px] text-muted-foreground">
+          <code className="text-[11px] text-muted-foreground">
             python/config/llm_models.py
           </code>
         </div>
@@ -478,13 +483,13 @@ function LLMRoutingMatrix({ routing }: { routing: LLMRouting | null }) {
             >
               <div className="pt-0.5">
                 <div className="text-sm font-medium capitalize">{cap.key.replace('_', ' ')}</div>
-                <div className="text-[10px] text-muted-foreground">{cap.label}</div>
+                <div className="text-[11px] text-muted-foreground">{cap.label}</div>
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 {cap.primary && <ModelChip model={cap.primary} kind="primary" />}
                 {cap.fallbacks.length > 0 && (
                   <>
-                    <span className="text-[10px] text-muted-foreground mx-0.5">→</span>
+                    <span className="text-[11px] text-muted-foreground mx-0.5">→</span>
                     {cap.fallbacks.map(m => (
                       <ModelChip key={m.model_id} model={m} kind="fallback" />
                     ))}
@@ -498,7 +503,7 @@ function LLMRoutingMatrix({ routing }: { routing: LLMRouting | null }) {
             <div className="grid grid-cols-[120px_1fr] gap-3 items-start pt-3 mt-2 border-t border-dashed">
               <div className="pt-0.5">
                 <div className="text-sm font-medium">Emergency</div>
-                <div className="text-[10px] text-muted-foreground">free-tier last resort</div>
+                <div className="text-[11px] text-muted-foreground">free-tier last resort</div>
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 {routing.emergency_fallbacks.map(m => (
@@ -509,7 +514,7 @@ function LLMRoutingMatrix({ routing }: { routing: LLMRouting | null }) {
           )}
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+        <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
           <span className="inline-flex items-center gap-1"><ProviderDot provider="anthropic" /> Anthropic</span>
           <span className="inline-flex items-center gap-1"><ProviderDot provider="openai" /> OpenAI</span>
           <span className="inline-flex items-center gap-1"><ProviderDot provider="openrouter" /> OpenRouter</span>
@@ -522,9 +527,17 @@ function LLMRoutingMatrix({ routing }: { routing: LLMRouting | null }) {
   )
 }
 
-// ── Add Brand card (unchanged logic, reads from useBrand) ────────────────────
+const BrandSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Max 100 characters'),
+  slug: z.string().min(1, 'Slug is required').max(60, 'Max 60 characters').regex(/^[a-z0-9][a-z0-9-]*$|^[a-z0-9]$/, 'Lowercase letters, numbers, hyphens only'),
+  topics: z.string().optional(),
+  budget: z.string().optional().refine(v => !v || (parseFloat(v) > 0 && !isNaN(parseFloat(v))), 'Must be a positive number'),
+})
+
+// ── Add Brand card ────────────────────────────────────────────────────────────
 function AddBrandCard() {
   const { brands, setActiveBrand } = useBrand()
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
@@ -532,6 +545,7 @@ function AddBrandCard() {
   const [budget, setBudget] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
@@ -541,7 +555,17 @@ function AddBrandCard() {
   }
 
   const handleCreate = async () => {
-    if (!name.trim() || !slug.trim()) return
+    const parsed = BrandSchema.safeParse({ name, slug, topics, budget })
+    if (!parsed.success) {
+      const errs: Record<string, string> = {}
+      for (const issue of parsed.error.issues) {
+        const field = String(issue.path[0])
+        if (!errs[field]) errs[field] = issue.message
+      }
+      setFieldErrors(errs)
+      return
+    }
+    setFieldErrors({})
     setSaving(true)
     setError(null)
     try {
@@ -568,7 +592,7 @@ function AddBrandCard() {
         }
         setName(''); setSlug(''); setTopics(''); setBudget('')
         setOpen(false)
-        window.location.reload()
+        router.refresh()
       } else {
         setError(json.error?.message || 'Failed to create brand')
       }
@@ -585,7 +609,7 @@ function AddBrandCard() {
           <CardTitle className="text-sm flex items-center gap-2">
             <Building className="size-4 text-muted-foreground" />
             Brands
-            {mounted && <Badge variant="secondary" className="text-[10px] ml-1">{brands.length}</Badge>}
+            {mounted && <Badge variant="secondary" className="text-[11px] ml-1">{brands.length}</Badge>}
           </CardTitle>
           <div className="flex items-center gap-2">
             <Link
@@ -598,7 +622,7 @@ function AddBrandCard() {
             <Button
               size="sm"
               className="h-7 text-xs gap-1 bg-staging-bg hover:bg-staging-bg/90 text-white"
-              onClick={() => { setOpen(!open); setError(null) }}
+              onClick={() => { setOpen(!open); setError(null); setFieldErrors({}) }}
             >
               <Plus className="size-3" /> Add brand
             </Button>
@@ -610,25 +634,29 @@ function AddBrandCard() {
           <div className="space-y-3 p-3 bg-secondary/40 rounded-md">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs">Name</Label>
-                <Input value={name} onChange={e => handleNameChange(e.target.value)} placeholder="My Brand" className="h-8 text-sm" />
+                <Label htmlFor="brand-name" className="text-xs">Name</Label>
+                <Input id="brand-name" value={name} onChange={e => handleNameChange(e.target.value)} placeholder="My Brand" className="h-8 text-sm" />
+                {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Slug <span className="text-muted-foreground">(auto)</span></Label>
-                <Input value={slug} onChange={e => setSlug(e.target.value)} placeholder="my-brand" className="h-8 text-sm" />
+                <Label htmlFor="brand-slug" className="text-xs">Slug <span className="text-muted-foreground">(auto)</span></Label>
+                <Input id="brand-slug" value={slug} onChange={e => setSlug(e.target.value)} placeholder="my-brand" className="h-8 text-sm" />
+                {fieldErrors.slug && <p className="text-xs text-destructive">{fieldErrors.slug}</p>}
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Topics <span className="text-muted-foreground">(comma separated)</span></Label>
-              <Input value={topics} onChange={e => setTopics(e.target.value)} placeholder="logistics, sustainability, B2B" className="h-8 text-sm" />
+              <Label htmlFor="brand-topics" className="text-xs">Topics <span className="text-muted-foreground">(comma separated)</span></Label>
+              <Input id="brand-topics" value={topics} onChange={e => setTopics(e.target.value)} placeholder="logistics, sustainability, B2B" className="h-8 text-sm" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Daily budget (USD) <span className="text-muted-foreground">— blank = unlimited</span></Label>
+              <Label htmlFor="brand-budget" className="text-xs">Daily budget (USD) <span className="text-muted-foreground">— blank = unlimited</span></Label>
               <Input
+                id="brand-budget"
                 type="number" min="0" step="0.50"
                 value={budget} onChange={e => setBudget(e.target.value)}
                 placeholder="5.00" className="h-8 text-sm"
               />
+              {fieldErrors.budget && <p className="text-xs text-destructive">{fieldErrors.budget}</p>}
             </div>
             {error && <p className="text-xs text-destructive">{error}</p>}
             <div className="flex justify-end gap-2">
@@ -736,11 +764,19 @@ export default function SettingsPage() {
       {/* ── LLM Providers ───────────────────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Bot className="size-4 text-muted-foreground" />
-            LLM Providers
-            <Badge variant="secondary" className="text-[10px] ml-1">at least one required</Badge>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Bot className="size-4 text-muted-foreground" />
+              LLM Providers
+              <Badge variant="secondary" className="text-[10px] ml-1">at least one required</Badge>
+            </CardTitle>
+            <Link href="/settings/ai-providers">
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                <ExternalLink className="h-3 w-3" />
+                Manage BYOK keys
+              </Button>
+            </Link>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-0">
@@ -810,7 +846,7 @@ export default function SettingsPage() {
               <StatusBadge configured={cfg?.api_keys.tavily ?? null} />
             </Row>
             <Row label="DuckDuckGo" hint="always active — no API key needed">
-              <Badge className="text-[10px] bg-[var(--status-success)] hover:bg-[var(--status-success)] text-[var(--canvas)]">Active</Badge>
+              <Badge className="text-[11px] bg-[var(--status-success)] hover:bg-[var(--status-success)] text-[var(--canvas)]">Active</Badge>
             </Row>
             <Row label="YouTube Data API v3" envKey="YOUTUBE_API_KEY" hint="trend retriever">
               <StatusBadge configured={cfg?.api_keys.youtube ?? null} />
@@ -1099,7 +1135,7 @@ export default function SettingsPage() {
           <CardTitle className="text-sm flex items-center gap-2">
             <Bell className="size-4 text-muted-foreground" />
             Alerts
-            <Badge variant="secondary" className="text-[10px] ml-1">optional</Badge>
+            <Badge variant="secondary" className="text-[11px] ml-1">optional</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>

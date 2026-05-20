@@ -200,9 +200,13 @@ class TestHeartbeatRecording:
 
     async def test_heartbeat_get_all_for_brand(self):
         """Test getting all heartbeats for a brand."""
+        # Use unique brand IDs to avoid cache pollution from other tests
+        brand_a = "get-all-brand-a"
+        brand_b = "get-all-brand-b"
+
         # Record multiple heartbeats
         await record_agent_heartbeat(
-            brand_id="test-brand",
+            brand_id=brand_a,
             llm_meta={"model_used": "model1"},
             context="god_advocate",
             action="advocate",
@@ -210,7 +214,7 @@ class TestHeartbeatRecording:
         )
 
         await record_agent_heartbeat(
-            brand_id="test-brand",
+            brand_id=brand_a,
             llm_meta={"model_used": "model2"},
             context="god_factcheck",
             action="factcheck",
@@ -218,15 +222,15 @@ class TestHeartbeatRecording:
         )
 
         await record_agent_heartbeat(
-            brand_id="other-brand",
+            brand_id=brand_b,
             llm_meta={"model_used": "model3"},
             context="writer_initial",
             action="generate",
             status="healthy",
         )
 
-        # Get all for test-brand
-        all_heartbeats = get_all_cached_heartbeats("test-brand")
+        # Get all for brand_a
+        all_heartbeats = get_all_cached_heartbeats(brand_a)
 
         assert len(all_heartbeats) == 2
         assert "god_advocate" in all_heartbeats

@@ -197,13 +197,13 @@ function FactRow({
               {fact.statement}
             </p>
             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${KIND_META[fact.kind].badgeClass}`}>
+              <Badge variant="outline" className={`text-[11px] px-1.5 py-0 ${KIND_META[fact.kind].badgeClass}`}>
                 {KIND_META[fact.kind].label}
               </Badge>
-              <span className="text-[10px] text-muted-foreground">{fact.tier}</span>
-              <span className="text-[10px] text-muted-foreground">imp {fact.importance.toFixed(2)}</span>
+              <span className="text-[11px] text-muted-foreground">{fact.tier}</span>
+              <span className="text-[11px] text-muted-foreground">imp {fact.importance.toFixed(2)}</span>
               {fact.retrieval_hits > 0 && (
-                <span className="text-[10px] text-muted-foreground">{fact.retrieval_hits} hits</span>
+                <span className="text-[11px] text-muted-foreground">{fact.retrieval_hits} hits</span>
               )}
             </div>
           </div>
@@ -362,7 +362,7 @@ function KindSection({
       <CardHeader className={`pb-2 rounded-t-lg ${meta.headerClass}`}>
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm">{meta.label}</CardTitle>
-          <Badge variant="secondary" className="text-[10px]">{facts.length}</Badge>
+          <Badge variant="secondary" className="text-[11px]">{facts.length}</Badge>
         </div>
       </CardHeader>
       <CardContent className="pt-2">
@@ -512,7 +512,7 @@ function RssFeedsCard({ brandId }: { brandId: string }) {
             <Rss className="size-4 text-[var(--brand-primary)]" />
             RSS Feed Sources
           </CardTitle>
-          <Badge variant="secondary" className="text-[10px]">{feeds.length}</Badge>
+          <Badge variant="secondary" className="text-[11px]">{feeds.length}</Badge>
         </div>
         <p className="text-xs text-muted-foreground mt-0.5">
           RSS feeds used by the research agent when generating content for this brand.

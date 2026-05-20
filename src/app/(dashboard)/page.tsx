@@ -1,10 +1,12 @@
 import { Suspense } from 'react'
+import Link from 'next/link'
+
 import { Activity } from 'lucide-react'
 
 import { KPICard } from '@/components/dashboard/kpi-card'
 import { GettingStartedBanner } from '@/components/dashboard/getting-started'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -212,7 +214,7 @@ async function PipelineCard() {
               >
                 {stage.count}
               </p>
-              <p className="eyebrow mt-1 text-[10px]">{stage.label}</p>
+              <p className="eyebrow mt-1 text-[11px]">{stage.label}</p>
             </div>
             {i < stages.length - 1 && (
               <span className="mx-6 text-ink-tertiary text-lg">→</span>
@@ -224,48 +226,87 @@ async function PipelineCard() {
   )
 }
 
+const SEVERITY_ICON: Record<string, string> = {
+  success: '✅',
+  warning: '⚠️',
+  error: '🔴',
+  info: '🔵',
+}
+
+const ENTITY_PATHS: Record<string, string> = {
+  newsletter: '/newsletter',
+  draft: '/content',
+  research_item: '/research',
+}
+
+function relativeTime(ts: string): string {
+  const diff = Date.now() - new Date(ts).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+
 async function ActivityCard() {
-  const activities = await loadActivity(10)
+  const activities = await loadActivity(50)
   return (
     <Card>
       <CardHeader>
         <CardTitle>Recent Activity</CardTitle>
       </CardHeader>
-      {activities.length === 0 ? (
-        <p className="text-center text-sm text-ink-subtle py-8">
-          No activity — system not yet active
-        </p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Time</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Detail</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {activities.map((a) => (
-              <TableRow key={`${a.type}-${a.timestamp}-${a.message}`}>
-                <TableCell className="text-xs text-ink-subtle whitespace-nowrap font-mono">
-                  {a.timestamp
-                    ? new Date(a.timestamp).toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : '—'}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="text-[10px] font-medium">
-                    {a.type.toUpperCase()}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-sm text-ink-muted">{a.message}</TableCell>
+      <CardContent>
+        {activities.length === 0 ? (
+          <p className="text-center text-sm text-ink-subtle py-8">
+            No activity — system not yet active
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>When</TableHead>
+                <TableHead>Event</TableHead>
+                <TableHead>Detail</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+            </TableHeader>
+            <TableBody>
+              {activities.map((a) => {
+                const icon = SEVERITY_ICON[a.severity ?? 'info'] ?? '🔵'
+                const entityPath =
+                  a.entityType && a.entityId && ENTITY_PATHS[a.entityType]
+                    ? `${ENTITY_PATHS[a.entityType]}/${a.entityId}`
+                    : null
+                return (
+                  <TableRow key={`${a.type}-${a.timestamp}-${a.message}`}>
+                    <TableCell className="text-xs text-ink-subtle whitespace-nowrap">
+                      {a.timestamp ? relativeTime(a.timestamp) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <span className="mr-1">{icon}</span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {a.type.replace(/_/g, ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-ink-muted">
+                      {entityPath ? (
+                        <Link
+                          href={entityPath}
+                          className="hover:underline text-primary"
+                        >
+                          {a.message}
+                        </Link>
+                      ) : (
+                        a.message
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
     </Card>
   )
 }
@@ -303,8 +344,8 @@ async function AgentStatusCard() {
                     <span
                       className={
                         a.status === 'healthy'
-                          ? 'status-success-soft text-[10px] font-medium px-1.5 py-0.5 rounded'
-                          : 'status-warning-soft text-[10px] font-medium px-1.5 py-0.5 rounded'
+                          ? 'status-success-soft text-[11px] font-medium px-1.5 py-0.5 rounded'
+                          : 'status-warning-soft text-[11px] font-medium px-1.5 py-0.5 rounded'
                       }
                     >
                       {a.status === 'healthy'
@@ -314,7 +355,7 @@ async function AgentStatusCard() {
                         : 'Offline'}
                     </span>
                     {isUsingFallback && (
-                      <span className="status-error-soft text-[10px] font-medium px-1.5 py-0.5 rounded">
+                      <span className="status-error-soft text-[11px] font-medium px-1.5 py-0.5 rounded">
                         Fallback
                       </span>
                     )}

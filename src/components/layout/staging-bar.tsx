@@ -12,7 +12,7 @@ export function StagingBar() {
       style={{ background: 'var(--staging-bg)' }}
     >
       <span
-        className="text-[10px] font-bold uppercase"
+        className="text-[11px] font-bold uppercase"
         style={{
           color: 'var(--staging-text)',
           letterSpacing: '0.2em',

@@ -1,0 +1,155 @@
+# ZeroHuman — Content Engine (Full Documentation)
+
+> Open-source, self-hosted AI content operations platform (MIT license)
+
+## Overview
+
+ZeroHuman Content Engine is an autonomous, multi-tenant AI content operations platform that transforms how teams create, manage, and publish content across multiple channels. It combines intelligent web research, AI-powered content generation, multi-agent review systems, and automated publishing into a unified platform.
+
+## Pipeline
+
+```
+Topics + Sources -> Research -> Scoring -> Draft -> Review -> Publish
+                                                     ^
+                                           Metrics feedback loop
+```
+
+## Architecture
+
+- **Frontend:** Next.js 16 with React 19, Tailwind CSS, Supabase SSR auth
+- **Backend:** Python FastAPI with structured agents, retrievers, scoring engine, orchestrator
+- **Database:** Supabase (PostgreSQL) with Row Level Security for multi-tenant isolation
+- **Social publishing:** Self-hosted Postiz satellite
+- **Deep research:** local-deep-research Docker sidecar
+- **Video:** HyperFrames + HeyGen integration
+
+## Core Modules
+
+### Research Pipeline
+Pulls content from 10+ retriever sources in parallel:
+- RSS feeds (configurable per brand)
+- DuckDuckGo search
+- Serper API (Google results)
+- Tavily API (AI-optimized search)
+- YouTube trends and video analysis
+- X/Twitter monitoring
+- Gmail integration
+- Competitor spider
+- Deep research jobs
+
+Each item is deduplicated by URL and semantic similarity, then scored across configurable dimensions.
+
+### Scoring Engine
+Rates each research item across:
+- Applicability: relevance to brand topics and audience
+- Credibility: source trustworthiness
+- Trend signal: momentum and timeliness
+- Brand alignment: match with brand voice and values
+- Anti-hype gate: filters sensationalized content
+
+Scoring weights adapt via feedback loop from social performance metrics.
+
+### Content Generation
+Produces platform-native drafts with a Writer -> Editor pipeline:
+- LinkedIn posts (professional, insight-driven)
+- Twitter/X threads (concise, engaging)
+- Instagram captions (visual-first, hashtags)
+- Blog posts (SEO-optimized, comprehensive)
+- Newsletter sections (long-form, valuable)
+
+### Multi-Agent GOD Mode Review
+Optional 4-agent review system:
+1. **Critic:** Identifies weaknesses, structural issues, argument gaps
+2. **Fact-Checker:** Verifies claims, flags unsupported statements
+3. **Creative Enhancer:** Suggests engaging hooks, stronger openings, better CTAs
+4. **Synthesis:** Combines all feedback into prioritized, actionable recommendations
+
+### Humanizer
+Post-processing agent that:
+- Strips detectable AI writing patterns (hedging, filler, overqualification)
+- Re-applies brand voice using gold examples from top-performing content
+- Tracks humanization performance metrics
+
+### Writing Lab
+Experimental content iteration:
+- Create sessions with a topic and two content approaches
+- Run challenger/champion rounds
+- Vote on preferred outputs
+- Data-drive content style decisions
+
+### Multi-Tenancy
+True multi-tenant architecture:
+- Each brand has isolated data (RLS policies on every table)
+- Per-brand encrypted credential storage (API keys in brand_integrations)
+- Per-brand sources, tone of voice, scoring weights, agent configuration
+- Brand membership system for team access control
+
+### Newsletter System
+- Compose newsletters from approved drafts
+- Multiple layout types: single-story, digest, announcement
+- A/B subject line testing
+- HTML preview before sending
+- Multi-provider delivery: Resend, Brevo, Mailchimp
+- Open/click rate tracking
+
+### Social Publishing
+Via self-hosted Postiz integration:
+- Direct publish to LinkedIn, Twitter/X
+- Schedule future publications
+- Per-brand social account connections
+- Analytics feedback from social platforms
+
+### Memory System
+Persistent memory layer:
+- Hot memory (recent context)
+- Semantic memory (embeddings-based retrieval)
+- Memory archive (long-term storage)
+- Episodic events
+- Consolidation pipeline
+- Auto-discovery from brand content
+
+### Competitor Watch
+- Spider-based competitor content monitoring
+- Snapshot tracking over time
+- Content gap identification
+
+### Deep Research
+- Long-form research via Docker sidecar (local-deep-research)
+- Structured report generation
+- Idea generation from research results
+
+### Video
+- HyperFrames motion graphics templates
+- HeyGen talking-head integration
+- Template customization per brand
+
+## Compared to Alternatives
+
+| Feature | ZeroHuman | Jasper | Copy.ai | Sight AI |
+|---------|-----------|--------|---------|----------|
+| Full content lifecycle | Yes | Yes (with Agents) | Partial | Partial |
+| Multi-tenant native | Yes | Enterprise only | No | No |
+| Multi-agent review | 4-agent GOD Mode | No | No | No |
+| Content humanizer | Yes | Brand voice only | Brand voice only | No |
+| Self-hosted / open-source | MIT license | No | No | No |
+| Deep research built-in | Yes | No | No | No |
+| Competitor monitoring | Yes | No | No | No |
+| Feedback loop | Yes | No | No | No |
+| Cost tracking | Yes | No | No | No |
+
+## Getting Started
+
+```bash
+git clone https://github.com/davidesilver/ZeroHuman-Agency.git
+cd ZeroHuman-Agency
+cp .env.example .env.local
+# Configure your Supabase URL, keys, and at least one LLM provider
+npm install
+npm run dev
+```
+
+## Links
+
+- **GitHub:** https://github.com/davidesilver/ZeroHuman-Agency
+- **License:** MIT
+- **Tech stack:** Next.js 16, React 19, Python FastAPI, Supabase, Docker

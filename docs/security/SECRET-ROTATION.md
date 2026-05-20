@@ -56,7 +56,41 @@ SCHEDULER_SECRET=<new-value>
 
 Then update every scheduler caller that invokes protected endpoints.
 
-## 3. External Provider Keys
+## 3. Brand Secrets Encryption Key (Fernet)
+
+Rotate when:
+
+- on a fixed schedule (annually or after team changes)
+- after suspected exposure of the key itself
+- when re-keying is required for compliance
+
+**Warning**: rotating this key requires re-encrypting every row in `brand_integrations` and `brand_service_credentials`. Do this during a maintenance window.
+
+Steps:
+
+```bash
+# 1. Generate a new Fernet key
+python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+# 2. Run the re-encryption script (decrypt with old key, re-encrypt with new key)
+cd python
+BRAND_SECRETS_ENCRYPTION_KEY_OLD=<old-value> \
+BRAND_SECRETS_ENCRYPTION_KEY=<new-value> \
+uv run python -m content_engine.utils.rekey_brand_secrets
+```
+
+The `rekey_brand_secrets` utility reads every encrypted row, decrypts with the old key, and writes back encrypted with the new key in a single transaction.
+
+```bash
+# 3. Update the key in every deployed environment
+BRAND_SECRETS_ENCRYPTION_KEY=<new-value>
+
+# 4. Restart the backend
+```
+
+After rotation validate that brand-specific API calls (Brevo sync, Heygen video job, etc.) still succeed for at least one brand.
+
+## 4. External Provider Keys
 
 Examples used by the project:
 

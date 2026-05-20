@@ -11,12 +11,14 @@ export async function getFeatureFlag(
 ): Promise<boolean> {
   const supabase = await createClient()
   // Cast table name — database.types.ts is regenerated after migrations are applied
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase as any)
     .from('feature_flags')
     .select('value')
     .eq('brand_id', brandId)
     .eq('key', key)
     .maybeSingle()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data as any)?.value ?? defaultValue
 }
 
@@ -29,6 +31,7 @@ export async function setFeatureFlag(
   value: boolean,
 ): Promise<void> {
   const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase as any).from('feature_flags').upsert(
     { brand_id: brandId, key, value },
     { onConflict: 'brand_id,key' },
