@@ -104,7 +104,7 @@ class TestHeartbeatE2E:
         for sub_agent in god_sub_agents:
             heartbeat = self._get_cached_heartbeat(test_brand_id, sub_agent)
             assert heartbeat is not None, f"Sub-agent {sub_agent} should be tracked"
-            assert heartbeat["agent_key"] == sub_agent
+            assert heartbeat["context"] == sub_agent
 
         # Verify they appear as separate entries
         all_heartbeats = self._get_all_cached_heartbeats(test_brand_id)
