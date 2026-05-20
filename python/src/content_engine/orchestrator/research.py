@@ -16,12 +16,15 @@ from ..models import (
     RunStatus,
     TriggerRequest,
 )
+from ..config import settings as _settings
 from ..retrievers.base import BaseRetriever
 from ..retrievers.duckduckgo import DuckDuckGoRetriever
 from ..retrievers.rss import RSSRetriever
 from ..retrievers.serper import KeywordRetriever, PractitionerRetriever, SemanticRetriever
 from ..retrievers.tavily import TavilyRetriever
 from ..retrievers.youtube import YouTubeRetriever
+from ..retrievers.duckduckgo import DuckDuckGoRetriever
+from ..retrievers.tavily import TavilyRetriever
 
 logger = logging.getLogger("content_engine.research")
 
