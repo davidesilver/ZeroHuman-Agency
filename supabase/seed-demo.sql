@@ -34,7 +34,10 @@ DECLARE
 BEGIN
 
 -- ── 1. Get current user ──────────────────────────────────────────────────────
-SELECT id INTO demo_user_id FROM auth.users LIMIT 1;
+-- Order by created_at DESC to prefer the most recently created user (the real owner).
+-- If you have multiple users and the wrong one is picked, pass your UUID explicitly:
+--   demo_user_id := 'your-uuid-here';
+SELECT id INTO demo_user_id FROM auth.users ORDER BY created_at DESC LIMIT 1;
 
 IF demo_user_id IS NULL THEN
   RAISE EXCEPTION 'No user found. Log in at least once before running this seed.';
