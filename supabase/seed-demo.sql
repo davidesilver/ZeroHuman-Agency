@@ -40,6 +40,10 @@ IF demo_user_id IS NULL THEN
   RAISE EXCEPTION 'No user found. Log in at least once before running this seed.';
 END IF;
 
+-- ── 1b. Clean up any previous demo run (idempotent) ─────────────────────────
+-- Deleting the brand cascades to all related tables automatically.
+DELETE FROM brands WHERE id = demo_brand_id;
+
 -- ── 2. Brand ─────────────────────────────────────────────────────────────────
 INSERT INTO brands (id, name, slug, topics, tone_of_voice, scoring_weights, rss_sources)
 VALUES (
@@ -54,8 +58,7 @@ VALUES (
     {"url": "https://www.theverge.com/rss/index.xml", "name": "The Verge", "active": true},
     {"url": "https://feeds.feedburner.com/oreilly/radar", "name": "O''Reilly Radar", "active": true}
   ]'::jsonb
-)
-ON CONFLICT (id) DO NOTHING;
+);
 
 -- ── 3. Brand membership ──────────────────────────────────────────────────────
 INSERT INTO brand_members (brand_id, user_id, role)
