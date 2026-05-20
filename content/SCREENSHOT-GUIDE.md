@@ -21,7 +21,7 @@ Vai su `http://localhost:3080`, seleziona il brand "ZeroHuman Demo".
 |---|--------|-----|-------------|-----------------|
 | 1 | **Content Hub** | `/content-hub` | 6 draft cards con status colorati (published, scheduled, GOD mode, approved...) | Mostra lo stato del pipeline in un colpo solo |
 | 2 | **GOD Mode review** | `/content-hub/[draft_4_id]` | Il feedback dei 4 agenti su draft_4, con score e azioni prioritarie | La feature più unica — non l'ha nessun competitor |
-| 3 | **Research** | `/ricerca` | 8 research items con titoli reali, score colorati, status tabs | Mostra la pipeline di ricerca attiva |
+| 3 | **Research** | `/research` | 8 research items con titoli reali, score colorati, status tabs | Mostra la pipeline di ricerca attiva |
 | 4 | **Dashboard home** | `/` | KPI cards (drafts, published, pipeline health, costs) | Overview potente in una schermata |
 | 5 | **Calendar** | `/calendario` | 6 eventi pianificati su giorni diversi | Mostra la visione settimanale |
 
