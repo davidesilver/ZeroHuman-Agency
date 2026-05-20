@@ -331,17 +331,17 @@ class TestHeartbeatRealWorldScenario:
         """
         brand_id = "workflow-test-brand"
 
-        # Simulate research agent
-        await self._simulate_agent_call(brand_id, "research", "research_query")
+        # Simulate research agent (context must have _ for _extract_agent_identifier)
+        await self._simulate_agent_call(brand_id, "research_query", "research_query")
 
         # Simulate scoring agent
-        await self._simulate_agent_call(brand_id, "scoring", "score_content")
+        await self._simulate_agent_call(brand_id, "scoring_run", "score_content")
 
         # Simulate writer agent
-        await self._simulate_agent_call(brand_id, "writer", "generate_content")
+        await self._simulate_agent_call(brand_id, "writer_initial", "generate_content")
 
         # Simulate editor agent
-        await self._simulate_agent_call(brand_id, "editor", "refine_content")
+        await self._simulate_agent_call(brand_id, "editor_pass", "refine_content")
 
         # Simulate God Mode with sub-agents
         god_sub_agents = ["god_advocate", "god_factcheck", "god_creative", "god_synthesis"]
@@ -349,9 +349,10 @@ class TestHeartbeatRealWorldScenario:
             await self._simulate_agent_call(brand_id, sub_agent, sub_agent)
 
         # Simulate humanizer
-        await self._simulate_agent_call(brand_id, "humanizer", "humanize_content")
+        await self._simulate_agent_call(brand_id, "humanizer_pass1", "humanize_content")
 
         # Verify all agents are tracked
+        # _extract_agent_identifier splits on first _ for non-god contexts
         all_heartbeats = self._get_all_cached_heartbeats(brand_id)
 
         expected_agents = ["research", "scoring", "writer", "editor", "humanizer"] + god_sub_agents
