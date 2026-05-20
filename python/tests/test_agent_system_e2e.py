@@ -2,19 +2,30 @@
 
 Phase 5: Complete integration tests for agent_configs, agent_skills,
 and the full agent system workflow.
+
+Requires a live Supabase instance — skipped in CI.
 """
 
-import pytest
-import asyncio
-from datetime import datetime, timedelta
-from typing import AsyncGenerator
+import os
 
-from content_engine.db import get_db
-from content_engine.agents.agent_loader import get_agent_identity
-from content_engine.agents.writer import generate_draft
-from content_engine.agents.editor import edit_draft
-from content_engine.agents.adapter import adapt_content
-from content_engine.agents.god_system import run_god_mode
+import pytest
+
+# Skip the entire module when no real Supabase is available (CI)
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("SUPABASE_URL") and not os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
+    reason="Requires a live Supabase instance (skipped in CI)",
+)
+
+import asyncio  # noqa: E402
+from datetime import datetime, timedelta  # noqa: E402
+from typing import AsyncGenerator  # noqa: E402
+
+from content_engine.agents.adapter import adapt_content  # noqa: E402
+from content_engine.agents.agent_loader import get_agent_identity  # noqa: E402
+from content_engine.agents.editor import edit_draft  # noqa: E402
+from content_engine.agents.god_system import run_god_mode  # noqa: E402
+from content_engine.agents.writer import generate_draft  # noqa: E402
+from content_engine.db import get_db  # noqa: E402
 
 
 @pytest.fixture
