@@ -39,6 +39,7 @@ interface IdeaItem {
   summary?: string
 }
 
+
 function DeepResearchContent() {
   const { activeBrand } = useBrand()
   const [jobs, setJobs] = useState<Job[]>([])

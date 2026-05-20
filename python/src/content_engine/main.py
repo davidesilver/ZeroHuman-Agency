@@ -65,39 +65,31 @@ app.include_router(postiz_router)  # prefix="/social" already declared in routes
 
 # Phase 3: Email marketing (Brevo)
 from .api.routes_email_marketing import router as email_marketing_router
-
 app.include_router(email_marketing_router)
 
 # Phase 0: Internal brand secrets management
 from .api.routes_internal import router as internal_router
-
 app.include_router(internal_router)
 
 # Phase 4: LLM provider list + metrics
 from .api.routes_llm_providers import router as llm_providers_router
-
 app.include_router(llm_providers_router)
 
 # Phases 7+9: Deep research + competitor monitoring
 from .api.routes_research import router as research_ext_router
-
 app.include_router(research_ext_router)
 
 # Phase 10: HyperFrames video rendering
 from .api.routes_video import router as video_router
-
 app.include_router(video_router)
 
 # Phase 5: Brevo campaigns
-from .api.routes_campaigns import router as campaigns_router
-from .api.routes_campaigns import webhook_router as campaigns_webhook_router
-
+from .api.routes_campaigns import router as campaigns_router, webhook_router as campaigns_webhook_router
 app.include_router(campaigns_router)
 app.include_router(campaigns_webhook_router)
 
 # Phase 6: Brevo automations
 from .api.routes_automations import router as automations_router
-
 app.include_router(automations_router)
 
 # Brand voice auto-discovery from website URLs and social profiles

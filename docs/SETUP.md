@@ -113,6 +113,20 @@ Everything else is optional and can be added later. See [`.env.example`](../.env
 
 ---
 
+## 3. Database
+
+Run the consolidated schema against your Supabase project:
+
+```bash
+supabase link --project-ref YOUR_PROJECT_REF
+psql "$DATABASE_URL" -f supabase/schema_complete.sql
+```
+
+The single `schema_complete.sql` file creates all tables, enums, functions, RLS policies, views, storage buckets, cron jobs, and seed data.
+
+---
+
+
 ## 4. Create your first brand
 
 After applying migrations, create a brand (tenant) record. You can do this in the Supabase SQL editor or via the dashboard after setup.
@@ -417,7 +431,7 @@ When both are set, the backend sends alerts for pipeline errors and daily summar
 
 ---
 
-## 12. Optional: local-deep-research sidecar
+## 10. Optional: local-deep-research sidecar
 
 Run the research sidecar alongside the backend to enable async multi-source research jobs.
 
@@ -439,7 +453,7 @@ VALUES ('<brand-id>', 'deep_research_enabled', true);
 
 ---
 
-## 13. Optional: Agency agents
+## 11. Optional: Agency agents
 
 Install community agent collections from the bundled submodule:
 
@@ -472,6 +486,6 @@ Agents are installed to `agents/`. See [`docs/AGENTS.md`](AGENTS.md) for the ful
 | `Feature not enabled for this brand` | Feature flag is OFF | Insert the flag via SQL or the feature-flags API endpoint |
 | Deep research jobs stay `pending` | local-deep-research sidecar not running | Start the Docker container and verify `DEEP_RESEARCH_URL` |
 | Brevo sync fails with `401` | Brevo API key not set or wrong | Set it via **Settings → Audience** → save API key |
-| `BRAND_SECRETS_ENCRYPTION_KEY not configured` | Missing env var | Generate the key and add to `.env.local` (see section 8) |
+| `BRAND_SECRETS_ENCRYPTION_KEY not configured` | Missing env var | Generate the key and add to `.env.local` (see section 9) |
 | Video jobs stay `pending` | HyperFrames CLI not on PATH | Install HyperFrames and verify `hyperframes --version` works |
 | `Scrapling not installed, using httpx fallback` | scrapling optional dep missing | `cd python && uv sync` (scrapling is in pyproject.toml) |
