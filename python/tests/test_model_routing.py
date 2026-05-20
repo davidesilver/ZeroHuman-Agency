@@ -367,15 +367,15 @@ class TestIntegrationScenarios:
         openai = get_models_by_provider("openai")
         openrouter = get_models_by_provider("openrouter")
 
-        # All providers should have at least one model
+        # Core providers should have at least one model
         assert len(anthropic) > 0
         assert len(openai) > 0
         assert len(openrouter) > 0
 
-        # Total should match configured models
-        total_configured = len(MODEL_CONFIGS)
-        total_by_provider = len(anthropic) + len(openai) + len(openrouter)
-        assert total_configured == total_by_provider
+        # Total across ALL providers should match configured models
+        all_providers = {cfg.provider for cfg in MODEL_CONFIGS.values()}
+        total_by_provider = sum(len(get_models_by_provider(p)) for p in all_providers)
+        assert len(MODEL_CONFIGS) == total_by_provider
 
 
 # Run tests with: pytest tests/test_model_routing.py -v

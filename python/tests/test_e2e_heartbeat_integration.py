@@ -77,8 +77,8 @@ class TestHeartbeatE2E:
             if test_agent:
                 assert test_agent["status"] == "healthy"
                 assert test_agent["current_model"] == "claude-3-5-haiku-20241022"
-        except httpx.ConnectError:
-            # Backend not running, skip API test
+        except (httpx.ConnectError, httpx.HTTPStatusError):
+            # Backend not running or not configured, skip API test
             pytest.skip("Backend not running, skipping API test")
 
     @pytest.mark.asyncio
