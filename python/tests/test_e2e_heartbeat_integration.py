@@ -153,18 +153,19 @@ class TestHeartbeatE2E:
             model="claude-3-5-haiku-20241022"
         )
 
-        heartbeat = self._get_cached_heartbeat(test_brand_id, "writer_anthropic")
+        # _extract_agent_identifier("writer_initial", ...) -> "writer"
+        heartbeat = self._get_cached_heartbeat(test_brand_id, "writer")
         assert heartbeat is not None
         assert heartbeat["llm_meta"]["engine"] == "anthropic"
 
-        # Test with OpenRouter engine
+        # Test with OpenRouter engine (overwrites cache for same identifier)
         await self._simulate_llm_call_with_heartbeat(
             test_brand_id,
             engine="openrouter",
             model="google/gemma-4-150b:free"
         )
 
-        heartbeat = self._get_cached_heartbeat(test_brand_id, "writer_openrouter")
+        heartbeat = self._get_cached_heartbeat(test_brand_id, "writer")
         assert heartbeat is not None
         assert heartbeat["llm_meta"]["engine"] == "openrouter"
 
