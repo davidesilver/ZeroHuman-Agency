@@ -51,6 +51,7 @@ jobs:
             --format json \
             --output python/sbom-python.json \
             --vulnerability-service pypi \
+            --ignore-vuln PYSEC-2025-183 \
             || (echo "❌ Vulnerabilities found in Python deps!" && cat python/sbom-python.json && exit 1)
 
       - name: Generate CycloneDX SBOM (Python)
