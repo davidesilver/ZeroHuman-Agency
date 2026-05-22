@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     resend_api_key: str = ""
     firecrawl_api_key: str = ""
+    tavily_api_key: str = ""
     postiz_api_key: str = ""
     postiz_api_url: str = ""   # was postiz_base_url — renamed to match POSTIZ_API_URL env var
     postiz_mode: str = "disabled"   # "self_hosted" | "cloud" | "disabled"
