@@ -20,6 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Loader2, Pencil, Trash2, Check, X, ExternalLink, ChevronLeft, Rss, Plus, Sparkles } from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
@@ -75,18 +82,19 @@ const TIER_OPTIONS: MemoryTier[] = ['core', 'persistent', 'standard', 'transient
 function FactRow({
   fact,
   onUpdated,
-  onDeleted,
+  onDeleteRequest,
+  deleting,
 }: {
   fact: MemoryFact
   onUpdated: (updated: MemoryFact) => void
-  onDeleted: (id: string) => void
+  onDeleteRequest: (fact: MemoryFact) => void
+  deleting: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [statement, setStatement] = useState(fact.statement)
   const [tier, setTier] = useState<MemoryTier>(fact.tier)
   const [importance, setImportance] = useState(fact.importance)
   const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const [rowError, setRowError] = useState<string | null>(null)
 
   const handleSave = async () => {
@@ -111,19 +119,8 @@ function FactRow({
     setSaving(false)
   }
 
-  const handleDelete = async () => {
-    if (!confirm(`Delete fact?\n\n"${fact.statement.slice(0, 120)}"`)) return
-    setDeleting(true)
-    setRowError(null)
-    try {
-      const resp = await fetch(`/api/memory/facts/${fact.id}`, { method: 'DELETE' })
-      const json = await resp.json()
-      if (json.success) onDeleted(fact.id)
-      else setRowError(json?.error?.message || 'Could not delete the fact')
-    } catch {
-      setRowError('Network error — fact was not deleted')
-    }
-    setDeleting(false)
+  const handleDelete = () => {
+    onDeleteRequest(fact)
   }
 
   const handleCancel = () => {
@@ -347,13 +344,15 @@ function KindSection({
   kind,
   facts,
   onUpdated,
-  onDeleted,
+  onDeleteRequest,
+  deletingId,
   onAdded,
 }: {
   kind: IdentityKind
   facts: MemoryFact[]
   onUpdated: (f: MemoryFact) => void
-  onDeleted: (id: string) => void
+  onDeleteRequest: (fact: MemoryFact) => void
+  deletingId: string | null
   onAdded: (f: MemoryFact) => void
 }) {
   const meta = KIND_META[kind]
@@ -371,7 +370,13 @@ function KindSection({
         ) : (
           <div>
             {facts.map((f) => (
-              <FactRow key={f.id} fact={f} onUpdated={onUpdated} onDeleted={onDeleted} />
+              <FactRow
+                key={f.id}
+                fact={f}
+                onUpdated={onUpdated}
+                onDeleteRequest={onDeleteRequest}
+                deleting={deletingId === f.id}
+              />
             ))}
           </div>
         )}
@@ -611,6 +616,12 @@ export default function BrandContextPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
+  // Dialog states for deleting facts
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [factToDelete, setFactToDelete] = useState<MemoryFact | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
   const load = useCallback(async () => {
     setLoading(true)
     setLoadError(null)
@@ -642,8 +653,26 @@ export default function BrandContextPage() {
     setFacts((prev) => prev.map((f) => (f.id === updated.id ? updated : f)))
   }
 
-  const handleDeleted = (id: string) => {
-    setFacts((prev) => prev.filter((f) => f.id !== id))
+  const confirmDelete = async () => {
+    if (!factToDelete) return
+    const id = factToDelete.id
+    setDeletingId(id)
+    setDeleteError(null)
+    try {
+      const resp = await fetch(`/api/memory/facts/${id}`, { method: 'DELETE' })
+      const json = await resp.json()
+      if (json.success) {
+        setFacts((prev) => prev.filter((f) => f.id !== id))
+        setDeleteConfirmOpen(false)
+        setFactToDelete(null)
+      } else {
+        setDeleteError(json?.error?.message || 'Could not delete the fact')
+      }
+    } catch {
+      setDeleteError('Network error — fact was not deleted')
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   const handleAdded = (fact: MemoryFact) => {
@@ -724,7 +753,12 @@ export default function BrandContextPage() {
               kind={kind}
               facts={byKind(kind)}
               onUpdated={handleUpdated}
-              onDeleted={handleDeleted}
+              onDeleteRequest={(fact) => {
+                setFactToDelete(fact)
+                setDeleteError(null)
+                setDeleteConfirmOpen(true)
+              }}
+              deletingId={deletingId}
               onAdded={handleAdded}
             />
           ))}
@@ -754,6 +788,63 @@ export default function BrandContextPage() {
           )}
         </div>
       )}
+
+      {/* Delete Fact Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold text-destructive flex items-center gap-2">
+              <Trash2 className="size-4" />
+              Delete Brand Identity Fact
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-xs text-muted-foreground leading-normal">
+              Are you sure you want to delete this brand identity fact? This action cannot be undone and AI agents will immediately lose access to this rule/example.
+            </p>
+            <div className="bg-muted/50 rounded-lg p-3 border border-border space-y-2">
+              <p className="text-sm font-medium text-foreground italic">
+                "{factToDelete?.statement}"
+              </p>
+              <div className="flex gap-3 text-[11px] text-muted-foreground pt-1 border-t border-border/60">
+                <div>
+                  Kind: <span className="capitalize text-foreground font-medium">{factToDelete ? KIND_META[factToDelete.kind].label.replace(/s$/, '') : ''}</span>
+                </div>
+                <div>
+                  Tier: <span className="capitalize text-foreground font-medium">{factToDelete?.tier}</span>
+                </div>
+                <div>
+                  Importance: <span className="text-foreground font-medium">{factToDelete?.importance.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+            {deleteError && (
+              <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-md px-3 py-2">
+                {deleteError}
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={!!deletingId}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={confirmDelete}
+              disabled={!!deletingId}
+            >
+              {deletingId ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+              {deletingId ? 'Deleting...' : 'Delete Fact'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

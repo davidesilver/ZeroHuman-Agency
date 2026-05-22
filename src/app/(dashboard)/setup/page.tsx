@@ -11,9 +11,10 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
   Check, ChevronRight, AlertCircle, Loader2, DollarSign,
-  SkipForward, ArrowLeft, Zap, Globe, BarChart3, CheckCircle2,
+  SkipForward, ArrowLeft, Zap, Globe, CheckCircle2,
   Circle, ExternalLink, Key, Eye, EyeOff, Image, Mail,
   Share2, Cpu, LayoutList, Wifi, WifiOff, Upload, Palette,
+  MessageSquare, Search,
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -36,8 +37,8 @@ const STEPS = [
   { id: 'infrastructure', label: 'Check',    icon: Wifi,      required: true },
   { id: 'llm',           label: 'LLM',       icon: Zap,       required: true },
   { id: 'brand',         label: 'Brand',     icon: Globe,     required: true },
-  { id: 'voice',         label: 'Voice',     icon: BarChart3, required: false },
-  { id: 'research',      label: 'Research',  icon: BarChart3, required: false },
+  { id: 'voice',         label: 'Voice',     icon: MessageSquare, required: false },
+  { id: 'research',      label: 'Research',  icon: Search,    required: false },
   { id: 'images',        label: 'Images',    icon: Image,     required: false },
   { id: 'email',         label: 'Email',     icon: Mail,      required: false },
   { id: 'social',        label: 'Social',    icon: Share2,    required: false },
@@ -54,33 +55,60 @@ function StepIndicator({
   current: number
   completed: Record<string, boolean>
 }) {
+  const activeStep = STEPS[current]
+  const progressPct = Math.round((current / (STEPS.length - 1)) * 100)
+
   return (
-    <div className="flex items-center gap-1 mb-8 flex-wrap">
-      {STEPS.map((step, i) => {
-        const done = completed[step.id] || i < current
-        const active = i === current
-        const Icon = step.icon
-        return (
-          <div key={step.id} className="flex items-center gap-1">
-            <div
-              title={step.label}
-              className={`size-7 rounded-full flex items-center justify-center transition-colors
-                ${done ? 'bg-primary text-white' : active ? 'bg-primary/20 text-primary border border-primary' : 'bg-muted text-muted-foreground'}`}
-            >
-              {done ? <Check className="size-3" /> : <Icon className="size-3" />}
-            </div>
-            {i < STEPS.length - 1 && (
-              <div className={`h-px w-4 transition-colors ${done ? 'bg-primary' : 'bg-border'}`} />
+    <div>
+      {/* Mobile view: Compact progress indicator */}
+      <div className="block md:hidden space-y-2 mb-6 bg-card border rounded-lg p-4 shadow-sm">
+        <div className="flex justify-between items-center text-xs">
+          <span className="font-semibold text-foreground">
+            Step {current + 1} of {STEPS.length}: {activeStep?.label}
+            {!activeStep?.required && (
+              <span className="text-muted-foreground/60 font-normal ml-1">(Optional)</span>
             )}
-          </div>
-        )
-      })}
-      <span className="ml-2 text-xs text-muted-foreground font-medium">
-        {STEPS[current]?.label}
-        {!STEPS[current]?.required && (
-          <span className="ml-1 text-muted-foreground/60">(optional)</span>
-        )}
-      </span>
+          </span>
+          <span className="text-muted-foreground font-medium">{progressPct}%</span>
+        </div>
+        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+          <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${progressPct}%` }} />
+        </div>
+      </div>
+
+      {/* Desktop view: Vertical step list */}
+      <div className="hidden md:flex flex-col gap-3 relative py-2">
+        {/* Visual vertical connector line */}
+        <div className="absolute left-[13px] top-4 bottom-4 w-px bg-border" />
+
+        {STEPS.map((step, i) => {
+          const done = completed[step.id] || i < current
+          const active = i === current
+          const Icon = step.icon
+          return (
+            <div key={step.id} className="flex items-center gap-3 relative z-10">
+              <div
+                title={step.label}
+                className={`size-7 rounded-full flex items-center justify-center transition-all duration-200 shrink-0
+                  ${done ? 'bg-primary text-white shadow-sm shadow-primary/20' : active ? 'bg-primary/20 text-primary border border-primary ring-4 ring-primary/10' : 'bg-muted text-muted-foreground'}`}
+              >
+                {done ? <Check className="size-3.5 stroke-[3px]" /> : <Icon className="size-3.5" />}
+              </div>
+              
+              <div className="flex flex-col min-w-0">
+                <span className={`text-xs font-semibold leading-normal transition-colors duration-200 ${active ? 'text-foreground font-bold' : done ? 'text-muted-foreground font-medium' : 'text-muted-foreground/60'}`}>
+                  {step.label}
+                </span>
+                {!step.required && (
+                  <span className={`text-[10px] leading-none mt-0.5 ${active ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>
+                    Optional
+                  </span>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -264,9 +292,17 @@ export default function SetupPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto py-8 px-4">
-      <StepIndicator current={step} completed={progress?.completed ?? {}} />
-      {renderStep()}
+    <div className="max-w-5xl mx-auto py-6 px-4 md:py-12">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-start">
+        <div className="md:col-span-1 md:sticky md:top-8">
+          <StepIndicator current={step} completed={progress?.completed ?? {}} />
+        </div>
+        <div className="md:col-span-3">
+          <div className="bg-card border shadow-sm rounded-xl p-6 md:p-8 space-y-6">
+            {renderStep()}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -808,7 +844,15 @@ function StepMcp({ onNext, onBack, onSkip }: { onNext: () => void; onBack: () =>
   useEffect(() => {
     fetch('/api/mcp/detect', { signal: AbortSignal.timeout(10000) })
       .then(r => r.json())
-      .then((data: McpServer[]) => setServers(data))
+      .then((res: any) => {
+        if (res && res.success && Array.isArray(res.data)) {
+          setServers(res.data)
+        } else if (Array.isArray(res)) {
+          setServers(res)
+        } else {
+          setServers([])
+        }
+      })
       .catch(() => setServers([]))
       .finally(() => setLoading(false))
   }, [])

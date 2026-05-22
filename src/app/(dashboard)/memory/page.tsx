@@ -350,6 +350,8 @@ export default function MemoryInspectorPage() {
 
   // Edit / Delete
   const [editFact, setEditFact] = useState<MemoryFact | null>(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [factToDelete, setFactToDelete] = useState<MemoryFact | null>(null)
   // Was previously discarded ([, setDeletingId]); we now read it to disable
   // the delete button on the row currently being deleted (audit P2 #12).
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -381,8 +383,15 @@ export default function MemoryInspectorPage() {
     if (!brandLoading) load()
   }, [load, brandLoading])
 
-  const handleDelete = async (fact: MemoryFact) => {
-    if (!confirm(`Delete fact?\n\n"${fact.statement.slice(0, 100)}…"`)) return
+  const initiateDelete = (fact: MemoryFact) => {
+    setFactToDelete(fact)
+    setDeleteError(null)
+    setDeleteConfirmOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!factToDelete) return
+    const fact = factToDelete
     setDeletingId(fact.id)
     setDeleteError(null)
     try {
@@ -390,6 +399,8 @@ export default function MemoryInspectorPage() {
       const json = await resp.json()
       if (json.success) {
         setFacts((prev) => prev.filter((f) => f.id !== fact.id))
+        setDeleteConfirmOpen(false)
+        setFactToDelete(null)
       } else {
         setDeleteError(json?.error?.message || 'Delete failed')
       }
@@ -614,7 +625,7 @@ export default function MemoryInspectorPage() {
                       key={f.id}
                       fact={f}
                       onEdit={setEditFact}
-                      onDelete={handleDelete}
+                      onDelete={initiateDelete}
                       deleting={deletingId === f.id}
                     />
                   ))}
@@ -708,6 +719,67 @@ export default function MemoryInspectorPage() {
         onClose={() => setEditFact(null)}
         onSaved={load}
       />
+
+      {/* Delete Fact Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-md border border-destructive/20 bg-background/95 backdrop-blur-md">
+          <DialogHeader className="flex flex-row items-start gap-3 space-y-0 pb-2">
+            <div className="p-2 rounded-full bg-destructive/10 text-destructive mt-0.5">
+              <Trash2 className="size-5" />
+            </div>
+            <div className="space-y-1">
+              <DialogTitle className="text-lg font-semibold text-destructive">
+                Delete Memory Fact
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground">
+                This action is permanent and cannot be undone.
+              </p>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <p className="text-sm">
+              Are you sure you want to delete this memory fact?
+            </p>
+            <div className="rounded-lg bg-muted/50 border p-3 space-y-2 text-xs text-muted-foreground">
+              <p className="font-semibold text-foreground">Statement:</p>
+              <p className="italic bg-background/50 p-2 rounded border font-sans text-foreground leading-relaxed">
+                "{factToDelete?.statement}"
+              </p>
+              <div className="flex gap-4 pt-1 text-[11px]">
+                <div>Kind: <span className="capitalize text-foreground font-medium">{factToDelete?.kind.replace(/_/g, ' ')}</span></div>
+                <div>Tier: <span className="capitalize text-foreground font-medium">{factToDelete?.tier}</span></div>
+                <div>Importance: <span className="text-foreground font-medium">{factToDelete?.importance.toFixed(2)}</span></div>
+              </div>
+            </div>
+            {deleteError && (
+              <p className="text-xs font-medium text-destructive bg-destructive/5 border border-destructive/10 rounded-md p-2">
+                {deleteError}
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={deletingId === factToDelete?.id}
+              className="sm:order-first"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deletingId === factToDelete?.id}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-medium"
+            >
+              {deletingId === factToDelete?.id ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+              {deletingId === factToDelete?.id ? 'Deleting...' : 'Delete Fact'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

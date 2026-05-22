@@ -12,7 +12,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Send, Eye, Check, Loader2, Pencil } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Plus, Send, Eye, Check, Loader2, Pencil, Mail } from 'lucide-react'
 import Link from 'next/link'
 
 interface Newsletter {
@@ -34,6 +41,9 @@ export default function NewsletterPage() {
   const [sendingId, setSendingId] = useState<string | null>(null)
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
   const [generateMsg, setGenerateMsg] = useState<string | null>(null)
+  const [sendConfirmOpen, setSendConfirmOpen] = useState(false)
+  const [newsletterToSend, setNewsletterToSend] = useState<Newsletter | null>(null)
+  const [sendError, setSendError] = useState<string | null>(null)
 
   const fetchNewsletters = useCallback(async () => {
     setIsLoading(true)
@@ -86,19 +96,34 @@ export default function NewsletterPage() {
     } catch {}
   }
 
-  const handleSend = async (id: string) => {
-    const confirmed = window.confirm('Send this newsletter? This action cannot be undone.')
-    if (!confirmed) return
+  const initiateSend = (nl: Newsletter) => {
+    setNewsletterToSend(nl)
+    setSendError(null)
+    setSendConfirmOpen(true)
+  }
 
+  const confirmSend = async () => {
+    if (!newsletterToSend) return
+    const id = newsletterToSend.id
     setSendingId(id)
+    setSendError(null)
     try {
-      await fetch('/api/newsletter/send', {
+      const resp = await fetch('/api/newsletter/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newsletter_id: id, recipients: [] }),
       })
-      await fetchNewsletters()
-    } catch {}
+      const json = await resp.json()
+      if (json.success) {
+        setSendConfirmOpen(false)
+        setNewsletterToSend(null)
+        await fetchNewsletters()
+      } else {
+        setSendError(json.error?.message || 'Failed to send newsletter')
+      }
+    } catch {
+      setSendError('Network error occurred during send')
+    }
     setSendingId(null)
   }
 
@@ -221,7 +246,7 @@ export default function NewsletterPage() {
                         variant="ghost"
                         size="sm"
                         className="h-7 px-2 text-xs text-brand-primary"
-                        onClick={() => handleSend(nl.id)}
+                        onClick={() => initiateSend(nl)}
                         disabled={sendingId === nl.id}
                         title="Send"
                       >
@@ -260,6 +285,68 @@ export default function NewsletterPage() {
           </div>
         </div>
       )}
+
+      {/* Send Confirmation Dialog */}
+      <Dialog open={sendConfirmOpen} onOpenChange={setSendConfirmOpen}>
+        <DialogContent className="sm:max-w-md border border-brand-primary/20 bg-background/95 backdrop-blur-md">
+          <DialogHeader className="flex flex-row items-start gap-3 space-y-0 pb-2">
+            <div className="p-2 rounded-full bg-brand-primary/10 text-brand-primary mt-0.5">
+              <Mail className="size-5" />
+            </div>
+            <div className="space-y-1">
+              <DialogTitle className="text-lg font-semibold text-brand-primary">
+                Send Newsletter
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground">
+                This action is permanent and cannot be undone.
+              </p>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <p className="text-sm">
+              Are you sure you want to broadcast <strong className="font-semibold text-foreground">"{newsletterToSend?.title || 'this newsletter'}"</strong>?
+            </p>
+            <div className="rounded-lg bg-muted/50 border p-3 space-y-1.5 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground">Campaign Details:</p>
+              <ul className="list-disc pl-4 space-y-1">
+                <li>Edition number: <span className="font-mono text-foreground">#{newsletterToSend?.edition_number}</span></li>
+                <li>Recipients: <span className="text-foreground">All active verified subscribers in your connected ESP</span></li>
+                {newsletterToSend?.subject_variant_b && (
+                  <li>
+                    Subject A/B Testing: <span className="text-blue-500 font-medium font-semibold">Enabled</span> (Variant B: "{newsletterToSend.subject_variant_b}")
+                  </li>
+                )}
+                <li>Stats tracking: <span className="text-foreground">Real-time Open & Click rates analytics enabled</span></li>
+              </ul>
+            </div>
+            {sendError && (
+              <p className="text-xs font-medium text-destructive bg-destructive/5 border border-destructive/10 rounded-md p-2">
+                {sendError}
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setSendConfirmOpen(false)}
+              disabled={!!sendingId}
+              className="sm:order-first"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmSend}
+              disabled={!!sendingId}
+              className="bg-brand-primary hover:bg-brand-primary/90 text-white font-medium flex items-center gap-1.5"
+            >
+              {sendingId ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+              {sendingId ? 'Sending...' : 'Send Now'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
