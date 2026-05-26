@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "superpowers", "python", "references", "supabase/functions", "cli"]
+  "exclude": ["node_modules", "superpowers", "gstack", "python", "references", "supabase/functions", "cli"]
 }

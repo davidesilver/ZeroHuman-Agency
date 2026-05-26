@@ -4,6 +4,8 @@
 
 Content Engine combines intelligent web research, AI-powered content generation, multi-agent review systems, and automated publishing into a unified platform. Perfect for content teams, marketing agencies, and businesses that need to scale their content production while maintaining quality and brand consistency.
 
+![ZeroHuman Content Engine — platform walkthrough](docs/demo.gif)
+
 ```
 Topics + Sources → Research → Scoring → Draft → Review → Publish
                                                  ↑
@@ -117,21 +119,14 @@ Create multiple brands, each with its own sources, tone, agents, scoring weights
 
 ### 1 — Database
 
-Create a Supabase project, then apply the migrations:
+Create a Supabase project, then apply the complete schema:
 
 ```bash
-# Install Supabase CLI if you don't have it
-brew install supabase/tap/supabase   # or: npm i -g supabase
-
-# Link to your project (get the ref from your Supabase dashboard)
-supabase link --project-ref YOUR_PROJECT_REF
-
-# Apply all migrations (001-042)
-supabase db push
-
-# Or use the complete schema file for fresh setup
+# Fresh setup — apply the consolidated schema in one shot
 psql "$DATABASE_URL" -f supabase/schema_complete.sql
 ```
+
+`schema_complete.sql` is the canonical source of truth. It creates all extensions, types, tables, functions, RLS policies, and indexes in a single idempotent file. Individual migration files are not published to this repository.
 
 ### 2 — Environment
 
@@ -331,7 +326,7 @@ Every table that holds operational data has a `brand_id` foreign key. Row Level 
 │   └── config/settings.py        # Pydantic settings (all from env)
 │
 ├── supabase/
-│   ├── migrations/               # 001–042: canonical schema source of truth
+│   ├── schema_complete.sql       # Canonical schema — apply this for fresh setup
 │   └── functions/                # Edge functions (analytics sync)
 │
 ├── docker-compose.postiz.yaml    # Optional social publishing satellite
@@ -463,7 +458,7 @@ Add the platform to the `platform` enum in a new migration, add platform-specifi
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feat/my-feature`
-3. Apply migrations locally: `supabase db push`
+3. Apply schema locally: `psql "$DATABASE_URL" -f supabase/schema_complete.sql`
 4. Make your changes, add tests where applicable
 5. Ensure the build passes: `npm run lint && npm run build`
 6. Ensure backend tests pass: `cd python && uv run pytest`

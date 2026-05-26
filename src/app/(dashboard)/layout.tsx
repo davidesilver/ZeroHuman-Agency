@@ -43,7 +43,7 @@ export default async function DashboardLayout({
         >
           Skip to content
         </a>
-        <StagingBar />
+        {process.env.NEXT_PUBLIC_STAGING_BAR === 'true' && <StagingBar />}
 
         <div className="flex flex-1 overflow-hidden">
           <Sidebar logoutAction={logout} />

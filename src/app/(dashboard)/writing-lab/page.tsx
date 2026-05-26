@@ -1,12 +1,21 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { KPICard } from '@/components/dashboard/kpi-card'
 import { cn } from '@/lib/utils'
-import { Loader2, Sparkles, Video, Mail } from 'lucide-react'
+import { Loader2, Sparkles, Video, Mail, AlertTriangle } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog'
 
 const CONTENT_TYPES = ['Newsletter', 'Social', 'Blog', 'LinkedIn', 'Video Script'] as const
 
@@ -54,6 +63,7 @@ export default function WritingLabPage() {
   const [talkingHeadVideoId, setTalkingHeadVideoId] = useState<string | null>(null)
   const [campaignLoading, setCampaignLoading] = useState(false)
   const [campaignSent, setCampaignSent] = useState(false)
+  const [heygenAlertOpen, setHeygenAlertOpen] = useState(false)
 
   const startSession = useCallback(async () => {
     if (!topic.trim()) return
@@ -159,7 +169,10 @@ export default function WritingLabPage() {
       const avatarsRes = await fetch('/api/video/heygen/avatars')
       const avatars = avatarsRes.ok ? await avatarsRes.json() : []
       const avatarId = avatars[0]?.avatar_id ?? ''
-      if (!avatarId) { alert('No Heygen avatars found. Configure your Heygen API key in Settings.'); return }
+      if (!avatarId) {
+        setHeygenAlertOpen(true)
+        return
+      }
       const res = await fetch('/api/video/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -460,6 +473,49 @@ export default function WritingLabPage() {
         <KPICard title="Hook type" value={currentRound?.hook_type_challenger || '—'} subtitle="Current challenger hook" />
         <KPICard title="Champion win rate" value={roundsCompleted > 0 ? `${winRate}%` : '—'} subtitle="% wins version A" />
       </div>
+
+      {/* Heygen Configuration Alert Dialog */}
+      <Dialog open={heygenAlertOpen} onOpenChange={setHeygenAlertOpen}>
+        <DialogContent className="sm:max-w-md border border-amber-500/20 bg-background/95 backdrop-blur-md">
+          <DialogHeader className="flex flex-row items-start gap-3 space-y-0 pb-2">
+            <div className="p-2 rounded-full bg-amber-500/10 text-amber-500 mt-0.5">
+              <AlertTriangle className="size-5" />
+            </div>
+            <div className="space-y-1">
+              <DialogTitle className="text-lg font-semibold text-amber-500">
+                HeyGen Setup Required
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground">
+                We could not find any active HeyGen avatars.
+              </p>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <p className="text-sm leading-relaxed">
+              No HeyGen avatars were found. To generate branded talking-head videos, you must configure your HeyGen API credentials in Settings.
+            </p>
+            <div className="rounded-lg bg-muted/50 border p-3 text-xs text-muted-foreground">
+              <p className="font-semibold text-foreground mb-1">How to fix this:</p>
+              <ol className="list-decimal pl-4 space-y-1.5">
+                <li>Navigate to <span className="font-medium text-foreground">Settings &gt; Integrations</span></li>
+                <li>Ensure your <span className="font-medium text-foreground">HeyGen API Key</span> is configured and valid</li>
+                <li>Make sure you have created or imported at least one avatar in your HeyGen account</li>
+              </ol>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <DialogClose render={<Button variant="outline" className="w-full sm:w-auto">Close</Button>} />
+            <Link
+              href="/settings"
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-brand-primary hover:bg-brand-primary/90 text-white px-4 py-2 w-full sm:w-auto text-center"
+            >
+              Go to Settings
+            </Link>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -13,7 +13,7 @@
  * multi-brand runtime while the finer role model is stabilized separately.
  */
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { jsonResponse, errorResponse } from '@/lib/api-helpers'
 import { requireAuth } from '@/lib/supabase/auth-helpers'
 import type { Json } from '@/lib/types/database.types'
@@ -150,6 +150,19 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   const supabase = await createClient()
 
+  // Strict role check: Verify that the user is actually the owner of this specific brand in the brand_members table.
+  const { data: memberData, error: memberError } = await supabase
+    .from('brand_members')
+    .select('role')
+    .eq('brand_id', id)
+    .eq('user_id', auth.userId)
+    .maybeSingle()
+
+  if (memberError) return errorResponse(memberError.message, 500)
+  if (!memberData || memberData.role !== 'owner') {
+    return errorResponse('Forbidden: Only the brand owner can delete this brand', 403)
+  }
+
   // Safety rail: CASCADE chains on brand_id span ~17 tables (research_items,
   // content_drafts, newsletters, audit_trail, api_costs, ...). A single DELETE
   // call will nuke all of it — that's intentional per user flow ("remove a
@@ -166,8 +179,19 @@ export async function DELETE(_request: Request, context: RouteContext) {
     )
   }
 
-  const { error } = await supabase.from('brands').delete().eq('id', id)
-  if (error) return errorResponse(error.message, 500)
+  // Perform privileged deletion using the admin client to bypass any silent RLS constraints
+  const adminSupabase = createAdminClient()
+  const { data: deletedData, error: deleteError } = await adminSupabase
+    .from('brands')
+    .delete()
+    .eq('id', id)
+    .select('id')
+    .maybeSingle()
+
+  if (deleteError) return errorResponse(deleteError.message, 500)
+  if (!deletedData) {
+    return errorResponse('Brand not found or could not be deleted', 404)
+  }
 
   return jsonResponse({ deleted: id })
 }

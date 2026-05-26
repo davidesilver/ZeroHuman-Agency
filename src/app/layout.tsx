@@ -95,6 +95,58 @@ export default function RootLayout({
       className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        {process.env.NODE_ENV === "development" && (
+          <script
+            suppressHydrationWarning
+            dangerouslySetInnerHTML={{
+              __html: `
+                (function() {
+                  const removeAttr = (el) => {
+                    if (el && el.removeAttribute) {
+                      if (el.hasAttribute('bis_skin_checked')) el.removeAttribute('bis_skin_checked');
+                    }
+                  };
+                  
+                  const walkAndRemove = (node) => {
+                    if (node.nodeType === 1) {
+                      removeAttr(node);
+                      const children = node.getElementsByTagName('*');
+                      for (let i = 0; i < children.length; i++) {
+                        removeAttr(children[i]);
+                      }
+                    }
+                  };
+
+                  if (document.documentElement) {
+                    walkAndRemove(document.documentElement);
+                  }
+
+                  const observer = new MutationObserver((mutations) => {
+                    for (let i = 0; i < mutations.length; i++) {
+                      const mutation = mutations[i];
+                      if (mutation.type === 'attributes' && mutation.attributeName === 'bis_skin_checked') {
+                        removeAttr(mutation.target);
+                      } else if (mutation.type === 'childList') {
+                        for (let j = 0; j < mutation.addedNodes.length; j++) {
+                          walkAndRemove(mutation.addedNodes[j]);
+                        }
+                      }
+                    }
+                  });
+
+                  observer.observe(document.documentElement, {
+                    attributes: true,
+                    childList: true,
+                    subtree: true,
+                    attributeFilter: ['bis_skin_checked']
+                  });
+                })();
+              `,
+            }}
+          />
+        )}
+      </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <JsonLd />
         {children}

@@ -4,7 +4,15 @@ import Link from 'next/link'
 import { useBrand } from '@/lib/brand-context'
 import { AssetUploadCard } from '@/components/brand-assets/asset-upload-card'
 import { PaletteEditor } from '@/components/brand-assets/palette-editor'
-import { Image as ImgIcon, FileText, Trash2, ChevronLeft, ExternalLink } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Image as ImgIcon, FileText, Trash2, ChevronLeft, ExternalLink, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 type Asset = {
   id: string; kind: string; label: string | null; storage_path: string;
@@ -18,6 +26,10 @@ export default function BrandAssetsPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({})
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     if (!activeBrand) return
@@ -49,15 +61,26 @@ export default function BrandAssetsPage() {
 
   useEffect(() => { refresh() }, [refresh])
 
-  async function remove(id: string) {
-    if (!activeBrand) return
-    if (!confirm('Delete this asset?')) return
+  const initiateDelete = (asset: Asset) => {
+    setAssetToDelete(asset)
+    setDeleteError(null)
+    setDeleteConfirmOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!activeBrand || !assetToDelete) return
+    setDeleting(true)
+    setDeleteError(null)
     try {
-      const res = await fetch(`/api/brands/${activeBrand.id}/assets/${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/brands/${activeBrand.id}/assets/${assetToDelete.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
+      setDeleteConfirmOpen(false)
+      setAssetToDelete(null)
       refresh()
     } catch {
-      alert('Delete failed. The asset is still on the server — try again.')
+      setDeleteError('Delete failed. The asset is still on the server — try again.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -128,7 +151,7 @@ export default function BrandAssetsPage() {
                 {a.kind === 'palette' && (
                   <PaletteEditor brandId={activeBrand.id} assetId={a.id} initial={a.palette_hex ?? []}/>
                 )}
-                <button onClick={() => remove(a.id)}
+                <button onClick={() => initiateDelete(a)}
                         className="text-xs text-[var(--status-error)] inline-flex items-center gap-1">
                   <Trash2 size={12}/> Delete
                 </button>
@@ -137,6 +160,64 @@ export default function BrandAssetsPage() {
           </div>
         </section>
       ))}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-md border border-destructive/20 bg-background/95 backdrop-blur-md">
+          <DialogHeader className="flex flex-row items-start gap-3 space-y-0 pb-2">
+            <div className="p-2 rounded-full bg-destructive/10 text-destructive mt-0.5">
+              <Trash2 className="size-5" />
+            </div>
+            <div className="space-y-1">
+              <DialogTitle className="text-lg font-semibold text-destructive">
+                Delete Asset
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground">
+                This action is permanent and cannot be undone.
+              </p>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <p className="text-sm">
+              Are you sure you want to delete <strong className="font-semibold text-foreground">&quot;{assetToDelete?.label || assetToDelete?.kind || 'this asset'}&quot;</strong>?
+            </p>
+            <div className="rounded-lg bg-muted/50 border p-3 space-y-1.5 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground">Details:</p>
+              <ul className="list-disc pl-4 space-y-1">
+                <li>Kind: <span className="capitalize text-foreground">{assetToDelete?.kind.replace(/_/g, ' ')}</span></li>
+                {assetToDelete?.mime_type && <li>Type: <span className="font-mono text-foreground">{assetToDelete.mime_type}</span></li>}
+                {assetToDelete?.bytes && <li>Size: <span className="font-mono text-foreground">{(assetToDelete.bytes / 1024).toFixed(1)} KB</span></li>}
+              </ul>
+            </div>
+            {deleteError && (
+              <p className="text-xs font-medium text-destructive bg-destructive/5 border border-destructive/10 rounded-md p-2">
+                {deleteError}
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={deleting}
+              className="sm:order-first"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-medium"
+            >
+              {deleting ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+              {deleting ? 'Deleting...' : 'Delete Asset'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

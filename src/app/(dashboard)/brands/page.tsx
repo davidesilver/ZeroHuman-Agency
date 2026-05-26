@@ -39,7 +39,10 @@ export default function BrandsPage() {
   // name/topics are sent (slug is immutable server-side in P0.3).
   const [editId, setEditId] = useState<string | null>(null)
   const [formBudget, setFormBudget] = useState('')   // '' = unlimited, else USD string
-  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [brandToDelete, setBrandToDelete] = useState<Brand | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const fetchBrands = async () => {
     try {
@@ -129,24 +132,30 @@ export default function BrandsPage() {
     setSaving(false)
   }
 
-  const handleDelete = async (brand: Brand) => {
-    const confirmed = window.confirm(
-      `Delete "${brand.name}"?\n\nThis also cascades to research items, drafts, newsletters, and audit logs for this brand. Drafts must be archived or removed first.`,
-    )
-    if (!confirmed) return
-    setDeletingId(brand.id)
+  const initiateDelete = (brand: Brand) => {
+    setBrandToDelete(brand)
+    setDeleteError(null)
+    setDeleteConfirmOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!brandToDelete) return
+    setDeleting(true)
+    setDeleteError(null)
     try {
-      const resp = await fetch(`/api/brands/${brand.id}`, { method: 'DELETE' })
+      const resp = await fetch(`/api/brands/${brandToDelete.id}`, { method: 'DELETE' })
       const json = await resp.json()
       if (json.success) {
+        setDeleteConfirmOpen(false)
+        setBrandToDelete(null)
         fetchBrands()
       } else {
-        window.alert(json.error?.message || 'Failed to delete brand')
+        setDeleteError(json.error?.message || 'Failed to delete brand')
       }
     } catch {
-      window.alert('Network error')
+      setDeleteError('Network error occurred during deletion')
     }
-    setDeletingId(null)
+    setDeleting(false)
   }
 
   return (
@@ -270,11 +279,11 @@ export default function BrandsPage() {
                       variant="ghost"
                       size="sm"
                       className="h-7 px-2 text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(brand)}
-                      disabled={deletingId === brand.id}
+                      onClick={() => initiateDelete(brand)}
+                      disabled={deleting && brandToDelete?.id === brand.id}
                       title="Delete brand"
                     >
-                      {deletingId === brand.id ? (
+                      {deleting && brandToDelete?.id === brand.id ? (
                         <Loader2 className="size-3.5 animate-spin" />
                       ) : (
                         <Trash2 className="size-3.5" />
@@ -326,6 +335,68 @@ export default function BrandsPage() {
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-md border border-destructive/20">
+          <DialogHeader className="flex flex-row items-start gap-3 space-y-0 pb-2">
+            <div className="p-2 rounded-full bg-destructive/10 text-destructive mt-0.5">
+              <Trash2 className="size-5" />
+            </div>
+            <div className="space-y-1">
+              <DialogTitle className="text-lg font-semibold text-destructive">
+                Delete Brand
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground">
+                This action is permanent and cannot be undone.
+              </p>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <p className="text-sm">
+              Are you sure you want to delete <strong className="font-semibold text-foreground">&quot;{brandToDelete?.name}&quot;</strong>?
+            </p>
+            <div className="rounded-lg bg-muted/50 border p-3 space-y-1.5 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground">What will be removed:</p>
+              <ul className="list-disc pl-4 space-y-1">
+                <li>Research runs and scanned sources</li>
+                <li>Content drafts and scheduled posts</li>
+                <li>Newsletters and candidates</li>
+                <li>API spend logs and audit trails</li>
+              </ul>
+              <p className="mt-2 text-[11px] leading-relaxed text-amber-600 dark:text-amber-400">
+                ⚠️ Note: Content drafts must be archived or deleted before removing the brand.
+              </p>
+            </div>
+            {deleteError && (
+              <p className="text-xs font-medium text-destructive bg-destructive/5 border border-destructive/10 rounded-md p-2">
+                {deleteError}
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={deleting}
+              className="sm:order-first"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-medium"
+            >
+              {deleting ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+              {deleting ? 'Deleting...' : 'Delete Brand'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
