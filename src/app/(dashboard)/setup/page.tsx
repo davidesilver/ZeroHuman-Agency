@@ -844,11 +844,13 @@ function StepMcp({ onNext, onBack, onSkip }: { onNext: () => void; onBack: () =>
   useEffect(() => {
     fetch('/api/mcp/detect', { signal: AbortSignal.timeout(10000) })
       .then(r => r.json())
-      .then((res: any) => {
-        if (res && res.success && Array.isArray(res.data)) {
-          setServers(res.data)
-        } else if (Array.isArray(res)) {
-          setServers(res)
+      .then((res: unknown) => {
+        if (Array.isArray(res)) {
+          setServers(res as McpServer[])
+        } else if (res && typeof res === 'object' && 'success' in res) {
+          const typed = res as { success: boolean; data?: McpServer[] }
+          if (typed.success && Array.isArray(typed.data)) setServers(typed.data)
+          else setServers([])
         } else {
           setServers([])
         }
