@@ -305,7 +305,7 @@ export default function NewsletterPage() {
 
           <div className="space-y-3 py-2">
             <p className="text-sm">
-              Are you sure you want to broadcast <strong className="font-semibold text-foreground">"{newsletterToSend?.title || 'this newsletter'}"</strong>?
+              Are you sure you want to broadcast <strong className="font-semibold text-foreground">&quot;{newsletterToSend?.title || 'this newsletter'}&quot;</strong>?
             </p>
             <div className="rounded-lg bg-muted/50 border p-3 space-y-1.5 text-xs text-muted-foreground">
               <p className="font-medium text-foreground">Campaign Details:</p>
@@ -314,7 +314,7 @@ export default function NewsletterPage() {
                 <li>Recipients: <span className="text-foreground">All active verified subscribers in your connected ESP</span></li>
                 {newsletterToSend?.subject_variant_b && (
                   <li>
-                    Subject A/B Testing: <span className="text-blue-500 font-medium font-semibold">Enabled</span> (Variant B: "{newsletterToSend.subject_variant_b}")
+                    Subject A/B Testing: <span className="text-blue-500 font-medium font-semibold">Enabled</span> (Variant B: &quot;{newsletterToSend.subject_variant_b}&quot;)
                   </li>
                 )}
                 <li>Stats tracking: <span className="text-foreground">Real-time Open & Click rates analytics enabled</span></li>

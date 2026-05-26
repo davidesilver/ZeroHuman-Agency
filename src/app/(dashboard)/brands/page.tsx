@@ -355,7 +355,7 @@ export default function BrandsPage() {
 
           <div className="space-y-3 py-2">
             <p className="text-sm">
-              Are you sure you want to delete <strong className="font-semibold text-foreground">"{brandToDelete?.name}"</strong>?
+              Are you sure you want to delete <strong className="font-semibold text-foreground">&quot;{brandToDelete?.name}&quot;</strong>?
             </p>
             <div className="rounded-lg bg-muted/50 border p-3 space-y-1.5 text-xs text-muted-foreground">
               <p className="font-medium text-foreground">What will be removed:</p>

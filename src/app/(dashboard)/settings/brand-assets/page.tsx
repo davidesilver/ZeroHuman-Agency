@@ -180,7 +180,7 @@ export default function BrandAssetsPage() {
 
           <div className="space-y-3 py-2">
             <p className="text-sm">
-              Are you sure you want to delete <strong className="font-semibold text-foreground">"{assetToDelete?.label || assetToDelete?.kind || 'this asset'}"</strong>?
+              Are you sure you want to delete <strong className="font-semibold text-foreground">&quot;{assetToDelete?.label || assetToDelete?.kind || 'this asset'}&quot;</strong>?
             </p>
             <div className="rounded-lg bg-muted/50 border p-3 space-y-1.5 text-xs text-muted-foreground">
               <p className="font-medium text-foreground">Details:</p>

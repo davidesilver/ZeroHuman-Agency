@@ -744,7 +744,7 @@ export default function MemoryInspectorPage() {
             <div className="rounded-lg bg-muted/50 border p-3 space-y-2 text-xs text-muted-foreground">
               <p className="font-semibold text-foreground">Statement:</p>
               <p className="italic bg-background/50 p-2 rounded border font-sans text-foreground leading-relaxed">
-                "{factToDelete?.statement}"
+                &quot;{factToDelete?.statement}&quot;
               </p>
               <div className="flex gap-4 pt-1 text-[11px]">
                 <div>Kind: <span className="capitalize text-foreground font-medium">{factToDelete?.kind.replace(/_/g, ' ')}</span></div>

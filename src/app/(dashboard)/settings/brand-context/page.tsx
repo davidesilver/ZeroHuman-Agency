@@ -804,7 +804,7 @@ export default function BrandContextPage() {
             </p>
             <div className="bg-muted/50 rounded-lg p-3 border border-border space-y-2">
               <p className="text-sm font-medium text-foreground italic">
-                "{factToDelete?.statement}"
+                &quot;{factToDelete?.statement}&quot;
               </p>
               <div className="flex gap-3 text-[11px] text-muted-foreground pt-1 border-t border-border/60">
                 <div>
