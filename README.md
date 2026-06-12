@@ -1,8 +1,8 @@
 # ZeroHuman — Content Engine
 
-**An autonomous, multi-tenant AI content operations platform that transforms how teams create, manage, and publish content across multiple channels.**
+**Your self-hosted AI content team: research → score → draft → multi-agent review → publish — and it learns from what works.**
 
-Content Engine combines intelligent web research, AI-powered content generation, multi-agent review systems, and automated publishing into a unified platform. Perfect for content teams, marketing agencies, and businesses that need to scale their content production while maintaining quality and brand consistency.
+ZeroHuman runs your whole content pipeline on your own infrastructure: it researches your topics, scores what matters, writes platform-native drafts, has a four-agent panel review them, and publishes on schedule. Social metrics flow back into scoring weights, so every cycle gets sharper. And you stay in the loop — nothing ships without your approval, and the humanizer writes in *your* voice from your own gold examples.
 
 ![ZeroHuman Content Engine — platform walkthrough](docs/demo.gif)
 
@@ -12,12 +12,7 @@ Topics + Sources → Research → Scoring → Draft → Review → Publish
                                        Metrics feedback loop
 ```
 
-**Perfect for:**
-- Marketing teams managing multiple brands
-- Content agencies scaling client deliverables  
-- Businesses automating their content marketing
-- Creators maintaining consistency across platforms
-- Teams needing AI-powered content research and generation
+**Built for:** indie creators shipping daily, solo founders doing build-in-public, newsletter writers — and agencies managing multiple brands.
 
 ---
 
@@ -45,6 +40,22 @@ Topics + Sources → Research → Scoring → Draft → Review → Publish
 | **Brand vault** | Per-brand encrypted credential storage — API keys never leave your database unencrypted |
 
 Everything is **multi-tenant**: each brand has isolated data, its own sources, tone of voice, scoring weights, and agent configuration.
+
+---
+
+## Why not just Postiz or n8n?
+
+Use them — ZeroHuman does, happily (Postiz is our optional publishing satellite, behind the `social` Docker profile). The difference is what happens *before* scheduling:
+
+| | Postiz | n8n + prompts | ZeroHuman |
+|---|---|---|---|
+| Scheduling & publishing | ✅ core | via nodes | ✅ built-in / via Postiz |
+| Research & scoring of sources | — | DIY | ✅ configurable dimensions |
+| Multi-agent editorial review | — | DIY | ✅ critic / fact-checker / creative / synthesis |
+| Learns from your social metrics | — | — | ✅ metrics feed scoring weights |
+| Your voice from your gold examples | — | — | ✅ humanizer |
+
+If all you need is scheduling, Postiz alone is great. ZeroHuman is for when the bottleneck is *what to publish*, not *when*.
 
 ---
 
@@ -108,6 +119,18 @@ Create multiple brands, each with its own sources, tone, agents, scoring weights
 ---
 
 ## Quick start
+
+### Fastest path — Docker
+
+```bash
+./setup.sh                                      # generates .env.local interactively
+docker compose -f docker-compose.full.yaml up -d
+# → http://localhost:3000
+```
+
+You need a free [Supabase](https://supabase.com) project and **one** LLM API key (Anthropic or OpenRouter). Everything else is optional: video tooling and the Postiz social stack live behind Docker profiles (`--profile video`, `--profile social`).
+
+Prefer to run things directly? The manual path follows.
 
 ### Prerequisites
 
