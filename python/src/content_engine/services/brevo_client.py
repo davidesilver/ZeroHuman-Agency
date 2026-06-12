@@ -55,7 +55,11 @@ class BrevoList:
     total_active_contacts: int
 
 
-class BrevoAuthError(Exception):
+class BrevoError(Exception):
+    """Base Brevo client error."""
+
+
+class BrevoAuthError(BrevoError):
     """Raised when the Brevo API key is missing or rejected."""
 
 

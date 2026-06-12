@@ -93,7 +93,9 @@ X-Scheduler-Secret: <your-scheduler-secret>
 |---|---|---|
 | `/api/video/templates` | GET | → FastAPI |
 | `/api/video/render` | POST | → FastAPI (202 Accepted) |
+| `/api/video/shorts/generate` | POST | → FastAPI (202 Accepted) |
 | `/api/video/jobs/:id` | GET | → FastAPI |
+| `/api/video/shorts/:id/status` | GET | → FastAPI |
 | `/api/video/heygen/generate` | POST | → FastAPI |
 | `/api/video/heygen/status/:id` | GET | → FastAPI |
 

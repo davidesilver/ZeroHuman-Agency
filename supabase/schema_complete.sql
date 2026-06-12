@@ -1179,7 +1179,7 @@ CREATE INDEX IF NOT EXISTS idx_notification_events_created ON notification_event
 
 
 -- ============================================================================
--- §18  VIDEO SYSTEM (from 038, 039, 040)
+-- §18  VIDEO SYSTEM (from 038, 039, 040, 043)
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS video_templates (
@@ -1213,13 +1213,14 @@ CREATE TABLE IF NOT EXISTS videos (
   status        text        NOT NULL DEFAULT 'pending'
                 CHECK (status IN ('pending','rendering','completed','failed')),
   render_props  jsonb       DEFAULT '{}',
+  pipeline_state jsonb      DEFAULT '{}',
   output_url    text,
   storage_path  text,
   duration_secs numeric,
   error         text,
   -- 040: HeyGen support
   kind          text        NOT NULL DEFAULT 'hyperframes'
-                CHECK (kind IN ('hyperframes','heygen')),
+                CHECK (kind IN ('hyperframes','heygen','automated-shorts')),
   heygen_video_id text,
   created_at    timestamptz DEFAULT now(),
   updated_at    timestamptz DEFAULT now()
@@ -1757,7 +1758,9 @@ VALUES
   (NULL, 'Weekly Recap', 'weekly-recap', 'Animated summary of the week''s top content',
    'compositions/weekly-recap', '{"type":"object","properties":{"brand_name":{"type":"string"},"accent_color":{"type":"string","default":"#6366f1"},"week_start":{"type":"string","description":"YYYY-MM-DD"}}}'),
   (NULL, 'Carousel -> Reel', 'carousel-to-reel', 'Convert a carousel into an animated vertical reel',
-   'compositions/carousel-to-reel', '{"type":"object","properties":{"brand_name":{"type":"string"},"accent_color":{"type":"string","default":"#6366f1"},"slides":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"body":{"type":"string"}}}}}}')
+   'compositions/carousel-to-reel', '{"type":"object","properties":{"brand_name":{"type":"string"},"accent_color":{"type":"string","default":"#6366f1"},"slides":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"body":{"type":"string"}}}}}}'),
+  (NULL, 'Automated Shorts', 'automated-shorts', 'Pipeline-driven vertical shorts with TTS, Whisper, and B-roll cascade',
+   'compositions/automated-shorts', '{"type":"object","properties":{"title":{"type":"string"},"topic":{"type":"string"},"brand_name":{"type":"string"},"accent_color":{"type":"string","default":"#6366f1"},"logo_url":{"type":"string"},"duration_seconds":{"type":"number"},"subtitle_blocks_json":{"type":"string"},"b_roll_urls_json":{"type":"string"}}}')
 ON CONFLICT DO NOTHING;
 
 

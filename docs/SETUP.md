@@ -418,6 +418,9 @@ HyperFrames and Heygen API keys are stored per-brand in `brand_integrations` (en
 |---|---|---|
 | `VIDEO_STORAGE_BUCKET` | Supabase Storage bucket for rendered videos | `videos` |
 | `HYPERFRAMES_BIN` | Path to HyperFrames CLI binary | `hyperframes` (must be on PATH) |
+| `PEXELS_API_KEY` | Optional fallback B-roll search API key | unset |
+| `TTS_SERVICE_URL` | Local TTS sidecar URL | `http://localhost:8001` |
+| `WHISPER_SERVICE_URL` | Local Whisper sidecar URL | `http://localhost:8002` |
 | `HEYGEN_MONTHLY_QUOTA` | Per-brand monthly video generation cap | `10` |
 
 ### Alerts
