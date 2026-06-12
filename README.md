@@ -124,7 +124,7 @@ Create multiple brands, each with its own sources, tone, agents, scoring weights
 
 ```bash
 ./setup.sh                                      # generates .env.local interactively
-docker compose -f docker-compose.full.yaml up -d
+docker compose -f docker-compose.full.yaml --env-file .env.local up -d
 # → http://localhost:3000
 ```
 

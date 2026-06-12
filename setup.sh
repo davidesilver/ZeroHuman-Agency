@@ -400,7 +400,7 @@ hr
 step "Starting services"
 
 if [[ "$USE_DOCKER" == "true" ]]; then
-  DOCKER_ARGS="-f docker-compose.full.yaml"
+  DOCKER_ARGS="-f docker-compose.full.yaml --env-file .env.local"
   if [[ "$POSTIZ_MODE" == "self_hosted" ]]; then
     DOCKER_ARGS="$DOCKER_ARGS --profile social"
     info "Postiz profile enabled — starting full social stack"

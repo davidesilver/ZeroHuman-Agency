@@ -1,9 +1,8 @@
-version: "3.8"
 # ZeroHuman-Agency — Full Stack Docker Compose
 #
 # Quick start:
 #   1. Run ./setup.sh to generate .env.local
-#   2. docker compose -f docker-compose.full.yaml up -d
+#   2. docker compose -f docker-compose.full.yaml --env-file .env.local up -d
 #   3. Open http://localhost:3000
 #
 # Optional profiles:
