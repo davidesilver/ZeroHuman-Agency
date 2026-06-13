@@ -22,6 +22,11 @@ ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
+# This image's runner stage requires Next.js standalone output (server.js),
+# which next.config.ts only emits when DOCKER_BUILD=1. Force it here so the
+# image builds regardless of how compose is invoked.
+ENV DOCKER_BUILD=1
+
 RUN npm run build
 
 # Production image

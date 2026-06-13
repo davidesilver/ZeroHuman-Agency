@@ -1,9 +1,8 @@
-version: "3.8"
 # ZeroHuman-Agency — Full Stack Docker Compose
 #
 # Quick start:
 #   1. Run ./setup.sh to generate .env.local
-#   2. docker compose -f docker-compose.full.yaml up -d
+#   2. docker compose -f docker-compose.full.yaml --env-file .env.local up -d
 #   3. Open http://localhost:3000
 #
 # Optional profiles:
@@ -24,14 +23,36 @@ services:
       # Override backend URL for intra-container comms (frontend → backend)
       ALLOWED_ORIGINS: "http://localhost:3000,http://frontend:3000"
       DEBUG: "false"
+      TTS_SERVICE_URL: "http://host.docker.internal:8001"
+      WHISPER_SERVICE_URL: "http://host.docker.internal:8002"
     ports:
       - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       start_period: 20s
       retries: 3
+    networks: [app]
+
+  tts-service:
+    build:
+      context: ./docker/tts-service
+    restart: unless-stopped
+    profiles: [video]
+    ports:
+      - "8001:8001"
+    networks: [app]
+
+  whisper-service:
+    build:
+      context: ./docker/whisper-service
+    restart: unless-stopped
+    profiles: [video]
+    ports:
+      - "8002:8002"
     networks: [app]
 
   # ── Next.js Frontend ───────────────────────────────────────────────────────

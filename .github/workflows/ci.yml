@@ -76,3 +76,21 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: placeholder
           SCHEDULER_SECRET: placeholder
           BRAND_SECRETS_ENCRYPTION_KEY: ${{ secrets.BRAND_SECRETS_ENCRYPTION_KEY || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }}
+
+  # ── Quickstart: the docker compose build users actually run ──────────────────
+  # Native frontend/backend jobs run on a toolchain-rich runner and miss image
+  # gaps (e.g. the python:3.14-slim backend has no gcc, which a source-built
+  # transitive dep needs). This job builds the real images so a broken quickstart
+  # fails CI, not the user's first `docker compose up`.
+  docker-build:
+    name: Docker images (quickstart build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend + frontend images
+        run: docker compose -f docker-compose.full.yaml build backend frontend
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html
+  data-composition-variables='[
+    {"id":"title","type":"string","label":"Title","default":"Automated Shorts"},
+    {"id":"topic","type":"string","label":"Topic","default":"Topic"},
+    {"id":"brand_name","type":"string","label":"Brand Name","default":"Brand"},
+    {"id":"accent_color","type":"color","label":"Accent Color","default":"#6366f1"},
+    {"id":"logo_url","type":"string","label":"Logo URL","default":""},
+    {"id":"duration_seconds","type":"number","label":"Duration (seconds)","default":20},
+    {"id":"subtitle_blocks_json","type":"string","label":"Subtitle Blocks JSON","default":"[]"},
+    {"id":"b_roll_urls_json","type":"string","label":"B-roll URLs JSON","default":"[]"},
+    {"id":"watermark_text","type":"string","label":"Watermark Text","default":"Brand"},
+    {"id":"progress_label","type":"string","label":"Progress Label","default":"Shorts"}
+  ]'
+>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; background: #05070c; overflow: hidden; }
+    body { font-family: Inter, system-ui, sans-serif; color: #fff; }
+
+    #root {
+      width: 1080px;
+      height: 1920px;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 15%, rgba(255,255,255,0.08), transparent 25%),
+        linear-gradient(180deg, #09111f 0%, #05070c 100%);
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .topbar {
+      position: absolute;
+      top: 54px;
+      left: 56px;
+      right: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      max-width: 52%;
+      min-width: 0;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      object-fit: contain;
+      flex: 0 0 auto;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .brand-meta {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-name {
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand-topic {
+      font-size: 14px;
+      line-height: 1.2;
+      opacity: 0.65;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .watermark {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      opacity: 0.7;
+      padding: 12px 16px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      max-width: 38%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .subtitle-shell {
+      position: absolute;
+      left: 56px;
+      right: 56px;
+      bottom: 148px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+    }
+
+    .subtitle-card {
+      max-width: 960px;
+      width: 100%;
+      padding: 30px 34px 34px;
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.48));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(16px);
+      text-align: center;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.32);
+    }
+
+    .subtitle-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      opacity: 0.52;
+      margin-bottom: 16px;
+    }
+
+    .subtitle-lines {
+      font-size: 46px;
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: 0;
+      word-break: break-word;
+      text-wrap: balance;
+    }
+
+    .subtitle-lines span {
+      display: inline;
+      margin-right: 0.35em;
+    }
+
+    .progress-shell {
+      position: absolute;
+      left: 56px;
+      right: 56px;
+      bottom: 56px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .progress-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      opacity: 0.7;
+      flex: 0 0 auto;
+    }
+
+    .progress-track {
+      height: 6px;
+      flex: 1 1 auto;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+    }
+
+    .time-badge {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.68;
+      flex: 0 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <div
+    id="root"
+    data-composition-id="root"
+    data-width="1080"
+    data-height="1920"
+    data-fps="30"
+    data-duration="20"
+  >
+    <canvas id="canvas" width="1080" height="1920"></canvas>
+
+    <div class="overlay">
+      <div class="topbar">
+        <div class="brand-chip">
+          <img class="brand-logo" id="brandLogo" alt="" />
+          <div class="brand-meta">
+            <div class="brand-name" id="brandName">Brand</div>
+            <div class="brand-topic" id="topicLabel">Topic</div>
+          </div>
+        </div>
+        <div class="watermark" id="watermark">Brand</div>
+      </div>
+
+      <div class="subtitle-shell">
+        <div class="subtitle-card">
+          <div class="subtitle-title" id="subtitleTitle">Narration</div>
+          <div class="subtitle-lines" id="subtitleLines"></div>
+        </div>
+      </div>
+
+      <div class="progress-shell">
+        <div class="progress-label" id="progressLabel">Shorts</div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="time-badge" id="timeBadge">00:00</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const vars = window.__hyperframes.getVariables();
+    const timeline = window.__hyperframes.getTimeline();
+    const root = document.getElementById('root');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const accent = vars.accent_color || '#6366f1';
+
+    const brandName = vars.brand_name || 'Brand';
+    const topic = vars.topic || 'Topic';
+    const title = vars.title || 'Automated Shorts';
+    const durationSeconds = Number(vars.duration_seconds || 20);
+    const watermarkText = vars.watermark_text || brandName;
+    const progressLabel = vars.progress_label || 'Shorts';
+    const logoUrl = vars.logo_url || '';
+
+    const parseJson = (value, fallback) => {
+      try {
+        if (!value) return fallback;
+        const parsed = JSON.parse(value);
+        return parsed ?? fallback;
+      } catch {
+        return fallback;
+      }
+    };
+
+    const subtitleBlocks = parseJson(vars.subtitle_blocks_json, []);
+    const bRollUrls = parseJson(vars.b_roll_urls_json, []);
+    root.dataset.duration = String(Math.max(durationSeconds, 1));
+
+    document.getElementById('brandName').textContent = brandName;
+    document.getElementById('topicLabel').textContent = topic;
+    document.getElementById('watermark').textContent = watermarkText;
+    document.getElementById('progressLabel').textContent = progressLabel;
+
+    const brandLogo = document.getElementById('brandLogo');
+    if (logoUrl) {
+      brandLogo.src = logoUrl;
+      brandLogo.style.display = '';
+    } else {
+      brandLogo.style.display = 'none';
+    }
+
+    document.getElementById('subtitleTitle').textContent = title;
+
+    const videos = bRollUrls.map((url) => {
+      const video = document.createElement('video');
+      video.src = url;
+      video.muted = true;
+      video.loop = true;
+      video.playsInline = true;
+      video.preload = 'auto';
+      video.crossOrigin = 'anonymous';
+      video.style.display = 'none';
+      document.body.appendChild(video);
+      video.play().catch(() => {});
+      return video;
+    });
+
+    const fmtClock = (seconds) => {
+      const total = Math.max(0, Math.floor(seconds));
+      const minutes = String(Math.floor(total / 60)).padStart(2, '0');
+      const secs = String(total % 60).padStart(2, '0');
+      return `${minutes}:${secs}`;
+    };
+
+    const drawBackground = (timeSeconds) => {
+      const gradient = ctx.createLinearGradient(0, 0, 1080, 1920);
+      gradient.addColorStop(0, '#07101d');
+      gradient.addColorStop(0.5, '#05070c');
+      gradient.addColorStop(1, '#020305');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 1080, 1920);
+
+      const vignette = ctx.createRadialGradient(540, 640, 220, 540, 760, 980);
+      vignette.addColorStop(0, 'rgba(255,255,255,0.06)');
+      vignette.addColorStop(0.4, 'rgba(255,255,255,0.02)');
+      vignette.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, 1080, 1920);
+
+      ctx.fillStyle = accent;
+      ctx.globalAlpha = 0.08 + Math.sin(timeSeconds * 1.6) * 0.03;
+      ctx.fillRect(0, 0, 1080, 1920);
+      ctx.globalAlpha = 1;
+    };
+
+    const drawVideo = (frame, timeSeconds) => {
+      if (!videos.length) {
+        drawBackground(timeSeconds);
+        return;
+      }
+
+      const segment = Math.max(1, Math.floor((durationSeconds * 30) / videos.length));
+      const index = Math.min(Math.floor(frame / segment), videos.length - 1);
+      const video = videos[index];
+
+      if (video && video.readyState >= 2) {
+        ctx.drawImage(video, 0, 0, 1080, 1920);
+      } else {
+        drawBackground(timeSeconds);
+      }
+
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.fillRect(0, 0, 1080, 1920);
+    };
+
+    const renderSubtitleBlock = (timeSeconds) => {
+      const active = subtitleBlocks.find((block) => timeSeconds >= block.start && timeSeconds <= block.end)
+        || subtitleBlocks[subtitleBlocks.length - 1]
+        || null;
+
+      const lines = document.getElementById('subtitleLines');
+      lines.innerHTML = '';
+
+      if (!active) return;
+
+      const subtitleWords = active.words || [];
+      const currentWordIndex = subtitleWords.findIndex((word) => (
+        timeSeconds >= word.start && timeSeconds <= word.end
+      ));
+
+      subtitleWords.forEach((word, idx) => {
+        const span = document.createElement('span');
+        span.textContent = word.text;
+        span.style.color = idx === currentWordIndex ? accent : '#ffffff';
+        span.style.textShadow = idx === currentWordIndex
+          ? `0 0 16px ${accent}88`
+          : '0 2px 12px rgba(0, 0, 0, 0.4)';
+        lines.appendChild(span);
+      });
+    };
+
+    timeline.onFrame((frame) => {
+      const timeSeconds = frame / 30;
+      const progress = Math.min(timeSeconds / Math.max(durationSeconds, 1), 1);
+
+      drawBackground(timeSeconds);
+      drawVideo(frame, timeSeconds);
+
+      document.getElementById('progressFill').style.width = `${progress * 100}%`;
+      document.getElementById('progressFill').style.background = accent;
+      document.getElementById('timeBadge').textContent = fmtClock(timeSeconds);
+
+      renderSubtitleBlock(timeSeconds);
+    });
+  </script>
+</body>
+</html>

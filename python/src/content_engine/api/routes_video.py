@@ -2,6 +2,7 @@
 
 Endpoints:
   POST  /video/render          — enqueue a render job
+  POST  /video/shorts/generate  — enqueue an automated shorts job
   GET   /video/:id/status      — poll render status
   GET   /video                 — list videos for active brand
   GET   /video/templates       — list available templates
@@ -20,6 +21,11 @@ from ..services.heygen_client import (
     generate_talking_head,
     list_avatars,
     poll_heygen_status,
+)
+from ..services.shorts_generator import (
+    ShortsPipelineError,
+    enqueue_shorts_generation,
+    get_shorts_video_status,
 )
 from ..services.video_renderer import (
     VideoRenderError,
@@ -131,6 +137,13 @@ class TalkingHeadRequest(BaseModel):
     title: str | None = None
 
 
+class ShortsGenerateRequest(BaseModel):
+    topic: str
+    voice_id: str | None = None
+    pexels_keywords: list[str] | None = None
+    title: str | None = None
+
+
 @router.get("/heygen/avatars")
 async def get_heygen_avatars(request: Request):
     brand_id = _brand_id(request)
@@ -159,6 +172,36 @@ async def generate_video(body: TalkingHeadRequest, request: Request):
     except HeygenError as exc:
         raise HTTPException(422, str(exc))
     return {"video_id": video_id, "status": "accepted"}
+
+
+@router.post("/shorts/generate", status_code=202)
+async def generate_shorts(body: ShortsGenerateRequest, request: Request):
+    """Start the automated shorts pipeline (async, returns 202 Accepted)."""
+    brand_id = _brand_id(request)
+    topic = body.topic.strip()
+    if not topic:
+        raise HTTPException(400, "topic is required")
+    try:
+        video_id = enqueue_shorts_generation(
+            brand_id,
+            topic,
+            voice_id=body.voice_id,
+            pexels_keywords=body.pexels_keywords,
+            title=body.title,
+        )
+    except ShortsPipelineError as exc:
+        raise HTTPException(422, str(exc))
+    return {"video_id": video_id, "status": "accepted", "kind": "automated-shorts"}
+
+
+@router.get("/shorts/{video_id}/status")
+async def shorts_status(video_id: str, request: Request):
+    """Poll the state of an automated shorts job."""
+    brand_id = _brand_id(request)
+    try:
+        return get_shorts_video_status(video_id, brand_id)
+    except ShortsPipelineError as exc:
+        raise HTTPException(404, str(exc))
 
 
 @router.post("/{video_id}/poll-heygen")

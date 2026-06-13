@@ -58,6 +58,7 @@ This document lists all database migrations that build up the complete Content E
 | 040 | `040_heygen_quota.sql` | `heygen_usage` table for per-brand monthly quota tracking; adds `kind` and `heygen_video_id` to `videos` | - |
 | 041 | `041_brevo_campaigns.sql` | `brevo_campaigns` table for email campaign tracking and metrics | - |
 | 042 | `042_email_automations.sql` | `email_automations` table for Brevo multi-step workflow definitions | - |
+| 043 | `043_automated_shorts.sql` | Automated shorts pipeline: `pipeline_state` checkpointing, system template seed, shorts kind expansion | - |
 
 ## Complete Schema
 

@@ -10,7 +10,6 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from ..auth_middleware import _get_brand_id
 from ..utils.llm_client import call_llm
 
 logger = logging.getLogger("content_engine.brand_discovery")
@@ -20,6 +19,13 @@ router = APIRouter(prefix="/api/brand-discovery", tags=["brand-discovery"])
 _MAX_URLS = 10
 _MAX_TEXT_CHARS = 12_000
 _PER_URL_CHARS = 3_000
+
+
+def _brand_id(request: Request) -> str:
+    brand_id = getattr(request.state, "brand_id", None)
+    if not brand_id:
+        raise ValueError("Not authenticated")
+    return brand_id
 
 
 class DiscoveryRequest(BaseModel):
@@ -138,7 +144,7 @@ async def discover_brand(body: DiscoveryRequest, request: Request):
     Scrapes up to 10 URLs with trafilatura, feeds the text to the configured
     LLM, and returns structured brand identity facts ready for review.
     """
-    brand_id = _get_brand_id(request)
+    brand_id = _brand_id(request)
 
     all_urls = (body.urls + body.social_profiles)[:_MAX_URLS]
     if not all_urls:

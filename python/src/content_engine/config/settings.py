@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     firecrawl_api_key: str = ""
     tavily_api_key: str = ""
+    pexels_api_key: str = ""
     postiz_api_key: str = ""
     postiz_base_url: str = ""
     context7_mcp_url: str = "https://mcp.context7.com/mcp"
@@ -44,6 +45,8 @@ class Settings(BaseSettings):
     # Brand secrets encryption
     # Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     brand_secrets_encryption_key: str = ""
+    tts_service_url: str = "http://localhost:8001"
+    whisper_service_url: str = "http://localhost:8002"
 
     # Fallback Monitoring
     fallback_alert_threshold: float = 10.0  # Alert if fallbacks exceed X% of daily calls

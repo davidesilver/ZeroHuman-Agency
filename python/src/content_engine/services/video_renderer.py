@@ -21,9 +21,8 @@ from ..db import get_db
 
 logger = logging.getLogger("content_engine.services.video_renderer")
 
-# Absolute path to compositions/ directory (repo root)
-_REPO_ROOT = Path(__file__).resolve().parents[5]
-COMPOSITIONS_DIR = _REPO_ROOT / "compositions"
+# Absolute path to the repo root.
+REPO_ROOT = Path(__file__).resolve().parents[4]
 
 # hyperframes binary — resolved via PATH (installed by npm)
 HYPERFRAMES_BIN = os.environ.get("HYPERFRAMES_BIN", "hyperframes")
@@ -33,6 +32,71 @@ SUPABASE_STORAGE_BUCKET = os.environ.get("VIDEO_STORAGE_BUCKET", "videos")
 
 class VideoRenderError(Exception):
     """Raised on render failures."""
+
+
+def render_composition_to_path(
+    composition_path: str,
+    render_props: dict,
+    output_path: Path,
+    timeout: int = 300,
+) -> None:
+    """Render a HyperFrames composition to a local MP4 path."""
+    comp_dir = REPO_ROOT / composition_path
+    if not comp_dir.exists():
+        raise VideoRenderError(f"Composition directory not found: {comp_dir}")
+
+    variables_json = json.dumps(render_props)
+    cmd = [
+        HYPERFRAMES_BIN, "render", str(comp_dir),
+        "--output", str(output_path),
+        "--variables", variables_json,
+        "--format", "mp4",
+    ]
+
+    logger.info("Rendering composition %s", comp_dir)
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise VideoRenderError("Render timed out after 5 minutes") from exc
+    except FileNotFoundError as exc:
+        raise VideoRenderError(f"hyperframes binary not found: {HYPERFRAMES_BIN}") from exc
+
+    if proc.returncode != 0:
+        raise VideoRenderError(f"hyperframes exited {proc.returncode}: {proc.stderr[-500:]}")
+
+    if not output_path.exists():
+        raise VideoRenderError("hyperframes completed but output file not found")
+
+
+def upload_rendered_video(
+    brand_id: str,
+    video_id: str,
+    source_path: Path,
+) -> tuple[str, str]:
+    """Upload a rendered MP4 to Supabase Storage and return (output_url, storage_path)."""
+    db = get_db()
+    storage_path = f"{brand_id}/{video_id}/output.mp4"
+
+    try:
+        with open(source_path, "rb") as f:
+            db.storage.from_(SUPABASE_STORAGE_BUCKET).upload(
+                storage_path,
+                f.read(),
+                {"content-type": "video/mp4", "upsert": "true"},
+            )
+        signed = db.storage.from_(SUPABASE_STORAGE_BUCKET).create_signed_url(
+            storage_path, 3600
+        )
+        output_url = signed.get("signedURL") or signed.get("signedUrl", "")
+    except Exception as exc:
+        raise VideoRenderError(f"Storage upload failed: {exc}") from exc
+
+    return output_url, storage_path
 
 
 def enqueue_render(
@@ -90,7 +154,7 @@ def get_video_status(video_id: str, brand_id: str) -> dict:
     result = (
         get_db()
         .from_("videos")
-        .select("id, title, status, output_url, duration_secs, error, created_at, updated_at")
+        .select("id, title, status, kind, output_url, storage_path, duration_secs, error, pipeline_state, created_at, updated_at")
         .eq("id", video_id)
         .eq("brand_id", brand_id)
         .maybe_single()
@@ -105,7 +169,7 @@ def list_videos(brand_id: str, limit: int = 20) -> list[dict]:
     result = (
         get_db()
         .from_("videos")
-        .select("id, title, status, output_url, duration_secs, created_at, template_id")
+        .select("id, title, status, kind, output_url, duration_secs, created_at, template_id")
         .eq("brand_id", brand_id)
         .order("created_at", desc=True)
         .limit(limit)
@@ -119,61 +183,18 @@ def _render_worker(video_id: str, brand_id: str, composition_path: str, render_p
     db = get_db()
     db.from_("videos").update({"status": "rendering"}).eq("id", video_id).execute()
 
-    comp_dir = COMPOSITIONS_DIR / composition_path
-    if not comp_dir.exists():
-        _fail(video_id, f"Composition directory not found: {comp_dir}")
-        return
-
     with tempfile.TemporaryDirectory() as tmpdir:
         output_path = Path(tmpdir) / "output.mp4"
-        variables_json = json.dumps(render_props)
-
-        cmd = [
-            HYPERFRAMES_BIN, "render", str(comp_dir),
-            "--output", str(output_path),
-            "--variables", variables_json,
-            "--format", "mp4",
-        ]
-
-        logger.info("Rendering video %s: %s", video_id, " ".join(cmd[:4]))
         try:
-            proc = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=300,  # 5 min max
-            )
-        except subprocess.TimeoutExpired:
-            _fail(video_id, "Render timed out after 5 minutes")
-            return
-        except FileNotFoundError:
-            _fail(video_id, f"hyperframes binary not found: {HYPERFRAMES_BIN}")
+            render_composition_to_path(composition_path, render_props, output_path)
+        except VideoRenderError as exc:
+            _fail(video_id, str(exc))
             return
 
-        if proc.returncode != 0:
-            _fail(video_id, f"hyperframes exited {proc.returncode}: {proc.stderr[-500:]}")
-            return
-
-        if not output_path.exists():
-            _fail(video_id, "hyperframes completed but output file not found")
-            return
-
-        # Upload to Supabase Storage
-        storage_path = f"{brand_id}/{video_id}/output.mp4"
         try:
-            with open(output_path, "rb") as f:
-                db.storage.from_(SUPABASE_STORAGE_BUCKET).upload(
-                    storage_path,
-                    f.read(),
-                    {"content-type": "video/mp4", "upsert": "true"},
-                )
-            # Generate a signed URL (1 hour default; callers can re-sign)
-            signed = db.storage.from_(SUPABASE_STORAGE_BUCKET).create_signed_url(
-                storage_path, 3600
-            )
-            output_url = signed.get("signedURL") or signed.get("signedUrl", "")
-        except Exception as exc:
-            _fail(video_id, f"Storage upload failed: {exc}")
+            output_url, storage_path = upload_rendered_video(brand_id, video_id, output_path)
+        except VideoRenderError as exc:
+            _fail(video_id, str(exc))
             return
 
         db.from_("videos").update({
