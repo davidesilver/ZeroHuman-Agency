@@ -5,9 +5,11 @@ WORKDIR /app
 # Install uv for fast dependency resolution
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Audio muxing for the shorts pipeline
+# ffmpeg: audio muxing for the shorts pipeline.
+# build-essential: a transitive dep (pyiceberg, via supabase -> storage3) ships no
+# arm64/py3.14 wheel and compiles a C extension from source, which needs gcc.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg \
+  && apt-get install -y --no-install-recommends ffmpeg build-essential \
   && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies first (cached layer)
