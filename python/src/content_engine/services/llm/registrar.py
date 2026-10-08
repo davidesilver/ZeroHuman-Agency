@@ -30,10 +30,12 @@ def _ensure_defaults() -> None:
         return
     with _lock:
         if not _initialized:
+            from .codex_subscription import CodexSubscriptionProvider
             from .openclaw import OpenClawProvider
             from .openrouter import OpenRouterProvider
             _registry["openrouter"] = OpenRouterProvider()
             _registry["openclaw"] = OpenClawProvider()
+            _registry["codex_subscription"] = CodexSubscriptionProvider()
             _initialized = True
 
 
@@ -119,8 +121,13 @@ class ProviderRegistrar:
     def get_for_brand(self, brand_id: str, preferred: str | None = None) -> LLMProvider:
         """Return the best available provider for a brand using the 7-level cascade."""
         _ensure_defaults()
-        from ..config import settings
+        from ...config import settings
         from .provider_catalog import PROVIDER_CATALOG
+
+        # Installation-wide subscription mode takes precedence over paid BYOK routes.
+        if settings.llm_mode == "codex_subscription":
+            from .codex_subscription import CodexSubscriptionProvider
+            return CodexSubscriptionProvider()
 
         # ── Level 1: caller-specified preferred ─────────────────────────────
         if preferred:

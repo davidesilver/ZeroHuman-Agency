@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
@@ -39,8 +41,10 @@ class Settings(BaseSettings):
     auto_reject_threshold: float = 3.0
 
     # LLM Provider Preference
-    use_claude_subscription: bool = False  # If TRUE, uses Claude via Anthropic API (your subscription)
-                                            # If FALSE, uses OpenRouter free models (default)
+    llm_mode: Literal["api", "codex_subscription"] = "api"
+    codex_model: str = ""  # Empty uses the official CLI default model.
+    codex_timeout_seconds: float = Field(180.0, gt=0)
+    use_claude_subscription: bool = False  # Legacy API routing flag; not a Claude subscription.
 
     # Brand secrets encryption
     # Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"

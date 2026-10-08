@@ -405,6 +405,13 @@ async def _call_llm_with_model(
     import httpx
 
     from ..config import settings
+
+    if settings.llm_mode == "codex_subscription":
+        return await call_llm(
+            prompt=prompt, brand_id=brand_id, context=context, action=action,
+            task_type="editing", temperature=temperature,
+        )
+
     from .cost_tracker import track_cost
 
     if not settings.openrouter_api_key:
