@@ -86,6 +86,26 @@ async def call_llm(
     """
     start_time = time.monotonic()
 
+    if settings.llm_mode == "codex_subscription":
+        from ..services.llm.codex_subscription import complete_async
+        from ..services.llm.provider import LLMRequest
+        result = await complete_async(LLMRequest(prompt=prompt, system_prompt=system_prompt))
+        record_call()
+        asyncio.create_task(_record_heartbeat_safely(
+            brand_id=brand_id,
+            llm_meta={
+                "model_used": result.model_used, "engine": result.provider,
+                "latency_ms": result.latency_ms, "tokens_prompt": result.prompt_tokens,
+                "tokens_completion": result.completion_tokens,
+            },
+            context=context, action=action, status="healthy",
+        ))
+        return LLMResponse(
+            content=result.content, model_used=result.model_used, engine=result.provider,
+            tokens_prompt=result.prompt_tokens, tokens_completion=result.completion_tokens,
+            latency_ms=result.latency_ms, cost_usd=result.cost_usd,
+        )
+
     # Map task_type to ModelCapability
     capability = _map_task_type_to_capability(task_type)
     logger.debug("Mapped task_type=%s to capability=%s", task_type, capability)

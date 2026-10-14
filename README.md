@@ -200,13 +200,20 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 # Backend location (frontend proxies heavy ops here)
 PYTHON_BACKEND_URL=http://localhost:8000
 
-# At least one LLM provider
+# For API text mode, at least one LLM provider
 ANTHROPIC_API_KEY=
 OPENROUTER_API_KEY=          # used as fallback or primary (many free models available)
 
 # Scheduler security (generate with: openssl rand -hex 32)
 SCHEDULER_SECRET=
 ```
+
+For an owner-operated local engine, text can instead use your ChatGPT plan through
+the official Codex CLI: run `codex login` as the backend user and set
+`LLM_MODE=codex_subscription` in `.env.local`. No text API key is needed in this mode;
+login or quota failures stop the request without paid fallback. Optional images,
+embeddings and research services still have their own requirements.
+See [subscription engine setup](docs/subscription-engine.md).
 
 ### Research (add what you need)
 
