@@ -86,7 +86,7 @@ async def create_campaign(body: CreateCampaignRequest, request: Request):
         if body.list_id:
             campaign_data["recipients"] = {"listIds": [body.list_id]}
 
-        resp_data = brevo._request("POST", "/emailCampaigns", json=campaign_data)
+        resp_data = await brevo._request("POST", "/emailCampaigns", json=campaign_data)
         brevo_campaign_id = resp_data.get("id")
     except BrevoError as exc:
         raise HTTPException(422, str(exc))
@@ -96,7 +96,7 @@ async def create_campaign(body: CreateCampaignRequest, request: Request):
     # Schedule if requested
     if body.scheduled_at and brevo_campaign_id:
         try:
-            brevo._request(
+            await brevo._request(
                 "PUT",
                 f"/emailCampaigns/{brevo_campaign_id}/sendAtBestTime",
                 json={"scheduledAt": body.scheduled_at},

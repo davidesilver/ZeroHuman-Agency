@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import csv
 import io
+import asyncio
 import logging
-import time
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -88,7 +88,7 @@ class BrevoClient:
             "api-key": self._get_key(),
         }
 
-    def _request(
+    async def _request(
         self,
         method: str,
         path: str,
@@ -99,8 +99,8 @@ class BrevoClient:
         url = f"{BREVO_API_BASE}{path}"
         for attempt in range(_MAX_RETRIES):
             try:
-                with httpx.Client(timeout=30.0) as client:
-                    resp = client.request(
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    resp = await client.request(
                         method, url, headers=self._headers(), json=json, params=params
                     )
                 if resp.status_code == 401:
@@ -108,7 +108,7 @@ class BrevoClient:
                 if resp.status_code == 429:
                     delay = _RETRY_BASE_DELAY * (2 ** attempt)
                     logger.warning("Brevo rate limit hit, retrying in %.1fs", delay)
-                    time.sleep(delay)
+                    await asyncio.sleep(delay)
                     continue
                 resp.raise_for_status()
                 return resp.json() if resp.content else {}
@@ -119,33 +119,33 @@ class BrevoClient:
                     raise
                 delay = _RETRY_BASE_DELAY * (2 ** attempt)
                 logger.warning("Brevo HTTP error %s, retry %d in %.1fs", exc.response.status_code, attempt + 1, delay)
-                time.sleep(delay)
+                await asyncio.sleep(delay)
             except httpx.RequestError as exc:
                 if attempt == _MAX_RETRIES - 1:
                     raise
                 delay = _RETRY_BASE_DELAY * (2 ** attempt)
                 logger.warning("Brevo network error %s, retry %d in %.1fs", exc, attempt + 1, delay)
-                time.sleep(delay)
+                await asyncio.sleep(delay)
         raise RuntimeError(f"Brevo {method} {path} failed after {_MAX_RETRIES} retries")
 
     # ── Contacts ────────────────────────────────────────────────────────────
 
-    def list_contacts(self, limit: int = 50, offset: int = 0) -> list[BrevoContact]:
+    async def list_contacts(self, limit: int = 50, offset: int = 0) -> list[BrevoContact]:
         """List contacts from Brevo (paginated)."""
-        data = self._request("GET", "/contacts", params={"limit": limit, "offset": offset})
+        data = await self._request("GET", "/contacts", params={"limit": limit, "offset": offset})
         return [self._parse_contact(c) for c in data.get("contacts", [])]
 
-    def get_contact(self, email: str) -> BrevoContact | None:
+    async def get_contact(self, email: str) -> BrevoContact | None:
         """Fetch a single contact by email. Returns None if not found."""
         try:
-            data = self._request("GET", f"/contacts/{email}")
+            data = await self._request("GET", f"/contacts/{email}")
             return self._parse_contact(data)
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 404:
                 return None
             raise
 
-    def create_or_update_contact(self, contact: BrevoContact) -> BrevoContact:
+    async def create_or_update_contact(self, contact: BrevoContact) -> BrevoContact:
         """Create a contact or update if the email already exists."""
         payload: dict[str, Any] = {"email": contact.email}
         attrs: dict[str, Any] = {**contact.attributes}
@@ -158,7 +158,7 @@ class BrevoClient:
         if contact.list_ids:
             payload["listIds"] = contact.list_ids
         try:
-            data = self._request("POST", "/contacts", json=payload)
+            data = await self._request("POST", "/contacts", json=payload)
             contact.brevo_id = data.get("id")
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 400:
@@ -168,19 +168,19 @@ class BrevoClient:
                     update_payload["attributes"] = attrs
                 if contact.list_ids:
                     update_payload["listIds"] = contact.list_ids
-                self._request("PUT", f"/contacts/{contact.email}", json=update_payload)
-                existing = self.get_contact(contact.email)
+                await self._request("PUT", f"/contacts/{contact.email}", json=update_payload)
+                existing = await self.get_contact(contact.email)
                 if existing:
                     contact.brevo_id = existing.brevo_id
             else:
                 raise
         return contact
 
-    def import_contacts_csv(
+    async def import_contacts_csv(
         self,
         csv_text: str,
         list_id: int | None = None,
-    ) -> Iterator[BrevoContact]:
+    ) -> AsyncIterator[BrevoContact]:
         """Parse a CSV string and upsert each row. Yields synced contacts.
 
         Expected columns (case-insensitive): email, first_name, last_name.
@@ -218,13 +218,13 @@ class BrevoClient:
                     val = row.get(orig_key, "").strip()
                     if val:
                         contact.attributes[key.upper()] = val
-            yield self.create_or_update_contact(contact)
+            yield await self.create_or_update_contact(contact)
 
     # ── Lists ────────────────────────────────────────────────────────────────
 
-    def list_lists(self) -> list[BrevoList]:
+    async def list_lists(self) -> list[BrevoList]:
         """Fetch all lists for this account."""
-        data = self._request("GET", "/contacts/lists", params={"limit": 50})
+        data = await self._request("GET", "/contacts/lists", params={"limit": 50})
         return [
             BrevoList(
                 id=lst["id"],
@@ -235,12 +235,12 @@ class BrevoClient:
             for lst in data.get("lists", [])
         ]
 
-    def create_list(self, name: str, folder_id: int | None = None) -> BrevoList:
+    async def create_list(self, name: str, folder_id: int | None = None) -> BrevoList:
         """Create a new contact list."""
         payload: dict[str, Any] = {"name": name}
         if folder_id:
             payload["folderId"] = folder_id
-        data = self._request("POST", "/contacts/lists", json=payload)
+        data = await self._request("POST", "/contacts/lists", json=payload)
         return BrevoList(id=data["id"], name=name, total_subscribers=0, total_active_contacts=0)
 
     # ── Private helpers ──────────────────────────────────────────────────────
