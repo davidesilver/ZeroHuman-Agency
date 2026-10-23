@@ -92,17 +92,27 @@ async def set_credentials(brand_id: str, service_name: str, credentials: dict) -
     """Encrypt and upsert credentials for a brand/service pair."""
     if not _vault_available():
         raise RuntimeError(f"{_KEY_ENV} is not set — cannot store credentials")
+
+    if not credentials:
+        return
+
     db = get_db()
-    for key_name, value in credentials.items():
-        db.table("brand_integrations").upsert(
-            {
-                "brand_id": brand_id,
-                "provider": service_name,
-                "key_name": key_name,
-                "encrypted_value": _encrypt(value),
-            },
-            on_conflict="brand_id,provider,key_name",
-        ).execute()
+
+    records = [
+        {
+            "brand_id": brand_id,
+            "provider": service_name,
+            "key_name": key_name,
+            "encrypted_value": _encrypt(value),
+        }
+        for key_name, value in credentials.items()
+    ]
+
+    db.table("brand_integrations").upsert(
+        records,
+        on_conflict="brand_id,provider,key_name",
+    ).execute()
+
     logger.info("credential_vault: upserted credentials for brand=%s service=%s", brand_id, service_name)
 
 
