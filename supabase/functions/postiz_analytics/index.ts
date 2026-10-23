@@ -21,8 +21,13 @@ type PostAnalytics = {
 };
 
 Deno.serve(async (req: Request) => {
+  const reqOrigin = req.headers.get('origin') || '';
+  const allowedOriginsRaw = Deno.env.get('ALLOWED_ORIGINS') || 'http://localhost:3000';
+  const allowedOrigins = allowedOriginsRaw.split(',').map(o => o.trim());
+  const originHeader = allowedOrigins.includes(reqOrigin) ? reqOrigin : allowedOrigins[0];
+
   const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': originHeader,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
   };
