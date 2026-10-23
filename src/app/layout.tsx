@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import { JsonLd } from "@/components/seo/json-ld";
 import "./globals.css";
 
@@ -97,10 +98,8 @@ export default function RootLayout({
     >
       <head>
         {process.env.NODE_ENV === "development" && (
-          <script
-            suppressHydrationWarning
-            dangerouslySetInnerHTML={{
-              __html: `
+          <Script id="bitdefender-hydration-fix">
+              {`
                 (function() {
                   const removeAttr = (el) => {
                     if (el && el.removeAttribute) {
@@ -142,9 +141,8 @@ export default function RootLayout({
                     attributeFilter: ['bis_skin_checked']
                   });
                 })();
-              `,
-            }}
-          />
+              `}
+            </Script>
         )}
       </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
