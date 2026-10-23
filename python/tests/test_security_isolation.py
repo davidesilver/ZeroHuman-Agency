@@ -11,7 +11,7 @@ from fastapi import HTTPException
 
 class TestBrandIsolation:
     def setup_method(self):
-        import sys, os
+        import sys
         from pathlib import Path
         src_path = str(Path(__file__).parent.parent / "src")
         if src_path not in sys.path:
@@ -79,7 +79,6 @@ class TestBrandIsolation:
 
     def test_scheduler_brand_id_extraction(self):
         """Verify scheduler extracts system BRAND_ID from env."""
-        import os
         from content_engine.api.routes import _get_scheduler_brand_id
         import content_engine.api.routes as routes_module
         
