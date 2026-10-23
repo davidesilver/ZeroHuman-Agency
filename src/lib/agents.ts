@@ -142,7 +142,7 @@ export function getGodSystemAgents(): AgentKey[] {
  * Helper: Check if agent key is valid
  */
 export function isValidAgentKey(key: string): key is AgentKey {
-  return key in AGENT_KEYS
+  return Object.values(AGENT_KEYS).includes(key as AgentKey)
 }
 
 /**
