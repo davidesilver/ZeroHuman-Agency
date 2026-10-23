@@ -57,8 +57,6 @@ export async function proxyToBackend(
     headers['Authorization'] = authHeader
   }
   if (activeBrandId) {
-    // P1 runtime fix: propagate the explicitly selected tenant to Python.
-    // The backend still validates membership before honoring the header.
     headers['X-Brand-ID'] = activeBrandId
   }
 
