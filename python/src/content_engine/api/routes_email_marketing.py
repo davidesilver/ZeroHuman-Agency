@@ -82,7 +82,7 @@ async def sync_contacts(body: ContactSyncRequest, request: Request):
     errors: list[dict[str, str]] = []
 
     if body.csv:
-        for contact in client.import_contacts_csv(body.csv, list_id=body.list_id):
+        async for contact in client.import_contacts_csv(body.csv, list_id=body.list_id):
             _mirror_contact(brand_id, contact)
             synced += 1
     elif body.contacts:
@@ -95,7 +95,7 @@ async def sync_contacts(body: ContactSyncRequest, request: Request):
                     attributes=c.attributes,
                     list_ids=[body.list_id] if body.list_id else [],
                 )
-                result = client.create_or_update_contact(contact)
+                result = await client.create_or_update_contact(contact)
                 _mirror_contact(brand_id, result)
                 synced += 1
             except Exception as exc:
@@ -115,7 +115,7 @@ async def get_lists(request: Request):
 
     try:
         client = BrevoClient(brand_id)
-        lists = client.list_lists()
+        lists = await client.list_lists()
     except BrevoAuthError as exc:
         raise HTTPException(422, str(exc))
 
@@ -136,7 +136,7 @@ async def create_list(body: ListCreateRequest, request: Request):
 
     try:
         client = BrevoClient(brand_id)
-        lst = client.create_list(body.name.strip(), folder_id=body.folder_id)
+        lst = await client.create_list(body.name.strip(), folder_id=body.folder_id)
     except BrevoAuthError as exc:
         raise HTTPException(422, str(exc))
 
