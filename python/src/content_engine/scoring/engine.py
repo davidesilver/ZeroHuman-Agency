@@ -129,7 +129,6 @@ async def check_anti_hype(item: dict, brand: dict) -> dict:
     return parsed
 
 async def score_item(item: dict, brand: dict) -> tuple[ScoreResult, float, str]:
-    # Bug 0.1 Fix: Load brand_data from DB to avoid NameError
     from ..db import get_db
     db = get_db()
     brand_resp = db.table("brands").select("*").eq("id", brand.get("id", "")).single().execute()
