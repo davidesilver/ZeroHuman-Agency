@@ -4,14 +4,15 @@ Verify that multi-brand isolation is maintained and the hardcoded BRAND_ID
 is no longer in effect.
 """
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 from fastapi import HTTPException
 
 
 class TestBrandIsolation:
     def setup_method(self):
-        import sys, os
+        import sys
         from pathlib import Path
         src_path = str(Path(__file__).parent.parent / "src")
         if src_path not in sys.path:
@@ -42,8 +43,8 @@ class TestBrandIsolation:
 
     def test_get_client_db_uses_jwt_when_available(self):
         """Verify RLS enforcement: it should use get_user_db when JWT is present."""
-        from content_engine.api.routes import _get_client_db
         import content_engine.api.routes as routes_module
+        from content_engine.api.routes import _get_client_db
 
         # Mock get_user_db
         mock_user_db = MagicMock()
@@ -60,8 +61,8 @@ class TestBrandIsolation:
 
     def test_get_client_db_falls_back_to_service_role_without_jwt(self):
         """Scheduler/Cron routes don't have JWT, they should fallback to service role."""
-        from content_engine.api.routes import _get_client_db
         import content_engine.api.routes as routes_module
+        from content_engine.api.routes import _get_client_db
 
         # Mock get_db
         mock_service_db = MagicMock()
@@ -79,9 +80,8 @@ class TestBrandIsolation:
 
     def test_scheduler_brand_id_extraction(self):
         """Verify scheduler extracts system BRAND_ID from env."""
-        import os
-        from content_engine.api.routes import _get_scheduler_brand_id
         import content_engine.api.routes as routes_module
+        from content_engine.api.routes import _get_scheduler_brand_id
         
         # Mock env variable extraction at runtime
         routes_module._SCHEDULER_BRAND_ID = "cron-brand-456"
@@ -97,8 +97,8 @@ class TestBrandIsolation:
 
     def test_scheduler_brand_ids_uses_override_when_present(self):
         """Explicit env override should still scope cron to a single brand."""
-        from content_engine.api.routes import _get_scheduler_brand_ids
         import content_engine.api.routes as routes_module
+        from content_engine.api.routes import _get_scheduler_brand_ids
 
         routes_module._SCHEDULER_BRAND_ID = "cron-brand-456"
         assert _get_scheduler_brand_ids() == ["cron-brand-456"]
@@ -109,9 +109,10 @@ class TestBrandIsolation:
         across every tenant — otherwise a misconfigured deploy leaks across
         brands.
         """
-        from content_engine.api.routes import _get_scheduler_brand_ids
-        import content_engine.api.routes as routes_module
         from fastapi import HTTPException
+
+        import content_engine.api.routes as routes_module
+        from content_engine.api.routes import _get_scheduler_brand_ids
 
         routes_module._SCHEDULER_BRAND_ID = ""
         routes_module._SCHEDULER_ALLOW_ALL_BRANDS = False
@@ -123,8 +124,8 @@ class TestBrandIsolation:
     def test_scheduler_brand_ids_reads_memberships_when_explicitly_allowed(self):
         """When the operator explicitly opts in via SCHEDULER_ALLOW_ALL_BRANDS,
         fanning out across brand_members is the documented multi-brand path."""
-        from content_engine.api.routes import _get_scheduler_brand_ids
         import content_engine.api.routes as routes_module
+        from content_engine.api.routes import _get_scheduler_brand_ids
 
         routes_module._SCHEDULER_BRAND_ID = ""
         routes_module._SCHEDULER_ALLOW_ALL_BRANDS = True
